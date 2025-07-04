@@ -1,0 +1,374 @@
+# ============================================================================
+# Flow Heart Token Control API - Git Ignore Configuration
+# ============================================================================
+
+# ============================================================================
+# Node.js & npm/pnpm
+# ============================================================================
+
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Package manager files
+package-lock.json
+yarn.lock
+.pnpm-store/
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# nyc test coverage
+.nyc_output
+
+# node-wasm
+*.wasm
+
+# ============================================================================
+# TypeScript
+# ============================================================================
+
+# Compiled output
+dist/
+build/
+*.tsbuildinfo
+
+# Type definitions cache
+*.d.ts.map
+
+# ============================================================================
+# Testing
+# ============================================================================
+
+# Jest
+coverage/
+*.lcov
+.nyc_output
+test-results/
+junit.xml
+
+# Playwright
+test-results/
+playwright-report/
+playwright/.cache/
+
+# ============================================================================
+# Environment & Configuration
+# ============================================================================
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.*
+
+# Local configuration
+config/local.json
+config/local.js
+config/local.ts
+
+# ============================================================================
+# Serverless Framework
+# ============================================================================
+
+# Serverless directories
+.serverless/
+.serverless_plugins/
+
+# Serverless webpack
+.webpack/
+
+# Serverless next.js
+.serverless-nextjs/
+
+# AWS
+.aws/
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# ============================================================================
+# IDEs & Editors
+# ============================================================================
+
+# Visual Studio Code
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# JetBrains IDEs
+.idea/
+*.swp
+*.swo
+*~
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# Sublime Text
+*.sublime-workspace
+*.sublime-project
+
+# ============================================================================
+# Operating System
+# ============================================================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# ============================================================================
+# Logs
+# ============================================================================
+
+# General logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Diagnostic reports
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# ============================================================================
+# Temporary & Cache
+# ============================================================================
+
+# Temporary folders
+tmp/
+temp/
+.tmp/
+.temp/
+
+# Cache directories
+.cache/
+.npm/
+.eslintcache
+.stylelintcache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# ============================================================================
+# Deployment & Production
+# ============================================================================
+
+# Production build
+build/
+dist/
+
+# Static files
+out/
+.next/
+.nuxt/
+.vuepress/dist/
+
+# Deployment configs
+deploy.sh
+deployment/
+
+# ============================================================================
+# Flow Blockchain Specific
+# ============================================================================
+
+# Flow CLI
+.flowconfig
+flow-typed/
+
+# Flow accounts (sensitive)
+flow-accounts.json
+accounts.json
+
+# Private keys (NEVER commit these!)
+*.pkey
+*.privatekey
+*private-key*
+*private_key*
+
+# ============================================================================
+# Security & Secrets
+# ============================================================================
+
+# Secrets
+secrets/
+*.secret
+*.key
+*.pem
+*.p12
+*.pfx
+
+# AWS credentials
+.aws/credentials
+.aws/config
+
+# Google Cloud
+gcloud-service-key.json
+*.json.enc
+
+# SSH keys
+*.rsa
+*.pub
+id_*
+
+# ============================================================================
+# Database
+# ============================================================================
+
+# SQLite
+*.sqlite
+*.sqlite3
+*.db
+
+# Database dumps
+*.sql
+*.dump
+
+# ============================================================================
+# Miscellaneous
+# ============================================================================
+
+# Webpack
+webpack-stats.json
+
+# Parcel
+.parcel-cache/
+
+# Storybook
+.out/
+.storybook-out/
+
+# Temporary folders
+.tmp/
+.temp/
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.history/*
+
+# Local History for Visual Studio Code
+.history/
+
+# Built Visual Studio Code Extensions
+*.vsix
+
+# ============================================================================
+# Project Specific
+# ============================================================================
+
+# Generated API documentation
+docs/generated/
+api-docs/
+
+# Generated tsoa files (these will be regenerated)
+build/routes.ts
+build/swagger.json
+
+# Lambda deployment packages
+*.zip
+
+# Local development database
+dev.db
+test.db
+
+# Performance monitoring
+.clinic/
+.0x/
+
+# Local SSL certificates
+*.crt
+*.pem
+*.key
+
+# Custom scripts
+scripts/local/
+local-*
+
+# Backup files
+*.backup
+*.bak
+*.orig 

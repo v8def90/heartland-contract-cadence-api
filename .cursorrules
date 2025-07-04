@@ -1,0 +1,946 @@
+# Flow Network Heart Token Control API - Serverless Framework Rules
+
+## Project Overview
+
+**Project**: Flow Heart Token Control API
+**Framework**: Serverless Framework (AWS Lambda)
+**Runtime**: Node.js 22.x (Latest LTS)
+**Blockchain**: Flow Network (Testnet: 0x58f9e6153690c852)
+**SDK**: @onflow/fcl for Flow blockchain interaction
+**Target Contract**: Heart Token (Heart.cdc)
+**Architecture**: RESTful API with JWT authentication
+
+## Technology Stack
+
+### Core Framework
+
+- **Serverless Framework**: Infrastructure as Code for AWS Lambda
+- **Runtime**: Node.js 22.x (Latest LTS)
+- **Language**: TypeScript 5.x with strict mode
+- **Package Manager**: pnpm (Fast, disk space efficient package manager)
+- **API Gateway**: AWS API Gateway v2 (HTTP API)
+
+### Flow Blockchain Integration
+
+- **Primary SDK**: @onflow/fcl (Flow Client Library)
+- **Supporting Libraries**:
+  - @onflow/types
+  - @onflow/util-encode-key
+- **Network**: Flow Testnet (access.devnet.nodes.onflow.org:9000)
+
+### API & Documentation Framework
+
+- **API Framework**: tsoa (TypeScript OpenAPI)
+- **Documentation**: Auto-generated OpenAPI 3.0 specification with @Example decorators
+- **Validation**: Runtime type validation with tsoa decorators
+- **Type Safety**: End-to-end TypeScript type safety
+- **Response Format**: JSON with TypeScript interfaces
+- **Interactive Testing**: Swagger UI for live API testing
+
+### TypeScript Development Environment
+
+- **Language**: TypeScript 5.x with strict mode enabled
+- **Linter**: ESLint with @typescript-eslint parser and Airbnb TypeScript rules
+- **Formatter**: Prettier with TypeScript-specific formatting
+- **Type Checker**: tsc --noEmit for compile-time type validation
+- **Documentation**: TSDoc for all public APIs and interfaces
+- **Import Style**: Type-only imports where appropriate (import type)
+- **Build Process**: TypeScript → JavaScript (dist/) → Lambda deployment
+
+### Security & Authentication
+
+- **Authentication**: JWT (JSON Web Tokens) with TypeScript types
+- **Authorization**: Role-based access control with strict typing
+- **Validation**: tsoa decorators for request/response validation
+
+### AWS Services
+
+- **Compute**: AWS Lambda
+- **API Gateway**: AWS API Gateway (HTTP API)
+- **Region**: ap-northeast-1 (Tokyo)
+- **Monitoring**: CloudWatch
+- **Environment**: Development/Production separation
+
+## Project Structure
+
+```
+heartland-contract-cadence-api/
+├── src/
+│   ├── controllers/       # tsoa Controllers with decorators
+│   │   ├── queries/       # Read-only operations (@Get)
+│   │   ├── transactions/  # State-changing operations (@Post)
+│   │   └── auth/          # Authentication endpoints
+│   ├── models/            # TypeScript interfaces & types
+│   │   ├── requests/      # Request DTOs
+│   │   ├── responses/     # Response DTOs
+│   │   └── flow/          # Flow-specific types
+│   ├── services/          # Business logic services
+│   │   ├── flowService.ts # Flow blockchain interaction
+│   │   ├── authService.ts # JWT authentication
+│   │   └── validationService.ts
+│   ├── utils/             # Utility functions
+│   │   ├── constants.ts   # Contract addresses, configurations
+│   │   ├── responses.ts   # Standard API responses
+│   │   └── logger.ts      # Logging utilities
+│   ├── config/            # Configuration files
+│   │   ├── flow.ts        # Flow network configuration
+│   │   └── jwt.ts         # JWT configuration
+│   ├── middleware/        # Express-like middleware for Lambda
+│   └── handlers/          # Lambda function handlers (tsoa generated)
+├── tests/                 # Unit and integration tests
+├── scripts/              # Flow scripts (read operations)
+├── transactions/         # Flow transactions (write operations)
+├── build/                # tsoa generated files
+│   ├── routes.ts         # Auto-generated routes
+│   └── swagger.json      # Auto-generated OpenAPI spec
+├── docs/                 # API documentation (auto-generated)
+├── tsconfig.json         # TypeScript configuration
+├── tsoa.json             # tsoa configuration
+├── serverless.yml        # Serverless Framework configuration
+├── package.json
+├── pnpm-lock.yaml        # pnpm lock file
+└── README.md
+```
+
+## Naming Conventions
+
+### File & Directory Naming
+
+- **Controllers**: PascalCase + Controller suffix (e.g., `BalanceController.ts`, `TransferController.ts`)
+- **Services**: camelCase (e.g., `flowService.ts`, `authService.ts`)
+- **Models**: PascalCase (e.g., `TransferRequest.ts`, `BalanceResponse.ts`)
+- **Config Files**: camelCase (e.g., `flow.ts`, `jwt.ts`)
+- **Lambda Functions**: camelCase in code, kebab-case in serverless.yml
+
+### TypeScript Code Naming
+
+- **Interfaces**: PascalCase with `I` prefix (`IFlowService`, `IAuthPayload`)
+- **Types**: PascalCase (`FlowAddress`, `TokenAmount`)
+- **Enums**: PascalCase (`UserRole`, `TransactionStatus`)
+- **Functions**: camelCase (`getBalance`, `transferTokens`)
+- **Variables**: camelCase (`tokenAmount`, `recipientAddress`)
+- **Constants**: UPPER_SNAKE_CASE (`CONTRACT_ADDRESS`, `JWT_SECRET`)
+- **Classes**: PascalCase (`FlowService`, `AuthService`)
+
+### tsoa Decorators Naming
+
+- **Controllers**: `@Route()` with kebab-case paths (`/heart-tokens`)
+- **Endpoints**: HTTP methods as decorators (`@Get()`, `@Post()`)
+- **Models**: `@Example()` for documentation
+- **Security**: `@Security()` for JWT endpoints
+
+## Heart Token API Endpoints
+
+### Read Operations (Scripts)
+
+- `GET /balance/{address}` - Get HEART token balance
+- `GET /total-supply` - Get total token supply
+- `GET /tax-rate` - Get current tax rate
+- `GET /treasury-account` - Get treasury account address
+- `GET /pause-status` - Check if contract is paused
+- `GET /tax-calculation/{amount}` - Calculate tax for amount
+- `GET /admin-capabilities/{address}` - Check admin capabilities
+
+### Write Operations (Transactions)
+
+- `POST /setup-account` - Setup HEART vault for address
+- `POST /mint-tokens` - Mint new tokens (admin only)
+- `POST /transfer` - Transfer tokens with tax
+- `POST /batch-transfer` - Batch transfer to multiple recipients
+- `POST /burn-tokens` - Burn tokens
+- `POST /pause` - Pause contract (admin only)
+- `POST /unpause` - Unpause contract (admin only)
+- `POST /set-tax-rate` - Update tax rate (admin only)
+- `POST /set-treasury` - Update treasury account (admin only)
+
+### Authentication
+
+- `POST /auth/login` - Generate JWT token
+- `POST /auth/verify` - Verify JWT token
+
+## Flow Integration Patterns
+
+### FCL Configuration (TypeScript)
+
+```typescript
+import * as fcl from "@onflow/fcl";
+import { FlowConfig } from "../types/flow";
+
+// Testnet configuration
+const flowConfig: FlowConfig = {
+  "accessNode.api": "https://rest-testnet.onflow.org",
+  "discovery.wallet": "https://fcl-discovery.onflow.org/testnet/authn",
+  "0xHeart": "0x58f9e6153690c852",
+};
+
+fcl.config(flowConfig);
+```
+
+### Script Execution Pattern (TypeScript)
+
+```typescript
+import * as fcl from "@onflow/fcl";
+
+interface ScriptResult<T = any> {
+  success: boolean;
+  data?: T;
+  error?: string;
+}
+
+const executeScript = async <T = any>(
+  scriptCode: string,
+  args: fcl.ArgumentFunction[] = []
+): Promise<ScriptResult<T>> => {
+  try {
+    const result = await fcl.query({
+      cadence: scriptCode,
+      args: args,
+    });
+    return { success: true, data: result };
+  } catch (error) {
+    return {
+      success: false,
+      error: `Script execution failed: ${error.message}`,
+    };
+  }
+};
+```
+
+### Transaction Execution Pattern (TypeScript)
+
+```typescript
+import * as fcl from "@onflow/fcl";
+
+interface TransactionResult {
+  success: boolean;
+  txId?: string;
+  transaction?: any;
+  error?: string;
+}
+
+const executeTransaction = async (
+  transactionCode: string,
+  args: fcl.ArgumentFunction[] = [],
+  authorizations: fcl.AuthorizationFunction[] = []
+): Promise<TransactionResult> => {
+  try {
+    const txId = await fcl.mutate({
+      cadence: transactionCode,
+      args: args,
+      authorizations: authorizations,
+      limit: 1000,
+    });
+
+    const transaction = await fcl.tx(txId).onceSealed();
+    return { success: true, txId, transaction };
+  } catch (error) {
+    return {
+      success: false,
+      error: `Transaction failed: ${error.message}`,
+    };
+  }
+};
+```
+
+## Security Best Practices
+
+### Authentication & Authorization
+
+- Implement JWT-based authentication for protected endpoints
+- Use role-based access control (admin, user roles)
+- Validate all input parameters
+- Implement rate limiting
+
+### Flow Security
+
+- Validate all Flow addresses using proper format
+- Implement proper error handling for blockchain interactions
+- Never expose private keys in logs or responses
+- Use environment variables for sensitive configuration
+
+### AWS Lambda Security
+
+- Follow principle of least privilege for IAM roles
+- Enable CloudWatch logging for monitoring
+- Implement input validation and sanitization
+- Use AWS Secrets Manager for sensitive data
+
+## Error Handling
+
+### TypeScript Error Types
+
+```typescript
+export interface ApiError {
+  code: string;
+  message: string;
+  details?: string;
+}
+
+export interface ErrorResponse {
+  success: false;
+  error: ApiError;
+  timestamp: string;
+}
+
+export interface SuccessResponse<T = any> {
+  success: true;
+  data: T;
+  timestamp: string;
+}
+
+export type ApiResponse<T = any> = SuccessResponse<T> | ErrorResponse;
+```
+
+### Standard Error Response Format (tsoa)
+
+```typescript
+// tsoa Example decorator for error responses
+@Example<ErrorResponse>({
+  success: false,
+  error: {
+    code: "FLOW_NETWORK_ERROR",
+    message: "Unable to connect to Flow network",
+    details: "Network timeout after 30 seconds"
+  },
+  timestamp: "2024-01-01T00:00:00.000Z"
+})
+```
+
+### Flow Error Categories
+
+- **FLOW_NETWORK_ERROR**: Network connectivity issues
+- **FLOW_SCRIPT_ERROR**: Script execution failures
+- **FLOW_TRANSACTION_ERROR**: Transaction execution failures
+- **FLOW_ACCOUNT_ERROR**: Account-related issues
+- **CONTRACT_ERROR**: Heart contract specific errors
+
+### HTTP Status Codes
+
+- `200` - Success
+- `400` - Bad Request (validation errors)
+- `401` - Unauthorized (authentication required)
+- `403` - Forbidden (insufficient permissions)
+- `404` - Not Found
+- `500` - Internal Server Error
+- `503` - Service Unavailable (Flow network issues)
+
+## Development Workflow
+
+### Environment Setup
+
+1. Install Node.js 22.x (Latest LTS)
+2. Install pnpm: `npm install -g pnpm`
+3. Install Serverless Framework CLI: `pnpm install -g serverless`
+4. Configure AWS credentials
+5. Install project dependencies: `pnpm install`
+6. Set up environment variables
+
+### Testing Strategy
+
+- **Unit Tests**: Jest with TypeScript support for individual functions
+- **Integration Tests**: Test Flow blockchain interactions with type safety
+- **API Tests**: Test HTTP endpoints with tsoa-generated types
+- **Load Tests**: Test Lambda performance and memory usage
+- **Type Testing**: TypeScript compilation as part of CI/CD
+- **Coverage Requirement**: Minimum 80% test coverage mandatory
+- **Type Coverage**: 100% TypeScript type coverage (no any types)
+
+### Deployment Process
+
+1. **Type Check**: `tsc --noEmit` (compile-time validation)
+2. **Lint & Format**: `pnpm run lint` + `pnpm run format`
+3. **Unit Tests**: `pnpm test` (80% coverage required)
+4. **Build**: TypeScript compilation to `dist/` directory
+5. **Generate API Docs**: `pnpm run tsoa:spec-and-routes` → `swagger.json`
+6. **Deploy Development**: `serverless deploy --stage dev`
+7. **Integration Tests**: Test against deployed API
+8. **Deploy Production**: `serverless deploy --stage prod`
+9. **Swagger UI**: Deploy interactive API documentation
+
+## Performance Optimization
+
+### Lambda Optimization
+
+- Use connection pooling for external services
+- Implement proper warming strategies
+- Optimize cold start times
+- Use appropriate memory allocation
+
+### Flow Optimization
+
+- Cache frequently accessed data
+- Implement batching for multiple operations
+- Use efficient script/transaction patterns
+- Monitor gas usage
+
+## Monitoring & Logging
+
+### CloudWatch Metrics
+
+- API response times
+- Error rates
+- Lambda duration and memory usage
+- Flow transaction success rates
+
+### Logging Strategy
+
+- Use structured logging (JSON format)
+- Log all API requests/responses
+- Log Flow transaction IDs for tracking
+- Implement correlation IDs
+
+## Configuration Management
+
+### Environment Variables
+
+```
+# Flow Network
+FLOW_ACCESS_NODE=https://rest-testnet.onflow.org
+HEART_CONTRACT_ADDRESS=0x58f9e6153690c852
+
+# Authentication
+JWT_SECRET=your-jwt-secret
+JWT_EXPIRATION=24h
+
+# AWS
+AWS_REGION=ap-northeast-1
+STAGE=dev|prod
+```
+
+### TypeScript Configuration
+
+```json
+// tsconfig.json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "commonjs",
+    "lib": ["ES2022"],
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "removeComments": false,
+    "preserveConstEnums": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "build", "**/*.test.ts", "**/*.spec.ts"]
+}
+```
+
+### ESLint Configuration
+
+```json
+// .eslintrc.json
+{
+  "parser": "@typescript-eslint/parser",
+  "extends": [
+    "@typescript-eslint/recommended",
+    "@typescript-eslint/recommended-requiring-type-checking",
+    "airbnb-typescript/base",
+    "prettier"
+  ],
+  "plugins": ["@typescript-eslint", "tsdoc"],
+  "parserOptions": {
+    "ecmaVersion": 2022,
+    "sourceType": "module",
+    "project": "./tsconfig.json"
+  },
+  "rules": {
+    "@typescript-eslint/no-explicit-any": "error",
+    "@typescript-eslint/no-unused-vars": "error",
+    "@typescript-eslint/explicit-function-return-type": "warn",
+    "@typescript-eslint/prefer-type-only-imports": "error",
+    "tsdoc/syntax": "warn"
+  }
+}
+```
+
+### Prettier Configuration
+
+```json
+// .prettierrc
+{
+  "semi": true,
+  "trailingComma": "es5",
+  "singleQuote": true,
+  "printWidth": 80,
+  "tabWidth": 2,
+  "useTabs": false,
+  "bracketSpacing": true,
+  "arrowParens": "avoid"
+}
+```
+
+### tsoa Configuration
+
+```json
+// tsoa.json
+{
+  "entryFile": "src/app.ts",
+  "noImplicitAdditionalProperties": "throw-on-extras",
+  "controllerPathGlobs": ["src/controllers/**/*Controller.ts"],
+  "spec": {
+    "outputDirectory": "build",
+    "specVersion": 3,
+    "name": "Flow Heart Token Control API",
+    "description": "TypeScript-based Serverless API for Flow Heart Token Contract",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Heart Token API Support",
+      "email": "support@hearttoken.example.com"
+    },
+    "license": "MIT",
+    "securityDefinitions": {
+      "jwt": {
+        "type": "apiKey",
+        "name": "Authorization",
+        "in": "header",
+        "description": "JWT Bearer Token"
+      }
+    },
+    "produces": ["application/json"],
+    "consumes": ["application/json"],
+    "tags": [
+      { "name": "Balance", "description": "Token balance operations" },
+      { "name": "Transfer", "description": "Token transfer operations" },
+      { "name": "Admin", "description": "Administrative operations" },
+      { "name": "Auth", "description": "Authentication operations" }
+    ]
+  },
+  "routes": {
+    "routesDir": "build",
+    "middleware": "express",
+    "middlewareTemplate": "src/middleware/template.ts"
+  },
+  "ignore": ["**/node_modules/**"],
+  "compilerOptions": {
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
+  }
+}
+```
+
+### Package.json Scripts
+
+```json
+{
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "test": "jest --coverage --coverageThreshold='{\"global\":{\"lines\":80}}'",
+    "test:watch": "jest --watch",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "format": "prettier --write src/**/*.ts",
+    "type-check": "tsc --noEmit",
+    "tsoa:spec": "tsoa spec",
+    "tsoa:routes": "tsoa routes",
+    "tsoa:spec-and-routes": "pnpm run tsoa:spec && pnpm run tsoa:routes",
+    "docs:serve": "swagger-ui-serve build/swagger.json",
+    "deploy:dev": "pnpm run build && pnpm run tsoa:spec-and-routes && serverless deploy --stage dev",
+    "deploy:prod": "pnpm run build && pnpm run tsoa:spec-and-routes && serverless deploy --stage prod",
+    "offline": "pnpm run build && pnpm run tsoa:spec-and-routes && serverless offline"
+  }
+}
+```
+
+### tsoa Controller Pattern
+
+````typescript
+import {
+  Controller,
+  Get,
+  Post,
+  Route,
+  Security,
+  Body,
+  Path,
+  Query,
+  Tags,
+  Example,
+  SuccessResponse,
+  Response,
+} from "tsoa";
+import type {
+  ApiResponse,
+  BalanceData,
+  TransferData,
+  TransferRequest,
+} from "../models";
+
+/**
+ * Heart Token Controller
+ *
+ * @description Handles all Heart Token related operations including balance queries,
+ * transfers, and administrative functions for the Flow blockchain Heart contract.
+ *
+ * @example
+ * ```typescript
+ * const controller = new HeartTokenController();
+ * const balance = await controller.getBalance("0x123...");
+ * ```
+ */
+@Route("heart-tokens")
+@Tags("Heart Token")
+export class HeartTokenController extends Controller {
+  /**
+   * Get HEART token balance for a specific address
+   *
+   * @description Retrieves the current HEART token balance for the specified Flow address.
+   * This operation executes a Flow script and does not require authentication.
+   *
+   * @param address - Flow blockchain address (0x prefixed hex string)
+   * @returns Promise resolving to balance information
+   *
+   * @example address "0x58f9e6153690c852"
+   */
+  @Get("balance/{address}")
+  @SuccessResponse("200", "Balance retrieved successfully")
+  @Response<ErrorResponse>("400", "Invalid address format")
+  @Response<ErrorResponse>("404", "Address not found")
+  @Response<ErrorResponse>("500", "Flow network error")
+  @Example<SuccessResponse<BalanceData>>({
+    success: true,
+    data: {
+      balance: "1000.0",
+      address: "0x58f9e6153690c852",
+      decimals: 8,
+      formatted: "1,000.00 HEART",
+    },
+    timestamp: "2024-07-04T00:00:00.000Z",
+  })
+  public async getBalance(
+    @Path() address: string
+  ): Promise<ApiResponse<BalanceData>> {
+    // TSDoc implementation details
+    // 1. Validate Flow address format
+    // 2. Execute Flow script: getBalance.cdc
+    // 3. Return formatted balance response
+  }
+
+  /**
+   * Transfer HEART tokens with automatic tax calculation
+   *
+   * @description Initiates a HEART token transfer from the authenticated user to the
+   * specified recipient. Automatically calculates and deducts the configured tax rate.
+   *
+   * @param request - Transfer request containing recipient and amount
+   * @returns Promise resolving to transaction information
+   *
+   * @security JWT authentication required
+   */
+  @Post("transfer")
+  @Security("jwt")
+  @Tags("Transfer")
+  @SuccessResponse("200", "Transfer completed successfully")
+  @Response<ErrorResponse>("400", "Invalid transfer request")
+  @Response<ErrorResponse>("401", "Authentication required")
+  @Response<ErrorResponse>("403", "Insufficient balance or permissions")
+  @Response<ErrorResponse>("500", "Transaction failed")
+  @Example<SuccessResponse<TransferData>>({
+    success: true,
+    data: {
+      txId: "abc123def456",
+      status: "sealed",
+      amount: "100.0",
+      tax: "5.0",
+      netAmount: "95.0",
+      recipient: "0x1234567890abcdef",
+      blockHeight: 12345678,
+    },
+    timestamp: "2024-07-04T00:00:00.000Z",
+  })
+  @Example<ErrorResponse>("Invalid Request", {
+    success: false,
+    error: {
+      code: "INVALID_AMOUNT",
+      message: "Transfer amount must be greater than 0",
+      details: "Received amount: -10.0",
+    },
+    timestamp: "2024-07-04T00:00:00.000Z",
+  })
+  public async transferTokens(
+    @Body() request: TransferRequest
+  ): Promise<ApiResponse<TransferData>> {
+    // TSDoc implementation details
+    // 1. Validate JWT and extract user address
+    // 2. Validate transfer request (amount, recipient)
+    // 3. Calculate tax amount
+    // 4. Execute Flow transaction: transfer-heart.cdc
+    // 5. Return transaction result
+  }
+
+  /**
+   * Get current tax rate
+   *
+   * @description Retrieves the current tax rate percentage applied to all transfers.
+   * This is a read-only operation that executes a Flow script.
+   *
+   * @returns Promise resolving to current tax rate
+   */
+  @Get("tax-rate")
+  @Tags("Configuration")
+  @SuccessResponse("200", "Tax rate retrieved successfully")
+  @Example<SuccessResponse<{ taxRate: number }>>({
+    success: true,
+    data: { taxRate: 5.0 },
+    timestamp: "2024-07-04T00:00:00.000Z",
+  })
+  public async getTaxRate(): Promise<ApiResponse<{ taxRate: number }>> {
+    // Implementation with TSDoc
+  }
+}
+````
+
+### Serverless.yml Structure
+
+```yaml
+service: heartland-contract-cadence-api
+frameworkVersion: "3"
+
+provider:
+  name: aws
+  runtime: nodejs22.x
+  region: ap-northeast-1
+  stage: ${opt:stage, 'dev'}
+  timeout: 30
+  memorySize: 512
+  environment:
+    NODE_ENV: ${opt:stage, 'dev'}
+    FLOW_ACCESS_NODE: ${env:FLOW_ACCESS_NODE}
+    HEART_CONTRACT_ADDRESS: ${env:HEART_CONTRACT_ADDRESS}
+    JWT_SECRET: ${env:JWT_SECRET}
+  logs:
+    httpApi: true
+  tracing:
+    lambda: true
+
+plugins:
+  - serverless-plugin-typescript
+  - serverless-offline
+  - serverless-plugin-warmup
+
+functions:
+  # Generated by tsoa routes
+  app:
+    handler: dist/lambda.handler
+    events:
+      - httpApi: "*"
+    warmup:
+      enabled: true
+      prewarm: true
+
+  # Swagger UI hosting
+  swaggerUI:
+    handler: dist/swagger.handler
+    events:
+      - httpApi:
+          path: /docs
+          method: get
+      - httpApi:
+          path: /docs/{proxy+}
+          method: get
+
+custom:
+  serverless-offline:
+    httpPort: 3000
+    noAuth: true
+    resourceRoutes: true
+
+  serverless-plugin-typescript:
+    tsConfigFileLocation: "tsconfig.json"
+
+  warmup:
+    prewarm: true
+    concurrency: 2
+
+package:
+  patterns:
+    - "!src/**"
+    - "!tests/**"
+    - "!node_modules/@types/**"
+    - "!*.md"
+    - dist/**
+    - build/swagger.json
+```
+
+### Jest Configuration
+
+```json
+// jest.config.js
+module.exports = {
+  preset: 'ts-jest',
+  testEnvironment: 'node',
+  roots: ['<rootDir>/src', '<rootDir>/tests'],
+  testMatch: ['**/__tests__/**/*.ts', '**/?(*.)+(spec|test).ts'],
+  transform: {
+    '^.+\\.ts$': 'ts-jest',
+  },
+  collectCoverageFrom: [
+    'src/**/*.ts',
+    '!src/**/*.d.ts',
+    '!src/**/*.test.ts',
+    '!src/**/*.spec.ts',
+    '!src/index.ts',
+  ],
+  coverageDirectory: 'coverage',
+  coverageReporters: ['text', 'lcov', 'html'],
+  coverageThreshold: {
+    global: {
+      lines: 80,
+      functions: 80,
+      branches: 80,
+      statements: 80,
+    },
+  },
+  setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
+  testTimeout: 30000,
+};
+```
+
+## Heart Token Specific Requirements
+
+### Contract Integration
+
+- **Contract Address**: 0x58f9e6153690c852 (Testnet)
+- **Available Scripts**: getBalance, getTotalSupply, get-pause-status, etc.
+- **Available Transactions**: transfer-heart, mint-tokens, pause-heart, etc.
+
+### Business Logic
+
+- Implement 5% tax calculation for transfers
+- Handle treasury account management
+- Support pause/unpause functionality
+- Implement role-based access (admin, minter, pauser)
+
+### Future Bot Integration
+
+- Design JSON responses compatible with Line Bot API
+- Design JSON responses compatible with Discord Bot API
+- Implement webhook support for real-time notifications
+- Consider message formatting for chat platforms
+
+## Code Quality Standards
+
+### TypeScript & ESLint Configuration
+
+- Use @typescript-eslint with Airbnb TypeScript style guide
+- Enable strict TypeScript mode in tsconfig.json
+- Implement consistent formatting with Prettier
+- Require proper TSDoc comments for all public APIs
+- Use type-only imports where appropriate
+- Enforce no-any rule with specific exceptions
+
+### tsoa Best Practices
+
+- Use proper TypeScript interfaces for all request/response models
+- Implement @Example decorators for comprehensive API documentation
+- Use @Security decorators for protected endpoints
+- Validate input with tsoa's built-in validation
+- Document all error scenarios with appropriate HTTP status codes
+- Utilize @Tags for API grouping and organization
+- Apply @SuccessResponse and @Response decorators for status codes
+- Use type-only imports for models and interfaces
+
+### TSDoc Documentation Standards
+
+All public APIs must include comprehensive TSDoc comments with:
+
+````typescript
+/**
+ * Brief function description
+ *
+ * @description Detailed explanation of the function's purpose and behavior
+ *
+ * @param paramName - Parameter description with type information
+ * @param optionalParam - Optional parameter (marked with ?)
+ * @returns Promise description with resolved type information
+ *
+ * @throws {ErrorType} Description of when this error is thrown
+ *
+ * @example
+ * ```typescript
+ * const result = await functionName(param1, param2);
+ * console.log(result.data);
+ * ```
+ *
+ * @see {@link RelatedFunction} for related functionality
+ * @since 1.0.0
+ * @beta This feature is experimental
+ */
+````
+
+### Code Review Guidelines
+
+- All code must be reviewed before merge
+- TypeScript compilation must pass without errors (`tsc --noEmit`)
+- Unit tests must pass with ≥80% coverage (enforced by Jest)
+- ESLint and Prettier checks must pass
+- tsoa generated swagger.json must be valid OpenAPI 3.0
+- API documentation must be updated automatically
+- Security considerations must be addressed
+- TSDoc comments must be complete for all public APIs
+- No `any` types allowed (enforced by ESLint)
+- Type-only imports must be used where applicable
+
+## Documentation Requirements
+
+### API Documentation (tsoa Generated)
+
+- Auto-generated OpenAPI 3.0 specification from TypeScript types
+- Comprehensive request/response examples with @Example decorators
+- Type-safe error handling documentation
+- JWT authentication flow documentation
+- Interactive Swagger UI for API testing
+
+### Code Documentation
+
+- TSDoc comments for all public functions and interfaces
+- Type definitions serve as living documentation
+- README with TypeScript setup instructions
+- Flow integration guide with TypeScript examples
+- Deployment guide for TypeScript compilation
+
+## Git Workflow
+
+### Branch Strategy
+
+- `main`: Production-ready code
+- `develop`: Development integration
+- `feature/*`: Feature development
+- `hotfix/*`: Production hotfixes
+
+### Commit Message Format
+
+- `feat:` - New features
+- `fix:` - Bug fixes
+- `docs:` - Documentation updates
+- `test:` - Test additions/updates
+- `refactor:` - Code refactoring
+- `chore:` - Maintenance tasks
+
+## Reference Links
+
+- **Flow Documentation**: https://developers.flow.com/
+- **FCL Documentation**: https://docs.onflow.org/fcl/
+- **Serverless Framework**: https://www.serverless.com/framework/docs/
+- **AWS Lambda**: https://docs.aws.amazon.com/lambda/
+- **Heart Contract**: https://testnet.flowscan.org/account/0x58f9e6153690c852
