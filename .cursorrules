@@ -1,10 +1,51 @@
 # Flow Network Heart Token Control API - Serverless Framework Rules
 
+# ============================================================================
+
+# 🚨 NEW CURSOR SESSION CONTEXT - READ THIS FIRST!
+
+# ============================================================================
+
+# IMPORTANT: New session? Read these files first!
+
+# 1. PROJECT_STATUS.md - Current project status and next steps
+
+# 2. CURSOR_CONTEXT.md - Detailed work history and technical decisions
+
+# 3. README.md - Project overview and setup instructions
+
+# Current Project Status:
+
+# ✅ Project initialization COMPLETE
+
+# ✅ All dependencies installed
+
+# ✅ TypeScript configuration COMPLETE
+
+# ✅ ESLint v9 + Prettier setup COMPLETE
+
+# ✅ Git repository initialized (commit: 7b4af33)
+
+# 🚧 GitHub repository creation in progress
+
+# 📝 Next: API endpoint implementation
+
+# Quick Status Check Commands:
+
+# git status && git log --oneline
+
+# pnpm install && pnpm run build
+
+# pnpm run lint && pnpm run test
+
+# ============================================================================
+
 ## Project Overview
 
-**Project**: Flow Heart Token Control API
+**Project**: Flow Heart Token Control API (heartland-contract-cadence-api)
 **Framework**: Serverless Framework (AWS Lambda)
 **Runtime**: Node.js 22.x (Latest LTS)
+**Package Manager**: pnpm (IMPORTANT: Use pnpm, not npm!)
 **Blockchain**: Flow Network (Testnet: 0x58f9e6153690c852)
 **SDK**: @onflow/fcl for Flow blockchain interaction
 **Target Contract**: Heart Token (Heart.cdc)
@@ -163,14 +204,14 @@ heartland-contract-cadence-api/
 ### FCL Configuration (TypeScript)
 
 ```typescript
-import * as fcl from "@onflow/fcl";
-import { FlowConfig } from "../types/flow";
+import * as fcl from '@onflow/fcl';
+import { FlowConfig } from '../types/flow';
 
 // Testnet configuration
 const flowConfig: FlowConfig = {
-  "accessNode.api": "https://rest-testnet.onflow.org",
-  "discovery.wallet": "https://fcl-discovery.onflow.org/testnet/authn",
-  "0xHeart": "0x58f9e6153690c852",
+  'accessNode.api': 'https://rest-testnet.onflow.org',
+  'discovery.wallet': 'https://fcl-discovery.onflow.org/testnet/authn',
+  '0xHeart': '0x58f9e6153690c852',
 };
 
 fcl.config(flowConfig);
@@ -179,7 +220,7 @@ fcl.config(flowConfig);
 ### Script Execution Pattern (TypeScript)
 
 ```typescript
-import * as fcl from "@onflow/fcl";
+import * as fcl from '@onflow/fcl';
 
 interface ScriptResult<T = any> {
   success: boolean;
@@ -209,7 +250,7 @@ const executeScript = async <T = any>(
 ### Transaction Execution Pattern (TypeScript)
 
 ```typescript
-import * as fcl from "@onflow/fcl";
+import * as fcl from '@onflow/fcl';
 
 interface TransactionResult {
   success: boolean;
@@ -578,13 +619,13 @@ import {
   Example,
   SuccessResponse,
   Response,
-} from "tsoa";
+} from 'tsoa';
 import type {
   ApiResponse,
   BalanceData,
   TransferData,
   TransferRequest,
-} from "../models";
+} from '../models';
 
 /**
  * Heart Token Controller
@@ -598,8 +639,8 @@ import type {
  * const balance = await controller.getBalance("0x123...");
  * ```
  */
-@Route("heart-tokens")
-@Tags("Heart Token")
+@Route('heart-tokens')
+@Tags('Heart Token')
 export class HeartTokenController extends Controller {
   /**
    * Get HEART token balance for a specific address
@@ -612,20 +653,20 @@ export class HeartTokenController extends Controller {
    *
    * @example address "0x58f9e6153690c852"
    */
-  @Get("balance/{address}")
-  @SuccessResponse("200", "Balance retrieved successfully")
-  @Response<ErrorResponse>("400", "Invalid address format")
-  @Response<ErrorResponse>("404", "Address not found")
-  @Response<ErrorResponse>("500", "Flow network error")
+  @Get('balance/{address}')
+  @SuccessResponse('200', 'Balance retrieved successfully')
+  @Response<ErrorResponse>('400', 'Invalid address format')
+  @Response<ErrorResponse>('404', 'Address not found')
+  @Response<ErrorResponse>('500', 'Flow network error')
   @Example<SuccessResponse<BalanceData>>({
     success: true,
     data: {
-      balance: "1000.0",
-      address: "0x58f9e6153690c852",
+      balance: '1000.0',
+      address: '0x58f9e6153690c852',
       decimals: 8,
-      formatted: "1,000.00 HEART",
+      formatted: '1,000.00 HEART',
     },
-    timestamp: "2024-07-04T00:00:00.000Z",
+    timestamp: '2024-07-04T00:00:00.000Z',
   })
   public async getBalance(
     @Path() address: string
@@ -647,35 +688,35 @@ export class HeartTokenController extends Controller {
    *
    * @security JWT authentication required
    */
-  @Post("transfer")
-  @Security("jwt")
-  @Tags("Transfer")
-  @SuccessResponse("200", "Transfer completed successfully")
-  @Response<ErrorResponse>("400", "Invalid transfer request")
-  @Response<ErrorResponse>("401", "Authentication required")
-  @Response<ErrorResponse>("403", "Insufficient balance or permissions")
-  @Response<ErrorResponse>("500", "Transaction failed")
+  @Post('transfer')
+  @Security('jwt')
+  @Tags('Transfer')
+  @SuccessResponse('200', 'Transfer completed successfully')
+  @Response<ErrorResponse>('400', 'Invalid transfer request')
+  @Response<ErrorResponse>('401', 'Authentication required')
+  @Response<ErrorResponse>('403', 'Insufficient balance or permissions')
+  @Response<ErrorResponse>('500', 'Transaction failed')
   @Example<SuccessResponse<TransferData>>({
     success: true,
     data: {
-      txId: "abc123def456",
-      status: "sealed",
-      amount: "100.0",
-      tax: "5.0",
-      netAmount: "95.0",
-      recipient: "0x1234567890abcdef",
+      txId: 'abc123def456',
+      status: 'sealed',
+      amount: '100.0',
+      tax: '5.0',
+      netAmount: '95.0',
+      recipient: '0x1234567890abcdef',
       blockHeight: 12345678,
     },
-    timestamp: "2024-07-04T00:00:00.000Z",
+    timestamp: '2024-07-04T00:00:00.000Z',
   })
-  @Example<ErrorResponse>("Invalid Request", {
+  @Example<ErrorResponse>('Invalid Request', {
     success: false,
     error: {
-      code: "INVALID_AMOUNT",
-      message: "Transfer amount must be greater than 0",
-      details: "Received amount: -10.0",
+      code: 'INVALID_AMOUNT',
+      message: 'Transfer amount must be greater than 0',
+      details: 'Received amount: -10.0',
     },
-    timestamp: "2024-07-04T00:00:00.000Z",
+    timestamp: '2024-07-04T00:00:00.000Z',
   })
   public async transferTokens(
     @Body() request: TransferRequest
@@ -696,13 +737,13 @@ export class HeartTokenController extends Controller {
    *
    * @returns Promise resolving to current tax rate
    */
-  @Get("tax-rate")
-  @Tags("Configuration")
-  @SuccessResponse("200", "Tax rate retrieved successfully")
+  @Get('tax-rate')
+  @Tags('Configuration')
+  @SuccessResponse('200', 'Tax rate retrieved successfully')
   @Example<SuccessResponse<{ taxRate: number }>>({
     success: true,
     data: { taxRate: 5.0 },
-    timestamp: "2024-07-04T00:00:00.000Z",
+    timestamp: '2024-07-04T00:00:00.000Z',
   })
   public async getTaxRate(): Promise<ApiResponse<{ taxRate: number }>> {
     // Implementation with TSDoc
@@ -714,7 +755,7 @@ export class HeartTokenController extends Controller {
 
 ```yaml
 service: heartland-contract-cadence-api
-frameworkVersion: "3"
+frameworkVersion: '3'
 
 provider:
   name: aws
@@ -743,7 +784,7 @@ functions:
   app:
     handler: dist/lambda.handler
     events:
-      - httpApi: "*"
+      - httpApi: '*'
     warmup:
       enabled: true
       prewarm: true
@@ -766,7 +807,7 @@ custom:
     resourceRoutes: true
 
   serverless-plugin-typescript:
-    tsConfigFileLocation: "tsconfig.json"
+    tsConfigFileLocation: 'tsconfig.json'
 
   warmup:
     prewarm: true
@@ -774,10 +815,10 @@ custom:
 
 package:
   patterns:
-    - "!src/**"
-    - "!tests/**"
-    - "!node_modules/@types/**"
-    - "!*.md"
+    - '!src/**'
+    - '!tests/**'
+    - '!node_modules/@types/**'
+    - '!*.md'
     - dist/**
     - build/swagger.json
 ```

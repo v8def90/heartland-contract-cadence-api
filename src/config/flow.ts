@@ -267,7 +267,7 @@ export const isValidTransactionId = (txId: string): boolean => {
  */
 export const formatHeartAmount = (
   amount: string,
-  includeSymbol = false
+  includeSymbol = false,
 ): string => {
   try {
     const numAmount = parseFloat(amount);
