@@ -10,189 +10,181 @@
  */
 
 /**
- * Token transfer request
+ * Request Models for Heart Token API
  *
- * @description Request payload for transferring HEART tokens.
- * Includes automatic tax calculation and validation.
+ * @description TypeScript interfaces for all API request payloads.
+ * These models are used for request validation and type safety.
+ */
+
+/**
+ * Transfer request payload
+ *
+ * @description Request to transfer HEART tokens to a recipient address.
  *
  * @example
  * ```typescript
- * const transferRequest: TransferRequest = {
- *   recipient: "0x1234567890abcdef",
- *   amount: "100.0",
- *   memo: "Payment for services"
+ * const request: TransferRequest = {
+ *   recipient: "0x58f9e6153690c852",
+ *   amount: "100.0"
  * };
  * ```
  */
 export interface TransferRequest {
   /** Recipient Flow address (0x prefixed) */
   recipient: string;
-  /** Amount to transfer (as string to avoid precision issues) */
+  /** Amount to transfer (string representation of decimal) */
   amount: string;
-  /** Optional memo for the transfer */
-  memo?: string;
 }
 
 /**
- * Batch transfer request
+ * Individual transfer item for batch operations
  *
- * @description Request payload for transferring tokens to multiple recipients.
- * Each transfer is processed independently with tax calculation.
+ * @description Single transfer item within a batch transfer request.
+ */
+export interface TransferItem {
+  /** Recipient Flow address (0x prefixed) */
+  recipient: string;
+  /** Amount to transfer (string representation of decimal) */
+  amount: string;
+}
+
+/**
+ * Batch transfer request payload
+ *
+ * @description Request to transfer HEART tokens to multiple recipients.
  *
  * @example
  * ```typescript
- * const batchRequest: BatchTransferRequest = {
+ * const request: BatchTransferRequest = {
  *   transfers: [
- *     { recipient: "0x123...", amount: "100.0" },
- *     { recipient: "0x456...", amount: "200.0", memo: "Bonus payment" }
+ *     { recipient: "0x58f9e6153690c852", amount: "100.0" },
+ *     { recipient: "0x1234567890abcdef", amount: "50.0" }
  *   ]
  * };
  * ```
  */
 export interface BatchTransferRequest {
-  /** Array of individual transfer requests */
-  transfers: TransferRequest[];
+  /** Array of transfer items */
+  transfers: TransferItem[];
 }
 
 /**
- * Token minting request
+ * Mint tokens request payload (admin only)
  *
- * @description Request payload for minting new HEART tokens.
- * Requires admin privileges.
+ * @description Request to mint new HEART tokens to a recipient address.
  *
  * @example
  * ```typescript
- * const mintRequest: MintTokensRequest = {
+ * const request: MintTokensRequest = {
  *   recipient: "0x58f9e6153690c852",
- *   amount: "1000.0",
- *   reason: "Initial token distribution"
+ *   amount: "1000.0"
  * };
  * ```
  */
 export interface MintTokensRequest {
-  /** Address to receive newly minted tokens */
+  /** Recipient Flow address (0x prefixed) */
   recipient: string;
-  /** Amount of tokens to mint */
+  /** Amount to mint (string representation of decimal) */
   amount: string;
-  /** Reason for minting (for audit purposes) */
-  reason?: string;
 }
 
 /**
- * Token burning request
+ * Burn tokens request payload
  *
- * @description Request payload for burning HEART tokens.
- * Tokens are removed from total supply.
+ * @description Request to burn HEART tokens from the sender's account.
  *
  * @example
  * ```typescript
- * const burnRequest: BurnTokensRequest = {
- *   amount: "500.0",
- *   reason: "Token buyback program"
+ * const request: BurnTokensRequest = {
+ *   amount: "50.0"
  * };
  * ```
  */
 export interface BurnTokensRequest {
-  /** Amount of tokens to burn from sender's balance */
+  /** Amount to burn (string representation of decimal) */
   amount: string;
-  /** Reason for burning (for audit purposes) */
-  reason?: string;
 }
 
 /**
- * Tax rate update request
+ * Set tax rate request payload (admin only)
  *
- * @description Request payload for updating the transfer tax rate.
- * Requires admin privileges.
+ * @description Request to update the tax rate for transfers.
  *
  * @example
  * ```typescript
- * const taxRateRequest: SetTaxRateRequest = {
- *   taxRate: 3.5,
- *   reason: "Quarterly tax adjustment"
+ * const request: SetTaxRateRequest = {
+ *   taxRate: 5.0
  * };
  * ```
  */
 export interface SetTaxRateRequest {
-  /** New tax rate as percentage (0.0 to 100.0) */
+  /** Tax rate as percentage (e.g., 5.0 for 5%) */
   taxRate: number;
-  /** Reason for tax rate change */
-  reason?: string;
 }
 
 /**
- * Treasury account update request
+ * Set treasury account request payload (admin only)
  *
- * @description Request payload for updating the treasury account address.
- * Requires admin privileges.
+ * @description Request to update the treasury account address.
  *
  * @example
  * ```typescript
- * const treasuryRequest: SetTreasuryRequest = {
- *   treasuryAddress: "0x58f9e6153690c852",
- *   reason: "Treasury migration"
+ * const request: SetTreasuryRequest = {
+ *   treasuryAddress: "0x58f9e6153690c852"
  * };
  * ```
  */
 export interface SetTreasuryRequest {
-  /** New treasury account Flow address */
+  /** New treasury account address (0x prefixed) */
   treasuryAddress: string;
-  /** Reason for treasury change */
-  reason?: string;
 }
 
 /**
- * Account setup request
+ * Setup account request payload
  *
- * @description Request payload for setting up a HEART token vault.
- * Creates the necessary resources for an address to hold HEART tokens.
+ * @description Request to setup a HEART token vault for an address.
  *
  * @example
  * ```typescript
- * const setupRequest: SetupAccountRequest = {
- *   address: "0x1234567890abcdef"
+ * const request: SetupAccountRequest = {
+ *   address: "0x58f9e6153690c852"
  * };
  * ```
  */
 export interface SetupAccountRequest {
-  /** Flow address to set up for HEART tokens */
+  /** Address to setup vault for (0x prefixed) */
   address: string;
 }
 
 /**
- * Authentication login request
+ * Authentication login request payload
  *
- * @description Request payload for JWT token generation.
- * Used to authenticate users for protected endpoints.
+ * @description Request to authenticate and generate JWT token.
  *
  * @example
  * ```typescript
- * const loginRequest: LoginRequest = {
+ * const request: LoginRequest = {
  *   address: "0x58f9e6153690c852",
- *   signature: "abc123def456...",
- *   message: "Login to Heart Token API"
+ *   signature: "abc123..."
  * };
  * ```
  */
 export interface LoginRequest {
-  /** Flow address of the user */
+  /** User's Flow address (0x prefixed) */
   address: string;
-  /** Cryptographic signature proving ownership */
-  signature: string;
-  /** Message that was signed */
-  message: string;
+  /** Optional signature for verification */
+  signature?: string;
 }
 
 /**
- * JWT token verification request
+ * JWT token verification request payload
  *
- * @description Request payload for verifying JWT tokens.
- * Used to validate authentication status.
+ * @description Request to verify a JWT token.
  *
  * @example
  * ```typescript
- * const verifyRequest: VerifyTokenRequest = {
- *   token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+ * const request: VerifyTokenRequest = {
+ *   token: "eyJhbGciOiJIUzI1NiIs..."
  * };
  * ```
  */

@@ -108,15 +108,21 @@ export interface SuccessResponse<T = unknown> {
 export type ApiResponse<T = unknown> = SuccessResponse<T> | ErrorResponse;
 
 /**
- * HEART token balance information
+ * Response Models for Heart Token API
  *
- * @description Represents the balance information for a Flow address.
- * Used by balance query endpoints.
+ * @description TypeScript interfaces for all API response payloads.
+ * These models define the structure of successful API responses.
+ */
+
+/**
+ * Balance information response
+ *
+ * @description Contains HEART token balance information for an address.
  *
  * @example
  * ```typescript
- * const balanceData: BalanceData = {
- *   balance: "1000.00000000",
+ * const response: BalanceData = {
+ *   balance: "1000.0",
  *   address: "0x58f9e6153690c852",
  *   decimals: 8,
  *   formatted: "1,000.00 HEART"
@@ -124,159 +130,363 @@ export type ApiResponse<T = unknown> = SuccessResponse<T> | ErrorResponse;
  * ```
  */
 export interface BalanceData {
-  /** Raw balance value as string (to avoid precision issues) */
+  /** Raw balance as string (avoids precision issues) */
   balance: string;
-  /** Flow address that owns this balance */
+  /** Address that owns the balance */
   address: string;
   /** Number of decimal places for the token */
   decimals: number;
-  /** Human-readable formatted balance with token symbol */
+  /** Human-readable formatted balance */
   formatted: string;
 }
 
 /**
- * Token transfer transaction result
+ * Token supply information response
  *
- * @description Represents the result of a successful token transfer transaction.
- *
- * @example
- * ```typescript
- * const transferData: TransferData = {
- *   txId: "abc123def456",
- *   status: "sealed",
- *   amount: "100.0",
- *   tax: "5.0",
- *   netAmount: "95.0",
- *   recipient: "0x1234567890abcdef",
- *   blockHeight: 12345678
- * };
- * ```
- */
-export interface TransferData {
-  /** Flow transaction ID */
-  txId: string;
-  /** Transaction status (pending, executed, sealed, expired) */
-  status: string;
-  /** Original transfer amount */
-  amount: string;
-  /** Tax amount deducted */
-  tax: string;
-  /** Net amount transferred after tax */
-  netAmount: string;
-  /** Recipient Flow address */
-  recipient: string;
-  /** Block height where transaction was included */
-  blockHeight: number;
-}
-
-/**
- * Total supply information
- *
- * @description Represents the total supply of HEART tokens.
+ * @description Contains total supply information for HEART tokens.
  *
  * @example
  * ```typescript
- * const supplyData: TotalSupplyData = {
- *   totalSupply: "1000000.00000000",
- *   formatted: "1,000,000.00 HEART",
- *   decimals: 8
+ * const response: TotalSupplyData = {
+ *   totalSupply: "1000000.0",
+ *   decimals: 8,
+ *   formatted: "1,000,000.00 HEART"
  * };
  * ```
  */
 export interface TotalSupplyData {
   /** Total supply as string */
   totalSupply: string;
-  /** Formatted total supply with symbol */
-  formatted: string;
-  /** Token decimals */
+  /** Number of decimal places for the token */
   decimals: number;
+  /** Human-readable formatted total supply */
+  formatted: string;
 }
 
 /**
- * Tax rate information
+ * Tax rate information response
  *
- * @description Represents the current tax rate configuration.
+ * @description Contains current tax rate information.
  *
  * @example
  * ```typescript
- * const taxRateData: TaxRateData = {
+ * const response: TaxRateData = {
  *   taxRate: 5.0,
- *   formatted: "5.00%"
+ *   formatted: "5.0%"
  * };
  * ```
  */
 export interface TaxRateData {
-  /** Tax rate as percentage (e.g., 5.0 for 5%) */
+  /** Tax rate as percentage */
   taxRate: number;
-  /** Formatted tax rate string */
+  /** Human-readable formatted tax rate */
   formatted: string;
 }
 
 /**
- * Treasury account information
+ * Treasury account information response
  *
- * @description Represents treasury account details.
+ * @description Contains treasury account address information.
  *
  * @example
  * ```typescript
- * const treasuryData: TreasuryData = {
- *   address: "0x58f9e6153690c852",
- *   balance: "50000.00000000"
+ * const response: TreasuryData = {
+ *   treasuryAddress: "0x58f9e6153690c852",
+ *   isValid: true
  * };
  * ```
  */
 export interface TreasuryData {
-  /** Treasury Flow address */
-  address: string;
-  /** Current treasury balance */
-  balance: string;
+  /** Treasury account address */
+  treasuryAddress: string;
+  /** Whether the treasury address is valid */
+  isValid: boolean;
 }
 
 /**
- * Contract pause status
+ * Contract pause status response
  *
- * @description Represents whether the Heart contract is paused.
+ * @description Contains information about contract pause status.
  *
  * @example
  * ```typescript
- * const pauseStatus: PauseStatusData = {
+ * const response: PauseStatusData = {
  *   isPaused: false,
- *   lastChanged: "2024-07-04T00:00:00.000Z"
+ *   pausedAt: null,
+ *   pausedBy: null
  * };
  * ```
  */
 export interface PauseStatusData {
   /** Whether the contract is currently paused */
   isPaused: boolean;
-  /** Timestamp when pause status was last changed */
-  lastChanged?: string;
+  /** Timestamp when paused (if applicable) */
+  pausedAt: string | null;
+  /** Address that paused the contract (if applicable) */
+  pausedBy: string | null;
 }
 
 /**
- * Admin capabilities information
+ * Tax calculation response
  *
- * @description Represents the admin capabilities for a specific address.
+ * @description Contains tax calculation results for a given amount.
  *
  * @example
  * ```typescript
- * const adminCaps: AdminCapabilitiesData = {
+ * const response: TaxCalculationData = {
+ *   amount: "100.0",
+ *   taxRate: 5.0,
+ *   taxAmount: "5.0",
+ *   netAmount: "95.0"
+ * };
+ * ```
+ */
+export interface TaxCalculationData {
+  /** Original amount */
+  amount: string;
+  /** Tax rate applied */
+  taxRate: number;
+  /** Tax amount calculated */
+  taxAmount: string;
+  /** Net amount after tax deduction */
+  netAmount: string;
+}
+
+/**
+ * Admin capabilities response
+ *
+ * @description Contains information about admin capabilities for an address.
+ *
+ * @example
+ * ```typescript
+ * const response: AdminCapabilitiesData = {
  *   address: "0x58f9e6153690c852",
- *   isAdmin: true,
- *   isMinter: true,
- *   isPauser: true,
- *   isTaxManager: false
+ *   canMint: true,
+ *   canBurn: true,
+ *   canPause: true,
+ *   canSetTaxRate: true,
+ *   canSetTreasury: true,
+ *   isAdmin: true
  * };
  * ```
  */
 export interface AdminCapabilitiesData {
   /** Address being checked */
   address: string;
-  /** Whether address has admin capabilities */
+  /** Can mint new tokens */
+  canMint: boolean;
+  /** Can burn tokens */
+  canBurn: boolean;
+  /** Can pause/unpause contract */
+  canPause: boolean;
+  /** Can set tax rate */
+  canSetTaxRate: boolean;
+  /** Can set treasury address */
+  canSetTreasury: boolean;
+  /** Has admin privileges */
   isAdmin: boolean;
-  /** Whether address can mint tokens */
-  isMinter: boolean;
-  /** Whether address can pause/unpause contract */
-  isPauser: boolean;
-  /** Whether address can manage tax settings */
-  isTaxManager: boolean;
+}
+
+/**
+ * Transaction result response
+ *
+ * @description Contains information about a completed transaction.
+ *
+ * @example
+ * ```typescript
+ * const response: TransactionData = {
+ *   txId: "abc123def456",
+ *   status: "sealed",
+ *   blockHeight: 12345678,
+ *   blockId: "def456ghi789",
+ *   events: []
+ * };
+ * ```
+ */
+export interface TransactionData {
+  /** Transaction ID */
+  txId: string;
+  /** Transaction status */
+  status: 'pending' | 'sealed' | 'executed' | 'expired';
+  /** Block height where transaction was included */
+  blockHeight?: number;
+  /** Block ID where transaction was included */
+  blockId?: string;
+  /** Events emitted by the transaction */
+  events?: TransactionEvent[];
+}
+
+/**
+ * Transaction event data
+ *
+ * @description Information about events emitted during transaction execution.
+ *
+ * @example
+ * ```typescript
+ * const event: TransactionEvent = {
+ *   type: "A.58f9e6153690c852.Heart.TokensTransferred",
+ *   values: { amount: "100.0", from: "0x123...", to: "0x456..." }
+ * };
+ * ```
+ */
+export interface TransactionEvent {
+  /** Event type identifier */
+  type: string;
+  /** Event values */
+  values: Record<string, unknown>;
+}
+
+/**
+ * Transfer operation response
+ *
+ * @description Contains information about a completed transfer.
+ *
+ * @example
+ * ```typescript
+ * const response: TransferData = {
+ *   txId: "abc123def456",
+ *   status: "sealed",
+ *   amount: "100.0",
+ *   tax: "5.0",
+ *   netAmount: "95.0",
+ *   recipient: "0x1234567890abcdef",
+ *   sender: "0x58f9e6153690c852",
+ *   blockHeight: 12345678
+ * };
+ * ```
+ */
+export interface TransferData extends TransactionData {
+  /** Transfer amount */
+  amount: string;
+  /** Tax amount deducted */
+  tax: string;
+  /** Net amount received by recipient */
+  netAmount: string;
+  /** Recipient address */
+  recipient: string;
+  /** Sender address */
+  sender: string;
+}
+
+/**
+ * Batch transfer operation response
+ *
+ * @description Contains information about a completed batch transfer.
+ *
+ * @example
+ * ```typescript
+ * const response: BatchTransferData = {
+ *   txId: "abc123def456",
+ *   status: "sealed",
+ *   totalAmount: "150.0",
+ *   totalTax: "7.5",
+ *   totalNetAmount: "142.5",
+ *   transfers: [
+ *     { recipient: "0x123...", amount: "100.0", tax: "5.0", netAmount: "95.0" },
+ *     { recipient: "0x456...", amount: "50.0", tax: "2.5", netAmount: "47.5" }
+ *   ],
+ *   blockHeight: 12345678
+ * };
+ * ```
+ */
+export interface BatchTransferData extends TransactionData {
+  /** Total amount transferred */
+  totalAmount: string;
+  /** Total tax deducted */
+  totalTax: string;
+  /** Total net amount transferred */
+  totalNetAmount: string;
+  /** Individual transfer details */
+  transfers: Array<{
+    recipient: string;
+    amount: string;
+    tax: string;
+    netAmount: string;
+  }>;
+}
+
+/**
+ * Account setup response
+ *
+ * @description Contains information about account setup operation.
+ *
+ * @example
+ * ```typescript
+ * const response: AccountSetupData = {
+ *   address: "0x58f9e6153690c852",
+ *   setupComplete: true,
+ *   vaultPath: "/storage/heartVault",
+ *   publicPath: "/public/heartBalance"
+ * };
+ * ```
+ */
+export interface AccountSetupData {
+  /** Address that was set up */
+  address: string;
+  /** Whether setup was completed successfully */
+  setupComplete: boolean;
+  /** Storage path for the vault */
+  vaultPath: string;
+  /** Public path for balance checking */
+  publicPath: string;
+}
+
+/**
+ * Authentication response
+ *
+ * @description Contains authentication information and JWT token.
+ *
+ * @example
+ * ```typescript
+ * const response: AuthData = {
+ *   token: "eyJhbGciOiJIUzI1NiIs...",
+ *   expiresIn: 86400,
+ *   address: "0x58f9e6153690c852",
+ *   role: "user",
+ *   issuedAt: "2024-01-01T00:00:00.000Z"
+ * };
+ * ```
+ */
+export interface AuthData {
+  /** JWT token */
+  token: string;
+  /** Token expiration time in seconds */
+  expiresIn: number;
+  /** Authenticated user address */
+  address: string;
+  /** User role */
+  role: 'user' | 'admin' | 'minter' | 'pauser';
+  /** Token issued timestamp */
+  issuedAt: string;
+}
+
+/**
+ * Token verification response
+ *
+ * @description Contains token verification results.
+ *
+ * @example
+ * ```typescript
+ * const response: TokenVerificationData = {
+ *   valid: true,
+ *   address: "0x58f9e6153690c852",
+ *   role: "user",
+ *   expiresAt: "2024-01-02T00:00:00.000Z",
+ *   issuedAt: "2024-01-01T00:00:00.000Z"
+ * };
+ * ```
+ */
+export interface TokenVerificationData {
+  /** Whether token is valid */
+  valid: boolean;
+  /** Address from token (if valid) */
+  address?: string;
+  /** Role from token (if valid) */
+  role?: string;
+  /** Token expiration timestamp (if valid) */
+  expiresAt?: string;
+  /** Token issued timestamp (if valid) */
+  issuedAt?: string;
+  /** Error message (if invalid) */
+  error?: string;
 }

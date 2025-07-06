@@ -2,42 +2,59 @@
   "entryFile": "src/app.ts",
   "noImplicitAdditionalProperties": "throw-on-extras",
   "controllerPathGlobs": ["src/controllers/**/*Controller.ts"],
+  "compilerOptions": {
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
+  },
   "spec": {
     "outputDirectory": "build",
     "specVersion": 3,
     "name": "Flow Heart Token Control API",
-    "description": "TypeScript-based Serverless API for Flow Heart Token Contract",
+    "description": "TypeScript-based Serverless API for Flow Heart Token Contract interactions including balance queries, token transfers, and administrative operations.",
     "version": "1.0.0",
     "contact": {
       "name": "Heart Token API Support",
-      "email": "support@hearttoken.example.com"
+      "email": "support@hearttoken.flow.io"
     },
     "license": "MIT",
+    "host": "localhost:3000",
+    "schemes": ["http", "https"],
+    "consumes": ["application/json"],
+    "produces": ["application/json"],
     "securityDefinitions": {
       "jwt": {
         "type": "apiKey",
         "name": "Authorization",
         "in": "header",
-        "description": "JWT Bearer Token"
+        "description": "JWT Bearer Token (format: 'Bearer {token}')"
       }
     },
-    "produces": ["application/json"],
-    "consumes": ["application/json"],
     "tags": [
-      { "name": "Balance", "description": "Token balance operations" },
-      { "name": "Transfer", "description": "Token transfer operations" },
-      { "name": "Admin", "description": "Administrative operations" },
-      { "name": "Auth", "description": "Authentication operations" }
+      {
+        "name": "Balance",
+        "description": "Token balance operations and queries"
+      },
+      {
+        "name": "Token Info",
+        "description": "General token information (supply, tax rate, etc.)"
+      },
+      {
+        "name": "Transfer",
+        "description": "Token transfer operations"
+      },
+      {
+        "name": "Admin",
+        "description": "Administrative operations (mint, burn, pause, etc.)"
+      },
+      {
+        "name": "Auth",
+        "description": "Authentication and authorization operations"
+      }
     ]
   },
   "routes": {
     "routesDir": "build",
-    "middleware": "express",
-    "middlewareTemplate": "src/middleware/template.ts"
+    "middleware": "express"
   },
-  "ignore": ["**/node_modules/**"],
-  "compilerOptions": {
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true
-  }
+  "ignore": ["**/node_modules/**", "**/build/**", "**/dist/**", "**/tests/**"]
 }

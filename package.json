@@ -1,13 +1,12 @@
 {
   "name": "heartland-contract-cadence-api",
   "version": "1.0.0",
-  "type": "module",
   "description": "Flow Heart Token Control API - TypeScript-based Serverless API for Flow Heart Token Contract",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "test": "jest --coverage --coverageThreshold='{\"global\":{\"lines\":80}}'",
     "test:watch": "jest --watch",
     "lint": "eslint src/**/*.ts",
@@ -65,6 +64,7 @@
     "@onflow/fcl": "^1.19.0",
     "@onflow/types": "^1.4.1",
     "@onflow/util-encode-key": "^1.2.4",
+    "@tsoa/runtime": "^6.6.0",
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
     "swagger-ui-express": "^5.0.1",
