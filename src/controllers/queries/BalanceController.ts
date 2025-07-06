@@ -363,6 +363,7 @@ export class BalanceController extends Controller {
    * @returns Debug information
    */
   @Get('debug-batch')
+  @SuccessResponse('200', 'Debug information retrieved successfully')
   public async debugBatchAddresses(@Query() addresses: string): Promise<any> {
     console.log('=== DEBUG BATCH ADDRESSES ===');
     console.log('Raw addresses parameter:', JSON.stringify(addresses));

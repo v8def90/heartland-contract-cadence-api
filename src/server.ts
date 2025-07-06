@@ -27,6 +27,10 @@ const startServer = (): void => {
     console.log('  GET /balance/{address}');
     console.log('  GET /balance/{address}/setup-status');
     console.log('  GET /balance/batch?addresses=addr1,addr2');
+    console.log('  GET /tax-rate');
+    console.log('  GET /pause-status');
+    console.log('  GET /tax-calculation/{amount}');
+    console.log('  GET /total-supply');
     console.log('');
     console.log('Press Ctrl+C to stop the server');
   });

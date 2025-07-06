@@ -14,6 +14,10 @@ import {
   API_ERROR_CODES,
 } from './models/responses/ApiResponse';
 
+// Import controllers to ensure they are loaded for tsoa
+import './controllers/queries/BalanceController';
+import './controllers/queries/TokenInfoController';
+
 /**
  * Create Express application
  *
