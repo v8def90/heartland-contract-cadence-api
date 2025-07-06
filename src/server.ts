@@ -31,6 +31,8 @@ const startServer = (): void => {
     console.log('  GET /pause-status');
     console.log('  GET /tax-calculation/{amount}');
     console.log('  GET /total-supply');
+    console.log('  GET /treasury-account');
+    console.log('  GET /admin-capabilities/{address}');
     console.log('');
     console.log('Press Ctrl+C to stop the server');
   });

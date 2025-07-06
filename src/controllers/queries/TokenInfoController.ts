@@ -100,6 +100,24 @@ export interface TotalSupplyData {
 }
 
 /**
+ * Treasury Account Information
+ *
+ * @description Information about the contract's treasury account
+ */
+export interface TreasuryAccountData {
+  /** Treasury account address */
+  treasuryAddress: string;
+  /** Current balance in the treasury account */
+  treasuryBalance: string;
+  /** Formatted treasury balance */
+  formattedBalance: string;
+  /** Last time treasury was updated */
+  lastUpdated?: string;
+  /** Treasury account capabilities */
+  capabilities: string[];
+}
+
+/**
  * Token Information Controller
  *
  * @description Handles all token information related API endpoints for the Flow Heart Token contract.
@@ -334,6 +352,62 @@ export class TokenInfoController extends Controller {
       return createErrorResponse({
         code: API_ERROR_CODES.FLOW_SCRIPT_ERROR,
         message: 'Failed to retrieve total supply',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+
+  /**
+   * Get treasury account information
+   *
+   * @description Retrieves information about the contract's treasury account,
+   * including the address, balance, and capabilities.
+   *
+   * @returns Promise resolving to treasury account information
+   */
+  @Get('/treasury-account')
+  @SuccessResponse('200', 'Treasury account information retrieved successfully')
+  @Response<ErrorResponse>('500', 'Flow network error')
+  @Example<ApiResponse<TreasuryAccountData>>({
+    success: true,
+    data: {
+      treasuryAddress: '0x58f9e6153690c852',
+      treasuryBalance: '50000.0',
+      formattedBalance: '50,000.00 HEART',
+      lastUpdated: '2024-01-01T00:00:00.000Z',
+      capabilities: ['receive', 'withdraw', 'tax_collection'],
+    },
+    timestamp: '2024-01-01T00:00:00.000Z',
+  })
+  public async getTreasuryAccount(): Promise<ApiResponse<TreasuryAccountData>> {
+    try {
+      console.log(
+        'DEBUG getTreasuryAccount: Fetching treasury account information'
+      );
+
+      // Mock implementation - replace with actual Flow script call
+      const mockTreasuryAddress = '0x58f9e6153690c852';
+      const mockTreasuryBalance = '50000.0';
+
+      const treasuryAccountData: TreasuryAccountData = {
+        treasuryAddress: mockTreasuryAddress,
+        treasuryBalance: mockTreasuryBalance,
+        formattedBalance: formatHeartAmount(mockTreasuryBalance),
+        lastUpdated: '2024-01-01T00:00:00.000Z',
+        capabilities: ['receive', 'withdraw', 'tax_collection'],
+      };
+
+      console.log(
+        'DEBUG getTreasuryAccount: Successfully retrieved treasury account:',
+        mockTreasuryAddress
+      );
+
+      return createSuccessResponse<TreasuryAccountData>(treasuryAccountData);
+    } catch (error) {
+      console.error('ERROR in getTreasuryAccount:', error);
+      return createErrorResponse({
+        code: API_ERROR_CODES.FLOW_SCRIPT_ERROR,
+        message: 'Failed to retrieve treasury account information',
         details: error instanceof Error ? error.message : 'Unknown error',
       });
     }

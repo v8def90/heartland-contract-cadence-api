@@ -17,6 +17,7 @@ import {
 // Import controllers to ensure they are loaded for tsoa
 import './controllers/queries/BalanceController';
 import './controllers/queries/TokenInfoController';
+import './controllers/queries/AdminController';
 
 /**
  * Create Express application
