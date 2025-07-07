@@ -26,6 +26,7 @@ import {
   API_ERROR_CODES,
 } from '../../models/responses/ApiResponse';
 import { isValidFlowAddress } from '../../config/flow';
+import { FlowService } from '../../services/FlowService';
 
 /**
  * Admin Capabilities Information
@@ -66,6 +67,12 @@ export interface AdminCapabilitiesData {
 @Route('/')
 @Tags('Admin')
 export class AdminController extends Controller {
+  private flowService: FlowService;
+
+  constructor() {
+    super();
+    this.flowService = new FlowService();
+  }
   /**
    * Check admin capabilities for a specific address
    *
@@ -125,47 +132,62 @@ export class AdminController extends Controller {
         });
       }
 
-      // Mock implementation - replace with actual Flow script call
-      const isContractOwner = address === '0x58f9e6153690c852'; // Mock: contract owner
-      const isAdmin = isContractOwner || address === '0x1234567890abcdef'; // Mock: admin addresses
+      // Use FlowService to get admin capabilities from Flow blockchain
+      const flowResponse = await this.flowService.getAdminCapabilities(address);
 
+      if (!flowResponse.success) {
+        return createErrorResponse({
+          code: API_ERROR_CODES.FLOW_SCRIPT_ERROR,
+          message: 'Failed to retrieve admin capabilities from Flow network',
+          details: 'FlowService returned error',
+        });
+      }
+
+      console.log(
+        'DEBUG getAdminCapabilities: FlowService response:',
+        flowResponse.data
+      );
+
+      // Map FlowService response to AdminCapabilitiesData
       let capabilities: string[] = [];
       let role: string | undefined;
 
-      if (isContractOwner) {
-        capabilities = [
-          'mint',
-          'pause',
-          'set_tax_rate',
-          'set_treasury',
-          'burn',
-        ];
-        role = 'contract_owner';
-      } else if (isAdmin) {
-        capabilities = ['mint', 'pause'];
-        role = 'admin';
+      if (flowResponse.data.isAdmin) {
+        if (address === '0x58f9e6153690c852') {
+          capabilities = [
+            'mint',
+            'pause',
+            'set_tax_rate',
+            'set_treasury',
+            'burn',
+          ];
+          role = 'contract_owner';
+        } else {
+          capabilities = ['mint', 'pause'];
+          role = 'admin';
+        }
       } else {
         capabilities = [];
       }
 
       const adminCapabilitiesData: AdminCapabilitiesData = {
-        address,
-        isAdmin,
-        canMint: capabilities.includes('mint'),
-        canPause: capabilities.includes('pause'),
-        canSetTaxRate: capabilities.includes('set_tax_rate'),
-        canSetTreasury: capabilities.includes('set_treasury'),
-        canBurn: capabilities.includes('burn'),
+        address: flowResponse.data.address,
+        isAdmin: flowResponse.data.isAdmin,
+        canMint: flowResponse.data.canMint,
+        canPause: flowResponse.data.canPause,
+        canSetTaxRate: flowResponse.data.canSetTaxRate,
+        canSetTreasury: flowResponse.data.canSetTreasury,
+        canBurn: flowResponse.data.canBurn,
         capabilities,
         ...(role && { role }),
-        lastUpdated: '2024-01-01T00:00:00.000Z',
+        lastUpdated: new Date().toISOString(),
       };
 
       console.log(
         'DEBUG getAdminCapabilities: Successfully retrieved capabilities for',
         address,
-        '- Role:',
-        role || 'user'
+        'via Flow script - Admin:',
+        flowResponse.data.isAdmin
       );
 
       return createSuccessResponse<AdminCapabilitiesData>(

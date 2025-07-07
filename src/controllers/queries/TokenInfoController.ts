@@ -25,7 +25,9 @@ import {
   createErrorResponse,
   API_ERROR_CODES,
 } from '../../models/responses/ApiResponse';
+import type { PauseStatusData } from '../../models/responses';
 import { formatHeartAmount } from '../../config/flow';
+import { FlowService } from '../../services/FlowService';
 
 /**
  * Tax Rate Information
@@ -41,22 +43,6 @@ export interface TaxRateData {
   formatted: string;
   /** Last time the tax rate was updated */
   lastUpdated?: string;
-}
-
-/**
- * Contract Pause Status Information
- *
- * @description Information about whether the contract is currently paused
- */
-export interface PauseStatusData {
-  /** Whether the contract is currently paused */
-  isPaused: boolean;
-  /** Reason for pause if paused */
-  pauseReason?: string;
-  /** Timestamp when contract was paused (if paused) */
-  pausedAt?: string;
-  /** Address that paused the contract (if paused) */
-  pausedBy?: string;
 }
 
 /**
@@ -128,6 +114,13 @@ export interface TreasuryAccountData {
 @Route('/')
 @Tags('Token Info')
 export class TokenInfoController extends Controller {
+  private flowService: FlowService;
+
+  constructor() {
+    super();
+    this.flowService = new FlowService();
+  }
+
   /**
    * Get current tax rate
    *
@@ -151,23 +144,35 @@ export class TokenInfoController extends Controller {
   })
   public async getTaxRate(): Promise<ApiResponse<TaxRateData>> {
     try {
-      console.log('DEBUG getTaxRate: Fetching current tax rate');
+      console.log(
+        'DEBUG getTaxRate: Starting tax rate retrieval via FlowService'
+      );
 
-      // Mock implementation - replace with actual Flow script call
-      const mockTaxRate = 5.0; // 5%
-      const taxRateDecimal = mockTaxRate / 100;
+      // Use FlowService to get tax rate from Flow blockchain
+      const flowResponse = await this.flowService.getTaxRate();
 
+      if (!flowResponse.success) {
+        return flowResponse;
+      }
+
+      console.log('DEBUG getTaxRate: FlowService response:', flowResponse.data);
+
+      // FlowService already returns tax rate as percentage (e.g., 5.0 for 5%)
+      const taxRatePercentage = flowResponse.data.taxRate;
+
+      // Convert FlowService response to controller response format
       const taxRateData: TaxRateData = {
-        taxRate: mockTaxRate,
-        taxRateDecimal,
-        formatted: `${mockTaxRate.toFixed(2)}%`,
-        lastUpdated: '2024-01-01T00:00:00.000Z',
+        taxRate: taxRatePercentage,
+        taxRateDecimal: taxRatePercentage / 100, // Convert percentage to decimal
+        formatted: flowResponse.data.formatted,
+        lastUpdated: new Date().toISOString(),
       };
 
       console.log(
-        'DEBUG getTaxRate: Successfully retrieved tax rate:',
-        `${mockTaxRate}%`
+        'DEBUG getTaxRate: Successfully retrieved tax rate via Flow script:',
+        `${taxRatePercentage}%`
       );
+      console.log('DEBUG getTaxRate: Final response data:', taxRateData);
 
       return createSuccessResponse<TaxRateData>(taxRateData);
     } catch (error) {
@@ -195,24 +200,34 @@ export class TokenInfoController extends Controller {
     success: true,
     data: {
       isPaused: false,
+      pausedAt: null,
+      pausedBy: null,
     },
     timestamp: '2024-01-01T00:00:00.000Z',
   })
   public async getPauseStatus(): Promise<ApiResponse<PauseStatusData>> {
     try {
-      console.log('DEBUG getPauseStatus: Checking contract pause status');
-
-      // Mock implementation - replace with actual Flow script call
-      const pauseStatusData: PauseStatusData = {
-        isPaused: false,
-      };
-
       console.log(
-        'DEBUG getPauseStatus: Contract pause status:',
-        pauseStatusData.isPaused
+        'DEBUG getPauseStatus: Starting pause status retrieval via FlowService'
       );
 
-      return createSuccessResponse<PauseStatusData>(pauseStatusData);
+      // Use FlowService to get pause status from Flow blockchain
+      const flowResponse = await this.flowService.getPauseStatus();
+
+      if (!flowResponse.success) {
+        return flowResponse;
+      }
+
+      console.log(
+        'DEBUG getPauseStatus: FlowService response:',
+        flowResponse.data
+      );
+      console.log(
+        'DEBUG getPauseStatus: Successfully retrieved pause status via Flow script:',
+        flowResponse.data.isPaused
+      );
+
+      return flowResponse;
     } catch (error) {
       console.error('ERROR in getPauseStatus:', error);
       return createErrorResponse({
@@ -267,8 +282,27 @@ export class TokenInfoController extends Controller {
         });
       }
 
-      // Get current tax rate (mock for now)
-      const currentTaxRate = 5.0; // 5%
+      // Get current tax rate from FlowService
+      console.log(
+        'DEBUG calculateTax: Retrieving current tax rate via FlowService'
+      );
+      const taxRateResponse = await this.flowService.getTaxRate();
+
+      if (!taxRateResponse.success) {
+        return createErrorResponse({
+          code: API_ERROR_CODES.FLOW_SCRIPT_ERROR,
+          message: 'Failed to retrieve current tax rate',
+          details: 'Unable to get tax rate from Flow network',
+        });
+      }
+
+      const currentTaxRate = taxRateResponse.data.taxRate;
+      console.log(
+        'DEBUG calculateTax: Retrieved tax rate:',
+        currentTaxRate,
+        '%'
+      );
+
       const taxRateDecimal = currentTaxRate / 100;
 
       // Calculate tax
@@ -286,9 +320,11 @@ export class TokenInfoController extends Controller {
       };
 
       console.log(
-        'DEBUG calculateTax: Tax calculation completed - Tax:',
+        'DEBUG calculateTax: Tax calculation completed - Tax Rate:',
+        currentTaxRate,
+        '%, Tax Amount:',
         taxAmount,
-        'Net:',
+        ', Net Amount:',
         netAmount
       );
 
@@ -327,23 +363,38 @@ export class TokenInfoController extends Controller {
   })
   public async getTotalSupply(): Promise<ApiResponse<TotalSupplyData>> {
     try {
-      console.log('DEBUG getTotalSupply: Fetching total token supply');
+      console.log(
+        'DEBUG getTotalSupply: Starting total supply retrieval via FlowService'
+      );
 
-      // Mock implementation - replace with actual Flow script call
-      const mockTotalSupply = '1000000.0';
-      const mockMaxSupply = '10000000.0';
+      // Use FlowService to get total supply from Flow blockchain
+      const flowResponse = await this.flowService.getTotalSupply();
 
+      if (!flowResponse.success) {
+        return flowResponse;
+      }
+
+      console.log(
+        'DEBUG getTotalSupply: FlowService response:',
+        flowResponse.data
+      );
+
+      // Add additional fields that are not provided by FlowService
       const totalSupplyData: TotalSupplyData = {
-        totalSupply: mockTotalSupply,
-        decimals: 8,
-        formatted: formatHeartAmount(mockTotalSupply),
-        maxSupply: mockMaxSupply,
-        circulatingSupply: mockTotalSupply, // Same as total for now
+        totalSupply: flowResponse.data.totalSupply,
+        decimals: flowResponse.data.decimals,
+        formatted: flowResponse.data.formatted,
+        maxSupply: '10000000.0', // Mock max supply for now
+        circulatingSupply: flowResponse.data.totalSupply, // Same as total for now
       };
 
       console.log(
-        'DEBUG getTotalSupply: Successfully retrieved total supply:',
-        mockTotalSupply
+        'DEBUG getTotalSupply: Successfully retrieved total supply via Flow script:',
+        flowResponse.data.totalSupply
+      );
+      console.log(
+        'DEBUG getTotalSupply: Final response data:',
+        totalSupplyData
       );
 
       return createSuccessResponse<TotalSupplyData>(totalSupplyData);
@@ -382,24 +433,39 @@ export class TokenInfoController extends Controller {
   public async getTreasuryAccount(): Promise<ApiResponse<TreasuryAccountData>> {
     try {
       console.log(
-        'DEBUG getTreasuryAccount: Fetching treasury account information'
+        'DEBUG getTreasuryAccount: Starting treasury account retrieval via FlowService'
       );
 
-      // Mock implementation - replace with actual Flow script call
-      const mockTreasuryAddress = '0x58f9e6153690c852';
+      // Use FlowService to get treasury account from Flow blockchain
+      const flowResponse = await this.flowService.getTreasuryAccount();
+
+      if (!flowResponse.success) {
+        return createErrorResponse({
+          code: API_ERROR_CODES.FLOW_SCRIPT_ERROR,
+          message: 'Failed to retrieve treasury account information',
+          details: 'FlowService returned error',
+        });
+      }
+
+      console.log(
+        'DEBUG getTreasuryAccount: FlowService response:',
+        flowResponse.data
+      );
+
+      // Get balance for treasury account (mock for now)
       const mockTreasuryBalance = '50000.0';
 
       const treasuryAccountData: TreasuryAccountData = {
-        treasuryAddress: mockTreasuryAddress,
+        treasuryAddress: flowResponse.data.treasuryAddress,
         treasuryBalance: mockTreasuryBalance,
         formattedBalance: formatHeartAmount(mockTreasuryBalance),
-        lastUpdated: '2024-01-01T00:00:00.000Z',
+        lastUpdated: new Date().toISOString(),
         capabilities: ['receive', 'withdraw', 'tax_collection'],
       };
 
       console.log(
-        'DEBUG getTreasuryAccount: Successfully retrieved treasury account:',
-        mockTreasuryAddress
+        'DEBUG getTreasuryAccount: Successfully retrieved treasury account via Flow script:',
+        flowResponse.data.treasuryAddress
       );
 
       return createSuccessResponse<TreasuryAccountData>(treasuryAccountData);

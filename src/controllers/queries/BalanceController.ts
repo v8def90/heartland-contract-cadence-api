@@ -28,6 +28,7 @@ import {
 } from '../../models/responses/ApiResponse';
 import { isValidFlowAddress, formatHeartAmount } from '../../config/flow';
 import { FLOW_CONSTANTS } from '../../config/flow';
+import { FlowService } from '../../services/FlowService';
 
 /**
  * Balance Controller
@@ -41,6 +42,13 @@ import { FLOW_CONSTANTS } from '../../config/flow';
 @Route('balance')
 @Tags('Balance')
 export class BalanceController extends Controller {
+  private flowService: FlowService;
+
+  constructor() {
+    super();
+    this.flowService = new FlowService();
+  }
+
   /**
    * Get batch balance for multiple addresses
    *
@@ -267,16 +275,27 @@ export class BalanceController extends Controller {
         });
       }
 
-      // Mock implementation for now - will be replaced with actual Flow integration
-      const mockBalance = this.getMockBalance(address);
+      console.log(
+        'DEBUG getBalance: Starting balance retrieval via FlowService for address:',
+        address
+      );
 
-      return createSuccessResponse<BalanceData>({
-        balance: mockBalance,
-        address,
-        decimals: 8,
-        formatted: formatHeartAmount(mockBalance),
-      });
+      // Use FlowService to get balance from Flow blockchain
+      const flowResponse = await this.flowService.getBalance(address);
+
+      if (!flowResponse.success) {
+        return flowResponse;
+      }
+
+      console.log('DEBUG getBalance: FlowService response:', flowResponse.data);
+      console.log(
+        'DEBUG getBalance: Successfully retrieved balance via Flow script:',
+        flowResponse.data.balance
+      );
+
+      return flowResponse;
     } catch (error) {
+      console.error('ERROR in getBalance:', error);
       return createErrorResponse({
         code: API_ERROR_CODES.FLOW_SCRIPT_ERROR,
         message: 'Failed to retrieve balance',
