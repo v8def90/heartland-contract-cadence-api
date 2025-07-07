@@ -3,43 +3,90 @@
  *
  * @description This file contains all configuration settings for Flow blockchain
  * integration including network endpoints, contract addresses, and FCL setup.
+ * Supports both mainnet and testnet environments via environment variables.
  *
  * @author Heart Token API Team
  * @since 1.0.0
  */
 
+import 'dotenv/config';
 import * as fcl from '@onflow/fcl';
 import type { FlowConfig } from '../models/flow';
+
+/**
+ * Get network-specific configuration values
+ *
+ * @description Returns configuration values based on the current network.
+ * Automatically selects appropriate endpoints for testnet or mainnet.
+ */
+function getNetworkConfig(): {
+  network: string;
+  accessNode: string;
+  discoveryWallet: string;
+} {
+  const network = process.env.FLOW_NETWORK || 'testnet';
+
+  // Default endpoints based on network
+  const networkDefaults = {
+    testnet: {
+      accessNode: 'https://rest-testnet.onflow.org',
+      discoveryWallet: 'https://fcl-discovery.onflow.org/testnet/authn',
+    },
+    mainnet: {
+      accessNode: 'https://rest-mainnet.onflow.org',
+      discoveryWallet: 'https://fcl-discovery.onflow.org/authn',
+    },
+  };
+
+  const defaults =
+    networkDefaults[network as keyof typeof networkDefaults] ||
+    networkDefaults.testnet;
+
+  return {
+    network,
+    accessNode: process.env.FLOW_ACCESS_NODE || defaults.accessNode,
+    discoveryWallet:
+      process.env.FLOW_DISCOVERY_WALLET || defaults.discoveryWallet,
+  };
+}
 
 /**
  * Environment-specific configuration constants
  *
  * @description Configuration values that can be overridden by environment variables.
- * Provides sensible defaults for development and testing.
+ * Provides sensible defaults for development and testing based on the selected network.
  */
-export const FLOW_ENV = {
-  /** Flow access node API endpoint */
-  ACCESS_NODE:
-    process.env.FLOW_ACCESS_NODE || 'https://rest-testnet.onflow.org',
+export const FLOW_ENV = ((): {
+  NETWORK: string;
+  ACCESS_NODE: string;
+  HEART_CONTRACT_ADDRESS: string;
+  DISCOVERY_WALLET: string;
+  DEFAULT_GAS_LIMIT: number;
+  REQUEST_TIMEOUT: number;
+} => {
+  const networkConfig = getNetworkConfig();
 
-  /** Heart contract address on Flow testnet */
-  HEART_CONTRACT_ADDRESS:
-    process.env.HEART_CONTRACT_ADDRESS || '0x58f9e6153690c852',
+  return {
+    /** Network type (testnet/mainnet) */
+    NETWORK: networkConfig.network,
 
-  /** Flow discovery wallet endpoint for authentication */
-  DISCOVERY_WALLET:
-    process.env.FLOW_DISCOVERY_WALLET ||
-    'https://fcl-discovery.onflow.org/testnet/authn',
+    /** Flow access node API endpoint (network-specific) */
+    ACCESS_NODE: networkConfig.accessNode,
 
-  /** Network type (testnet/mainnet) */
-  NETWORK: process.env.FLOW_NETWORK || 'testnet',
+    /** Heart contract address */
+    HEART_CONTRACT_ADDRESS:
+      process.env.HEART_CONTRACT_ADDRESS || '0x58f9e6153690c852',
 
-  /** Default gas limit for transactions */
-  DEFAULT_GAS_LIMIT: parseInt(process.env.FLOW_GAS_LIMIT || '1000', 10),
+    /** Flow discovery wallet endpoint for authentication (network-specific) */
+    DISCOVERY_WALLET: networkConfig.discoveryWallet,
 
-  /** Request timeout in milliseconds */
-  REQUEST_TIMEOUT: parseInt(process.env.FLOW_REQUEST_TIMEOUT || '30000', 10),
-} as const;
+    /** Default gas limit for transactions */
+    DEFAULT_GAS_LIMIT: parseInt(process.env.FLOW_GAS_LIMIT || '1000', 10),
+
+    /** Request timeout in milliseconds */
+    REQUEST_TIMEOUT: parseInt(process.env.FLOW_REQUEST_TIMEOUT || '30000', 10),
+  };
+})();
 
 /**
  * Flow Client Library (FCL) configuration
@@ -61,26 +108,78 @@ export const flowConfig: FlowConfig = {
 };
 
 /**
- * Contract addresses mapping
+ * Network-specific contract addresses
+ *
+ * @description Contract addresses for different Flow networks.
+ * These are the official system contract addresses.
+ */
+const NETWORK_CONTRACTS = {
+  testnet: {
+    FungibleToken: '0x9a0766d93b6608b7',
+    NonFungibleToken: '0x631e88ae7f1d7c20',
+    FlowToken: '0x7e60df042a9c0868',
+    MetadataViews: '0x631e88ae7f1d7c20',
+  },
+  mainnet: {
+    FungibleToken: '0xf233dcee88fe0abe',
+    NonFungibleToken: '0x1d7e57aa55817448',
+    FlowToken: '0x1654653399040a61',
+    MetadataViews: '0x1d7e57aa55817448',
+  },
+} as const;
+
+/**
+ * Get contract addresses based on current network
+ *
+ * @description Returns the appropriate contract addresses for the current network.
+ * Automatically selects testnet or mainnet addresses based on FLOW_NETWORK environment variable.
+ *
+ * @returns Contract addresses object
+ *
+ * @example
+ * ```typescript
+ * const addresses = getContractAddresses();
+ * console.log(addresses.FungibleToken); // 0x9a0766d93b6608b7 (testnet)
+ * ```
+ */
+export function getContractAddresses(): {
+  Heart: string;
+  FungibleToken: string;
+  NonFungibleToken: string;
+  FlowToken: string;
+  MetadataViews: string;
+} {
+  const network = (process.env.FLOW_NETWORK || 'testnet') as
+    | 'testnet'
+    | 'mainnet';
+  const networkContracts =
+    NETWORK_CONTRACTS[network] || NETWORK_CONTRACTS.testnet;
+
+  return {
+    /** Heart token contract address */
+    Heart: process.env.HEART_CONTRACT_ADDRESS || '0x58f9e6153690c852',
+
+    /** Standard Flow contracts (network-specific) */
+    FungibleToken: networkContracts.FungibleToken,
+    NonFungibleToken: networkContracts.NonFungibleToken,
+    FlowToken: networkContracts.FlowToken,
+    MetadataViews: networkContracts.MetadataViews,
+  };
+}
+
+/**
+ * Contract addresses mapping (dynamic based on network)
  *
  * @description Maps contract names to their deployed addresses on Flow.
- * Makes it easy to reference contracts throughout the application.
+ * Automatically uses the correct addresses based on the current network.
  *
  * @example
  * ```typescript
  * const heartAddress = CONTRACT_ADDRESSES.Heart;
+ * const ftAddress = CONTRACT_ADDRESSES.FungibleToken;
  * ```
  */
-export const CONTRACT_ADDRESSES = {
-  /** Heart token contract address */
-  Heart: FLOW_ENV.HEART_CONTRACT_ADDRESS,
-
-  /** Standard contracts (these are Flow system contracts) */
-  FungibleToken: '0x9a0766d93b6608b7', // Testnet address
-  NonFungibleToken: '0x631e88ae7f1d7c20', // Testnet address
-  FlowToken: '0x7e60df042a9c0868', // Testnet address
-  MetadataViews: '0x631e88ae7f1d7c20', // Testnet address
-} as const;
+export const CONTRACT_ADDRESSES = getContractAddresses();
 
 /**
  * Flow network constants
@@ -267,7 +366,7 @@ export const isValidTransactionId = (txId: string): boolean => {
  */
 export const formatHeartAmount = (
   amount: string,
-  includeSymbol = false,
+  includeSymbol = false
 ): string => {
   try {
     const numAmount = parseFloat(amount);

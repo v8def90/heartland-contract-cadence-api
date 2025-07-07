@@ -8,7 +8,11 @@
 import express from 'express';
 import type { Request, Response, NextFunction } from 'express';
 import swaggerUi from 'swagger-ui-express';
-import { initializeFlowConfig } from './config/flow';
+import {
+  initializeFlowConfig,
+  FLOW_ENV,
+  getContractAddresses,
+} from './config/flow';
 import {
   createErrorResponse,
   API_ERROR_CODES,
@@ -32,6 +36,20 @@ export const createApp = (): express.Application => {
 
   // Initialize Flow configuration
   initializeFlowConfig();
+
+  // Display network configuration at startup
+  console.log('=== FLOW NETWORK CONFIGURATION ===');
+  console.log('Network:', FLOW_ENV.NETWORK);
+  console.log('Access Node:', FLOW_ENV.ACCESS_NODE);
+  console.log('Discovery Wallet:', FLOW_ENV.DISCOVERY_WALLET);
+  console.log('Heart Contract:', FLOW_ENV.HEART_CONTRACT_ADDRESS);
+  console.log('');
+  console.log('=== CONTRACT ADDRESSES ===');
+  const contractAddresses = getContractAddresses();
+  Object.entries(contractAddresses).forEach(([name, address]) => {
+    console.log(`${name}:`, address);
+  });
+  console.log('================================');
 
   // Middleware setup
   app.use(express.json({ limit: '10mb' }));
