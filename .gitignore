@@ -44,6 +44,10 @@ dist/
 build/
 *.tsbuildinfo
 
+# JavaScript files in source directory (should be compiled to dist/)
+src/**/*.js
+src/**/*.js.map
+
 # Type definitions cache
 *.d.ts.map
 
