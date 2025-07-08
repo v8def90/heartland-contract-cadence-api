@@ -270,3 +270,63 @@ export interface TaxCalculationRequest {
   /** Amount to calculate tax for */
   amount: string;
 }
+
+/**
+ * Blocto Wallet authentication request payload
+ *
+ * @description Request to authenticate using Blocto wallet signature
+ * and generate JWT token for API access.
+ *
+ * @example
+ * ```typescript
+ * const request: BloctoAuthRequest = {
+ *   address: "0x58f9e6153690c852",
+ *   signature: "abc123...",
+ *   message: "Login to Heart Token API",
+ *   timestamp: 1640995200000
+ * };
+ * ```
+ */
+export interface BloctoAuthRequest {
+  /** User's Flow address (0x prefixed) */
+  address: string;
+  /** Blocto wallet signature */
+  signature: string;
+  /** Original message that was signed */
+  message: string;
+  /** Timestamp when signature was created */
+  timestamp: number;
+  /** Optional nonce for replay protection */
+  nonce?: string;
+}
+
+/**
+ * Transaction job request payload
+ *
+ * @description Base interface for all transaction job requests
+ * that will be processed asynchronously via SQS.
+ */
+export interface TransactionJobRequest {
+  /** Job identifier for tracking */
+  jobId: string;
+  /** Transaction type */
+  type:
+    | 'mint'
+    | 'transfer'
+    | 'burn'
+    | 'pause'
+    | 'unpause'
+    | 'setTaxRate'
+    | 'setTreasury'
+    | 'batchTransfer';
+  /** User address from JWT */
+  userAddress: string;
+  /** Transaction parameters */
+  params: Record<string, unknown>;
+  /** Optional metadata */
+  metadata?: {
+    memo?: string;
+    priority?: 'low' | 'normal' | 'high';
+    retryCount?: number;
+  };
+}

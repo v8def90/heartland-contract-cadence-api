@@ -80,13 +80,23 @@
 
 # ✅ GET /treasury-account, GET /admin-capabilities/{address} (実装完了)
 
-# 🎯 Write Operations (Transactions): 0/9 完了 (0%)
+# 🎯 Write Operations (Transactions): 1/9 完了 (11%) - SQS非同期処理アーキテクチャ
 
-# 📝 全てのPOSTエンドポイント未実装
+# ✅ POST /setup/account (SetupController.ts 実装済み) - 要SQS統合
 
-# 🎯 Authentication: 0/2 完了 (0%)
+# 📝 8つのTransactionエンドポイント未実装（全てSQS非同期処理対応予定）
 
-# 📝 JWT認証機能未実装
+# 🎯 Authentication: 3/5 完了 (60%) - Blocto + JWT ハイブリッド
+
+# ✅ Blocto認証モデル設計完了 (BloctoAuthRequest, BloctoAuthData)
+
+# ✅ JWT認証基盤完了
+
+# ✅ SQS + CloudWatch Logs ジョブ追跡システム完了
+
+# 📝 AuthController実装未完了
+
+# 📝 Blocto署名検証ロジック未実装
 
 # 🎯 Infrastructure & Quality:
 
@@ -112,15 +122,19 @@
 
 # 🎯 次の優先度:
 
-# 1. Write Operations (Transactions) 実装開始 - 9つのPOSTエンドポイント
+# 1. **Blocto認証Controller実装** - POST /auth/blocto-login エンドポイント
 
-# 2. Flow Script統合 (モック→実装) - 実際のFlow blockchain統合
+# 2. **SQS Transaction Worker実装** - Lambda worker for background processing  
 
-# 3. テストカバレッジ向上 (20.51% → 80%) - 品質向上
+# 3. **既存TransactionエンドポイントのSQS統合** - SetupController → SQS処理
 
-# 4. JWT認証システム実装 - セキュリティ強化
+# 4. **Job Tracking API実装** - GET /jobs/{jobId} ステータス確認エンドポイント
 
-# 5. AWS Lambda デプロイ設定 - 本番環境準備
+# 5. **AWS パッケージインストール** - @aws-sdk/client-sqs, @aws-sdk/client-cloudwatch-logs
+
+# 6. **テストカバレッジ向上** (20.51% → 80%) - SQS, 認証テスト追加
+
+# 7. **AWS Lambda デプロイ設定** - SQS + Worker Lambda デプロイ
 
 # ============================================================================
 
@@ -143,7 +157,51 @@
 **Blockchain**: Flow Network (Testnet: 0x58f9e6153690c852)
 **SDK**: @onflow/fcl for Flow blockchain interaction
 **Target Contract**: Heart Token (Heart.cdc)
-**Architecture**: RESTful API with JWT authentication
+**Architecture**: RESTful API with Blocto Wallet + JWT hybrid authentication and SQS asynchronous transaction processing
+
+## Hybrid Architecture Overview (Updated 2024-01-06)
+
+### 🏗️ System Architecture - Blocto + JWT + SQS Asynchronous Processing
+
+```
+Frontend (Blocto Wallet) 
+    ↓ (Signature)
+API Gateway → Auth Service → JWT Token
+    ↓ (JWT Bearer Token)
+API Gateway → Transaction Endpoints → SQS Queue
+    ↓ (Async)
+Lambda Worker → Flow Network → CloudWatch Logs
+    ↓ (Status)
+Job Tracking API ← CloudWatch Logs Query
+```
+
+### 📊 Processing Flow
+
+1. **Authentication Flow**:
+   - User signs message with Blocto Wallet
+   - API verifies Blocto signature 
+   - API generates JWT token for session management
+   - JWT token used for protected endpoint access
+
+2. **Read Operations (Synchronous)**:
+   - Direct Flow script execution
+   - Immediate response with data
+   - No authentication required for public data
+
+3. **Write Operations (Asynchronous)**:
+   - JWT-authenticated request → SQS queue
+   - Immediate response with `jobId` and tracking URL
+   - Background Lambda worker processes transaction
+   - CloudWatch Logs capture job status updates
+   - Client polls job status via tracking API
+
+### 🔧 Key Benefits
+
+- **Scalability**: SQS handles transaction load spikes
+- **Reliability**: DLQ for failed transactions, CloudWatch durability  
+- **User Experience**: Immediate response with progress tracking
+- **Cost Efficiency**: No DynamoDB, serverless auto-scaling
+- **Security**: Blocto wallet-based authentication with JWT sessions
 
 ## Technology Stack
 
@@ -184,17 +242,21 @@
 
 ### Security & Authentication
 
-- **Authentication**: JWT (JSON Web Tokens) with TypeScript types
+- **Primary Authentication**: Blocto Wallet signature verification with TypeScript types
+- **Secondary Authentication**: JWT (JSON Web Tokens) for API session management
 - **Authorization**: Role-based access control with strict typing
 - **Validation**: tsoa decorators for request/response validation
+- **Hybrid Flow**: Blocto Wallet signature → JWT token generation → Protected API access
 
 ### AWS Services
 
-- **Compute**: AWS Lambda
+- **Compute**: AWS Lambda (API handlers + Transaction workers)
 - **API Gateway**: AWS API Gateway (HTTP API)
+- **Message Queue**: Amazon SQS (Transaction processing queue)
+- **Logging & Monitoring**: CloudWatch Logs (Job status tracking)
 - **Region**: ap-northeast-1 (Tokyo)
-- **Monitoring**: CloudWatch
 - **Environment**: Development/Production separation
+- **Dead Letter Queue**: SQS DLQ for failed transaction processing
 
 ## Project Structure
 
@@ -203,16 +265,20 @@ heartland-contract-cadence-api/
 ├── src/
 │   ├── controllers/       # tsoa Controllers with decorators
 │   │   ├── queries/       # Read-only operations (@Get)
-│   │   ├── transactions/  # State-changing operations (@Post)
-│   │   └── auth/          # Authentication endpoints
+│   │   ├── transactions/  # State-changing operations (@Post) - Now returns job IDs
+│   │   └── auth/          # Blocto + JWT authentication endpoints
 │   ├── models/            # TypeScript interfaces & types
-│   │   ├── requests/      # Request DTOs
-│   │   ├── responses/     # Response DTOs
+│   │   ├── requests/      # Request DTOs (including BloctoAuthRequest, TransactionJobRequest)
+│   │   ├── responses/     # Response DTOs (including TransactionJobData, JobStatusData)
 │   │   └── flow/          # Flow-specific types
 │   ├── services/          # Business logic services
-│   │   ├── flowService.ts # Flow blockchain interaction
-│   │   ├── authService.ts # JWT authentication
+│   │   ├── FlowService.ts # Flow blockchain interaction
+│   │   ├── SqsService.ts  # SQS queue management & job tracking
+│   │   ├── AuthService.ts # Blocto signature verification + JWT
 │   │   └── validationService.ts
+│   ├── workers/           # Background Lambda workers
+│   │   ├── transactionWorker.ts # SQS transaction processor
+│   │   └── jobCleanup.ts  # Periodic job cleanup
 │   ├── utils/             # Utility functions
 │   │   ├── constants.ts   # Contract addresses, configurations
 │   │   ├── responses.ts   # Standard API responses
@@ -276,22 +342,28 @@ heartland-contract-cadence-api/
 - ✅ `GET /tax-calculation/{amount}` - Calculate tax for amount (TokenInfoController.ts 実装完了)
 - ✅ `GET /admin-capabilities/{address}` - Check admin capabilities (AdminController.ts 実装完了)
 
-### Write Operations (Transactions) 📝 (全て未実装)
+### Write Operations (Transactions) - SQS Asynchronous Processing 🚧 (実装中)
 
-- `POST /setup-account` - Setup HEART vault for address 📝 (未実装)
-- `POST /mint-tokens` - Mint new tokens (admin only) 📝 (未実装)
-- `POST /transfer` - Transfer tokens with tax 📝 (未実装)
-- `POST /batch-transfer` - Batch transfer to multiple recipients 📝 (未実装)
-- `POST /burn-tokens` - Burn tokens 📝 (未実装)
-- `POST /pause` - Pause contract (admin only) 📝 (未実装)
-- `POST /unpause` - Unpause contract (admin only) 📝 (未実装)
-- `POST /set-tax-rate` - Update tax rate (admin only) 📝 (未実装)
-- `POST /set-treasury` - Update treasury account (admin only) 📝 (未実装)
+- `POST /transactions/setup-account` - Setup HEART vault (returns jobId) 📝 (未実装)
+- `POST /transactions/mint-tokens` - Mint new tokens (admin only, returns jobId) 📝 (未実装) 
+- `POST /transactions/transfer` - Transfer tokens with tax (returns jobId) 📝 (未実装)
+- `POST /transactions/batch-transfer` - Batch transfer (returns jobId) 📝 (未実装)
+- `POST /transactions/burn-tokens` - Burn tokens (returns jobId) 📝 (未実装)
+- `POST /transactions/pause` - Pause contract (admin only, returns jobId) 📝 (未実装)
+- `POST /transactions/unpause` - Unpause contract (admin only, returns jobId) 📝 (未実装)
+- `POST /transactions/set-tax-rate` - Update tax rate (admin only, returns jobId) 📝 (未実装)
+- `POST /transactions/set-treasury` - Update treasury account (admin only, returns jobId) 📝 (未実装)
 
-### Authentication 📝 (未実装)
+### Job Tracking & Status API ✅ (設計完了)
 
-- `POST /auth/login` - Generate JWT token 📝 (未実装)
-- `POST /auth/verify` - Verify JWT token 📝 (未実装)
+- `GET /jobs/{jobId}` - Get transaction job status and progress ✅ (SqsService実装済み)
+- `GET /jobs/user/{address}` - Get user's transaction history 📝 (未実装)
+
+### Authentication - Blocto Wallet + JWT Hybrid ✅ (設計完了)
+
+- `POST /auth/blocto-login` - Authenticate with Blocto wallet signature and generate JWT ✅ (モデル実装済み)
+- `POST /auth/verify` - Verify JWT token ✅ (モデル実装済み)
+- `POST /auth/refresh` - Refresh JWT token 📝 (未実装)
 
 ## Flow Integration Patterns
 
@@ -537,9 +609,22 @@ HEART_CONTRACT_ADDRESS=0x58f9e6153690c852
 JWT_SECRET=your-jwt-secret
 JWT_EXPIRATION=24h
 
-# AWS
+# AWS Services
 AWS_REGION=ap-northeast-1
 STAGE=dev|prod
+
+# SQS Configuration
+SQS_QUEUE_URL=https://sqs.ap-northeast-1.amazonaws.com/account/heartland-transactions
+SQS_DLQ_URL=https://sqs.ap-northeast-1.amazonaws.com/account/heartland-dlq
+SQS_VISIBILITY_TIMEOUT=300
+
+# CloudWatch Logs
+CLOUDWATCH_LOG_GROUP=/aws/lambda/heartland-workers
+CLOUDWATCH_LOG_RETENTION_DAYS=30
+
+# Job Configuration
+MAX_JOB_RETENTION_HOURS=72
+JOB_CLEANUP_INTERVAL_HOURS=6
 ```
 
 ### TypeScript Configuration
@@ -682,6 +767,8 @@ STAGE=dev|prod
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "test": "jest --coverage --coverageThreshold='{\"global\":{\"lines\":80}}'",
     "test:watch": "jest --watch",
+    "test:sqs": "jest --testNamePattern=\"SQS\" --verbose",
+    "test:auth": "jest --testNamePattern=\"Auth|Blocto\" --verbose",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
     "format": "prettier --write src/**/*.ts",
@@ -692,7 +779,11 @@ STAGE=dev|prod
     "docs:serve": "swagger-ui-serve build/swagger.json",
     "deploy:dev": "pnpm run build && pnpm run tsoa:spec-and-routes && serverless deploy --stage dev",
     "deploy:prod": "pnpm run build && pnpm run tsoa:spec-and-routes && serverless deploy --stage prod",
-    "offline": "pnpm run build && pnpm run tsoa:spec-and-routes && serverless offline"
+    "offline": "pnpm run build && pnpm run tsoa:spec-and-routes && serverless offline",
+    "worker:dev": "ts-node-dev --respawn --transpile-only src/workers/transactionWorker.ts",
+    "logs:worker": "aws logs tail /aws/lambda/heartland-workers-dev --follow",
+    "sqs:purge": "aws sqs purge-queue --queue-url $SQS_QUEUE_URL",
+    "setup:aws": "aws configure && aws sts get-caller-identity"
   }
 }
 ```
@@ -874,7 +965,7 @@ plugins:
   - serverless-plugin-warmup
 
 functions:
-  # Generated by tsoa routes
+  # Generated by tsoa routes - API handlers
   app:
     handler: dist/lambda.handler
     events:
@@ -882,6 +973,31 @@ functions:
     warmup:
       enabled: true
       prewarm: true
+    environment:
+      SQS_QUEUE_URL: ${env:SQS_QUEUE_URL}
+
+  # Background transaction worker
+  transactionWorker:
+    handler: dist/workers/transactionWorker.handler
+    timeout: 300
+    memorySize: 1024
+    events:
+      - sqs:
+          arn: !GetAtt TransactionQueue.Arn
+          batchSize: 1
+          maximumBatchingWindowInSeconds: 0
+    environment:
+      CLOUDWATCH_LOG_GROUP: ${env:CLOUDWATCH_LOG_GROUP}
+
+  # Periodic job cleanup
+  jobCleanup:
+    handler: dist/workers/jobCleanup.handler
+    timeout: 180
+    events:
+      - schedule: rate(6 hours)
+    environment:
+      CLOUDWATCH_LOG_GROUP: ${env:CLOUDWATCH_LOG_GROUP}
+      MAX_JOB_RETENTION_HOURS: ${env:MAX_JOB_RETENTION_HOURS}
 
   # Swagger UI hosting
   swaggerUI:
@@ -893,6 +1009,33 @@ functions:
       - httpApi:
           path: /docs/{proxy+}
           method: get
+
+resources:
+  Resources:
+    # Main transaction processing queue
+    TransactionQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: heartland-transactions-${opt:stage}
+        VisibilityTimeoutSeconds: 300
+        MessageRetentionPeriod: 259200 # 3 days
+        RedrivePolicy:
+          deadLetterTargetArn: !GetAtt TransactionDLQ.Arn
+          maxReceiveCount: 3
+
+    # Dead letter queue for failed transactions
+    TransactionDLQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: heartland-dlq-${opt:stage}
+        MessageRetentionPeriod: 1209600 # 14 days
+
+    # CloudWatch Log Group for job tracking
+    WorkerLogGroup:
+      Type: AWS::Logs::LogGroup
+      Properties:
+        LogGroupName: /aws/lambda/heartland-workers-${opt:stage}
+        RetentionInDays: 30
 
 custom:
   serverless-offline:

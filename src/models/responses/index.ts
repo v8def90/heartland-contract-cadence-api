@@ -490,3 +490,111 @@ export interface TokenVerificationData {
   /** Error message (if invalid) */
   error?: string;
 }
+
+/**
+ * Transaction job response
+ *
+ * @description Response when a transaction is queued for asynchronous processing.
+ *
+ * @example
+ * ```typescript
+ * const response: TransactionJobData = {
+ *   jobId: "job_12345678",
+ *   status: "queued",
+ *   type: "mint",
+ *   estimatedCompletionTime: "2024-01-01T00:01:00.000Z",
+ *   trackingUrl: "/jobs/job_12345678"
+ * };
+ * ```
+ */
+export interface TransactionJobData {
+  /** Unique job identifier */
+  jobId: string;
+  /** Current job status */
+  status: 'queued' | 'processing' | 'completed' | 'failed' | 'cancelled';
+  /** Transaction type */
+  type: string;
+  /** Estimated completion time */
+  estimatedCompletionTime?: string;
+  /** URL to track job progress */
+  trackingUrl: string;
+  /** Queue position (if applicable) */
+  queuePosition?: number;
+}
+
+/**
+ * Job status tracking response
+ *
+ * @description Detailed status information for a specific transaction job.
+ *
+ * @example
+ * ```typescript
+ * const response: JobStatusData = {
+ *   jobId: "job_12345678",
+ *   status: "completed",
+ *   type: "mint",
+ *   createdAt: "2024-01-01T00:00:00.000Z",
+ *   completedAt: "2024-01-01T00:01:00.000Z",
+ *   result: { txId: "abc123", status: "sealed" }
+ * };
+ * ```
+ */
+export interface JobStatusData {
+  /** Job identifier */
+  jobId: string;
+  /** Current status */
+  status: 'queued' | 'processing' | 'completed' | 'failed' | 'cancelled';
+  /** Transaction type */
+  type: string;
+  /** Job creation timestamp */
+  createdAt: string;
+  /** Processing start timestamp */
+  startedAt?: string;
+  /** Completion timestamp */
+  completedAt?: string;
+  /** Transaction result (if completed) */
+  result?: {
+    txId?: string;
+    status?: string;
+    blockHeight?: number;
+    events?: unknown[];
+  };
+  /** Error information (if failed) */
+  error?: {
+    code: string;
+    message: string;
+    details?: string;
+  };
+  /** Processing logs */
+  logs?: string[];
+  /** Progress percentage (0-100) */
+  progress?: number;
+}
+
+/**
+ * Blocto authentication response
+ *
+ * @description Response after successful Blocto wallet authentication.
+ *
+ * @example
+ * ```typescript
+ * const response: BloctoAuthData = {
+ *   token: "eyJhbGciOiJIUzI1NiIs...",
+ *   expiresIn: 86400,
+ *   address: "0x58f9e6153690c852",
+ *   role: "user",
+ *   issuedAt: "2024-01-01T00:00:00.000Z",
+ *   walletType: "blocto"
+ * };
+ * ```
+ */
+export interface BloctoAuthData extends AuthData {
+  /** Wallet type identifier */
+  walletType: 'blocto';
+  /** Blocto-specific metadata */
+  bloctoMetadata?: {
+    appId?: string;
+    walletVersion?: string;
+    deviceType?: string;
+  };
+}
