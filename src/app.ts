@@ -120,7 +120,6 @@ export const createApp = (): express.Application => {
 
   // Temporary debug endpoint for batch address testing
   app.get('/debug/batch-raw', (req: Request, res: Response) => {
-    console.log('=== RAW DEBUG ENDPOINT ===');
     console.log('Query params:', JSON.stringify(req.query));
     console.log('Addresses param:', JSON.stringify(req.query.addresses));
     console.log('Typeof addresses:', typeof req.query.addresses);

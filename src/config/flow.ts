@@ -25,7 +25,7 @@ function getNetworkConfig(): {
   network: string;
   accessNode: string;
   discoveryWallet: string;
-} {
+  } {
   const network = process.env.FLOW_NETWORK || 'testnet';
 
   // Default endpoints based on network
@@ -158,7 +158,7 @@ export function getContractAddresses(): {
   NonFungibleToken: string;
   FlowToken: string;
   MetadataViews: string;
-} {
+  } {
   const network = (process.env.FLOW_NETWORK || 'testnet') as
     | 'testnet'
     | 'mainnet';
@@ -376,7 +376,7 @@ export const isValidTransactionId = (txId: string): boolean => {
  */
 export const formatHeartAmount = (
   amount: string,
-  includeSymbol = false
+  includeSymbol = false,
 ): string => {
   try {
     const numAmount = parseFloat(amount);

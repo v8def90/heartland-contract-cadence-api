@@ -155,8 +155,6 @@ export class TokenInfoController extends Controller {
         return flowResponse;
       }
 
-      console.log('DEBUG getTaxRate: FlowService response:', flowResponse.data);
-
       // FlowService already returns tax rate as percentage (e.g., 5.0 for 5%)
       const taxRatePercentage = flowResponse.data.taxRate;
 
@@ -172,7 +170,6 @@ export class TokenInfoController extends Controller {
         'DEBUG getTaxRate: Successfully retrieved tax rate via Flow script:',
         `${taxRatePercentage}%`
       );
-      console.log('DEBUG getTaxRate: Final response data:', taxRateData);
 
       return createSuccessResponse<TaxRateData>(taxRateData);
     } catch (error) {
@@ -270,8 +267,6 @@ export class TokenInfoController extends Controller {
     @Path() amount: string
   ): Promise<ApiResponse<TaxCalculationData>> {
     try {
-      console.log('DEBUG calculateTax: Calculating tax for amount:', amount);
-
       // Validate amount
       const numAmount = parseFloat(amount);
       if (isNaN(numAmount) || numAmount <= 0) {

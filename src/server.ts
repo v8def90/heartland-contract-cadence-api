@@ -16,7 +16,7 @@ const PORT = process.env.PORT || 3000;
  */
 const startServer = (): void => {
   app.listen(PORT, () => {
-    console.log('🚀 Flow Heart Token API Server Started');
+    console.log('Flow Heart Token API Server Started');
     console.log(`📡 Server running on http://localhost:${PORT}`);
     console.log(`📚 API Documentation: http://localhost:${PORT}/docs`);
     console.log(`💚 Health Check: http://localhost:${PORT}/health`);

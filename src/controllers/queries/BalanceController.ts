@@ -287,7 +287,6 @@ export class BalanceController extends Controller {
         return flowResponse;
       }
 
-      console.log('DEBUG getBalance: FlowService response:', flowResponse.data);
       console.log(
         'DEBUG getBalance: Successfully retrieved balance via Flow script:',
         flowResponse.data.balance
@@ -384,7 +383,6 @@ export class BalanceController extends Controller {
   @Get('debug-batch')
   @SuccessResponse('200', 'Debug information retrieved successfully')
   public async debugBatchAddresses(@Query() addresses: string): Promise<any> {
-    console.log('=== DEBUG BATCH ADDRESSES ===');
     console.log('Raw addresses parameter:', JSON.stringify(addresses));
     console.log('Raw addresses type:', typeof addresses);
     console.log('Raw addresses length:', addresses?.length || 'undefined');
