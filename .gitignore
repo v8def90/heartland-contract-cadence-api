@@ -114,6 +114,7 @@ config/local.ts
 # Cursor development context files
 CURSOR_CONTEXT.md
 PROJECT_STATUS.md
+FLOW_AUTHORIZATION.md
 
 # ============================================================================
 # IDEs & Editors

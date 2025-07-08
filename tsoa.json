@@ -49,6 +49,10 @@
       {
         "name": "Auth",
         "description": "Authentication and authorization operations"
+      },
+      {
+        "name": "Setup",
+        "description": "Account setup operations for HEART token vaults"
       }
     ]
   },

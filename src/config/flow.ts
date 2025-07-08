@@ -9,9 +9,11 @@
  * @since 1.0.0
  */
 
-import 'dotenv/config';
 import * as fcl from '@onflow/fcl';
 import type { FlowConfig } from '../models/flow';
+
+// Load environment variables using require syntax
+require('dotenv').config();
 
 /**
  * Get network-specific configuration values
@@ -23,7 +25,7 @@ function getNetworkConfig(): {
   network: string;
   accessNode: string;
   discoveryWallet: string;
-  } {
+} {
   const network = process.env.FLOW_NETWORK || 'testnet';
 
   // Default endpoints based on network
@@ -63,6 +65,8 @@ export const FLOW_ENV = ((): {
   DISCOVERY_WALLET: string;
   DEFAULT_GAS_LIMIT: number;
   REQUEST_TIMEOUT: number;
+  ADMIN_ADDRESS: string;
+  ADMIN_PRIVATE_KEY: string;
 } => {
   const networkConfig = getNetworkConfig();
 
@@ -85,6 +89,12 @@ export const FLOW_ENV = ((): {
 
     /** Request timeout in milliseconds */
     REQUEST_TIMEOUT: parseInt(process.env.FLOW_REQUEST_TIMEOUT || '30000', 10),
+
+    /** Admin account address for transactions */
+    ADMIN_ADDRESS: process.env.ADMIN_ADDRESS || '0x58f9e6153690c852',
+
+    /** Admin private key for signing transactions (DO NOT commit real keys) */
+    ADMIN_PRIVATE_KEY: process.env.ADMIN_PRIVATE_KEY || '',
   };
 })();
 
@@ -148,7 +158,7 @@ export function getContractAddresses(): {
   NonFungibleToken: string;
   FlowToken: string;
   MetadataViews: string;
-  } {
+} {
   const network = (process.env.FLOW_NETWORK || 'testnet') as
     | 'testnet'
     | 'mainnet';
@@ -366,7 +376,7 @@ export const isValidTransactionId = (txId: string): boolean => {
  */
 export const formatHeartAmount = (
   amount: string,
-  includeSymbol = false,
+  includeSymbol = false
 ): string => {
   try {
     const numAmount = parseFloat(amount);
