@@ -50,9 +50,12 @@ export const handler = async (): Promise<void> => {
 
     // Delete old log streams
     for (const stream of logStreams.logStreams) {
+      // Cast to any to check properties - AWS SDK v3 LogStream interface verification
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const streamAny = stream as any;
       if (
-        stream.lastEventTime &&
-        stream.lastEventTime < cutoffTime &&
+        streamAny.lastEventTime &&
+        streamAny.lastEventTime < cutoffTime &&
         stream.logStreamName
       ) {
         try {

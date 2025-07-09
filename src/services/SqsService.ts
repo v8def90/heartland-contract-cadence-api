@@ -237,12 +237,10 @@ export class SqsService {
       const result = await this.cloudWatchClient.send(command);
 
       return (
-        result.events?.map(
-          (event: { timestamp?: number; message?: string }) => ({
-            timestamp: event.timestamp || 0,
-            message: event.message || '',
-          }),
-        ) || []
+        result.events?.map(event => ({
+          timestamp: event.timestamp ?? 0,
+          message: event.message ?? '',
+        })) || []
       );
     } catch (error) {
       console.warn('Failed to search CloudWatch logs:', error);
@@ -297,22 +295,27 @@ export class SqsService {
     const typeMatch = logs[0]?.match(/"type":"([^"]+)"/);
     const type = typeMatch?.[1] || 'unknown';
 
-    return {
+    const result: JobStatusData = {
       jobId,
       status,
       type,
       createdAt: createdEvent
         ? new Date(createdEvent.timestamp).toISOString()
         : new Date().toISOString(),
-      startedAt: startedEvent
-        ? new Date(startedEvent.timestamp).toISOString()
-        : undefined,
-      completedAt: completedEvent
-        ? new Date(completedEvent.timestamp).toISOString()
-        : undefined,
       logs,
       progress: this.calculateProgress(status),
     };
+
+    // Only add optional properties if they exist
+    if (startedEvent) {
+      result.startedAt = new Date(startedEvent.timestamp).toISOString();
+    }
+
+    if (completedEvent) {
+      result.completedAt = new Date(completedEvent.timestamp).toISOString();
+    }
+
+    return result;
   }
 
   /**
