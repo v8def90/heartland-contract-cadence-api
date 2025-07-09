@@ -23,8 +23,8 @@ import {
   createErrorResponse,
   API_ERROR_CODES,
 } from '../../models/responses/ApiResponse';
-import type { AccountSetupData } from '../../models/responses';
-import { FlowService } from '../../services/FlowService';
+import type { TransactionJobData } from '../../models/responses';
+import { SqsService } from '../../services/SqsService';
 
 /**
  * Setup Account Request
@@ -40,41 +40,43 @@ export interface SetupAccountRequest {
  * Setup Controller
  *
  * @description Handles account setup transactions for the Flow Heart Token contract.
- * Provides functionality to initialize HEART token vaults for new accounts.
+ * Provides asynchronous transaction processing via SQS queue.
  *
  * @tags Setup
  */
 @Route('/setup')
 @Tags('Setup')
 export class SetupController extends Controller {
-  private flowService: FlowService;
+  private sqsService: SqsService;
 
   constructor() {
     super();
-    this.flowService = new FlowService();
+    this.sqsService = new SqsService();
   }
 
   /**
-   * Set up HEART token vault for an account
+   * Set up HEART token vault for an account (Asynchronous)
    *
-   * @description Creates a new HEART token vault for the specified address and sets up
-   * the necessary storage and public capabilities. This is required before an account
-   * can receive or manage HEART tokens.
+   * @description Queues a request to create a new HEART token vault for the specified address.
+   * This operation is processed asynchronously via SQS queue for better scalability.
+   * Returns a job ID that can be used to track the transaction progress.
    *
    * @param request - Setup request containing the address to configure
-   * @returns Promise resolving to setup completion status
+   * @returns Promise resolving to job tracking information
    */
   @Post('/account')
-  @SuccessResponse('200', 'Account setup completed successfully')
+  @SuccessResponse('200', 'Account setup job queued successfully')
   @Response<ErrorResponse>('400', 'Invalid address format')
-  @Response<ErrorResponse>('500', 'Setup transaction failed')
-  @Example<ApiResponse<AccountSetupData>>({
+  @Response<ErrorResponse>('500', 'Failed to queue setup job')
+  @Example<ApiResponse<TransactionJobData>>({
     success: true,
     data: {
-      address: '0x58f9e6153690c852',
-      setupComplete: true,
-      vaultPath: '/storage/HeartVault',
-      publicPath: '/public/HeartVault',
+      jobId: 'job_1704067200000_abc123',
+      status: 'queued',
+      type: 'setup',
+      estimatedCompletionTime: '2024-01-01T00:05:00.000Z',
+      trackingUrl: '/jobs/job_1704067200000_abc123',
+      queuePosition: 3,
     },
     timestamp: '2024-01-01T00:00:00.000Z',
   })
@@ -88,151 +90,196 @@ export class SetupController extends Controller {
     timestamp: '2024-01-01T00:00:00.000Z',
   })
   public async setupAccount(
-    @Body() request: SetupAccountRequest
-  ): Promise<ApiResponse<AccountSetupData>> {
+    @Body() request: SetupAccountRequest,
+  ): Promise<ApiResponse<TransactionJobData>> {
     try {
       console.log(
-        'DEBUG setupAccount: Starting account setup for address:',
-        request.address
+        'DEBUG setupAccount: Queueing account setup job for address:',
+        request.address,
       );
 
-      // Use FlowService to set up the account
-      const flowResponse = await this.flowService.setupAccount(request.address);
+      // Validate address format
+      if (!request.address || typeof request.address !== 'string') {
+        return createErrorResponse({
+          code: API_ERROR_CODES.MISSING_REQUIRED_FIELD,
+          message: 'Address is required',
+          details: 'Address field must be provided and be a valid string',
+        });
+      }
 
-      if (!flowResponse.success) {
+      // Basic Flow address format validation
+      if (!request.address.startsWith('0x') || request.address.length !== 18) {
+        return createErrorResponse({
+          code: API_ERROR_CODES.INVALID_ADDRESS,
+          message: 'Invalid Flow address format',
+          details: 'Address must be 18 characters long and start with 0x',
+        });
+      }
+
+      // Queue the setup account transaction job
+      const jobResponse = await this.sqsService.queueTransactionJob({
+        type: 'setup',
+        userAddress: request.address,
+        params: {
+          address: request.address,
+        },
+        metadata: {
+          memo: `Setup HEART vault for ${request.address}`,
+          priority: 'normal',
+        },
+      });
+
+      if (!jobResponse.success) {
         console.error(
-          'ERROR setupAccount: FlowService returned error:',
-          flowResponse.error
+          'ERROR setupAccount: Failed to queue job:',
+          jobResponse.error,
         );
-        return flowResponse;
+        return jobResponse;
       }
 
       console.log(
-        'DEBUG setupAccount: Account setup completed successfully:',
-        flowResponse.data
+        'DEBUG setupAccount: Account setup job queued successfully:',
+        jobResponse.data,
       );
 
-      return flowResponse;
+      return jobResponse;
     } catch (error) {
       console.error('ERROR setupAccount: Unexpected error:', error);
       return createErrorResponse({
-        code: API_ERROR_CODES.FLOW_TRANSACTION_ERROR,
-        message: 'Failed to setup HEART token vault',
+        code: API_ERROR_CODES.INTERNAL_SERVER_ERROR,
+        message: 'Failed to queue account setup job',
         details: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
 
   /**
-   * Set up admin account with minter role
+   * Set up admin account with minter role (Asynchronous)
    *
-   * @description Creates a Minter resource in the admin account to enable token minting.
-   * Requires the account to already have admin privileges.
+   * @description Queues a request to create a Minter resource in the admin account.
+   * This operation is processed asynchronously via SQS queue.
    *
-   * @returns Promise resolving to setup completion status
+   * @returns Promise resolving to job tracking information
    */
   @Post('/admin-minter')
-  @SuccessResponse('200', 'Admin minter role setup completed successfully')
-  @Response<ErrorResponse>('500', 'Setup transaction failed')
-  @Example<ApiResponse<{ success: boolean; message: string; txId?: string }>>({
+  @SuccessResponse('200', 'Admin minter setup job queued successfully')
+  @Response<ErrorResponse>('500', 'Failed to queue setup job')
+  @Example<ApiResponse<TransactionJobData>>({
     success: true,
     data: {
-      success: true,
-      message: 'Admin minter role setup completed successfully',
-      txId: 'abc123def456',
+      jobId: 'job_1704067200000_def456',
+      status: 'queued',
+      type: 'setup',
+      estimatedCompletionTime: '2024-01-01T00:05:00.000Z',
+      trackingUrl: '/jobs/job_1704067200000_def456',
+      queuePosition: 1,
     },
     timestamp: '2024-01-01T00:00:00.000Z',
   })
   public async setupAdminWithMinter(): Promise<
-    ApiResponse<{
-      success: boolean;
-      message: string;
-      txId?: string;
-    }>
-  > {
+    ApiResponse<TransactionJobData>
+    > {
     try {
-      console.log('DEBUG setupAdminWithMinter: Starting admin minter setup...');
+      console.log(
+        'DEBUG setupAdminWithMinter: Queueing admin minter setup job...',
+      );
 
-      // Use FlowService to set up admin minter role
-      const flowResponse = await this.flowService.setupAdminWithMinter();
+      // Queue the admin minter setup transaction job
+      const jobResponse = await this.sqsService.queueTransactionJob({
+        type: 'setup',
+        userAddress: process.env.ADMIN_ADDRESS || '0x58f9e6153690c852',
+        params: {
+          setupType: 'adminMinter',
+        },
+        metadata: {
+          memo: 'Setup admin account with minter role',
+          priority: 'high',
+        },
+      });
 
-      if (!flowResponse.success) {
+      if (!jobResponse.success) {
         console.error(
-          'ERROR setupAdminWithMinter: FlowService returned error:',
-          flowResponse.error
+          'ERROR setupAdminWithMinter: Failed to queue job:',
+          jobResponse.error,
         );
-        return flowResponse;
+        return jobResponse;
       }
 
       console.log(
-        'DEBUG setupAdminWithMinter: Admin minter setup completed:',
-        flowResponse.data
+        'DEBUG setupAdminWithMinter: Admin minter setup job queued successfully:',
+        jobResponse.data,
       );
 
-      return flowResponse;
+      return jobResponse;
     } catch (error) {
       console.error('ERROR setupAdminWithMinter: Unexpected error:', error);
       return createErrorResponse({
-        code: API_ERROR_CODES.FLOW_TRANSACTION_ERROR,
-        message: 'Failed to setup admin minter role',
+        code: API_ERROR_CODES.INTERNAL_SERVER_ERROR,
+        message: 'Failed to queue admin minter setup job',
         details: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
 
   /**
-   * Set up admin roles (Minter, Pauser, TaxManager) for admin account
+   * Set up admin roles (Minter, Pauser, TaxManager) for admin account (Asynchronous)
    *
-   * @description Creates Minter, Pauser, and TaxManager resources in the admin account.
-   * Requires the account to already have admin privileges.
+   * @description Queues a request to create Minter, Pauser, and TaxManager resources.
+   * This operation is processed asynchronously via SQS queue.
    *
-   * @returns Promise resolving to admin roles setup completion status
+   * @returns Promise resolving to job tracking information
    */
   @Post('/admin-roles')
-  @SuccessResponse('200', 'Admin roles setup completed successfully')
-  @Response<ErrorResponse>('500', 'Setup transaction failed')
-  @Example<
-    ApiResponse<{
-      success: boolean;
-      message: string;
-      txId?: string;
-      roles?: string[];
-    }>
-  >({
+  @SuccessResponse('200', 'Admin roles setup job queued successfully')
+  @Response<ErrorResponse>('500', 'Failed to queue setup job')
+  @Example<ApiResponse<TransactionJobData>>({
     success: true,
     data: {
-      success: true,
-      message:
-        'Admin roles (Minter, Pauser, TaxManager) setup completed successfully',
-      txId: 'abc123def456',
-      roles: ['Minter', 'Pauser', 'TaxManager'],
+      jobId: 'job_1704067200000_ghi789',
+      status: 'queued',
+      type: 'setup',
+      estimatedCompletionTime: '2024-01-01T00:05:00.000Z',
+      trackingUrl: '/jobs/job_1704067200000_ghi789',
+      queuePosition: 2,
     },
     timestamp: '2024-01-01T00:00:00.000Z',
   })
-  public async setupAdminRoles(): Promise<
-    ApiResponse<{
-      success: boolean;
-      message: string;
-      txId?: string;
-      roles?: string[];
-    }>
-  > {
+  public async setupAdminRoles(): Promise<ApiResponse<TransactionJobData>> {
     try {
+      console.log('DEBUG setupAdminRoles: Queueing admin roles setup job...');
+
+      // Queue the admin roles setup transaction job
+      const jobResponse = await this.sqsService.queueTransactionJob({
+        type: 'setup',
+        userAddress: process.env.ADMIN_ADDRESS || '0x58f9e6153690c852',
+        params: {
+          setupType: 'adminRoles',
+        },
+        metadata: {
+          memo: 'Setup admin roles (Minter, Pauser, TaxManager)',
+          priority: 'high',
+        },
+      });
+
+      if (!jobResponse.success) {
+        console.error(
+          'ERROR setupAdminRoles: Failed to queue job:',
+          jobResponse.error,
+        );
+        return jobResponse;
+      }
+
       console.log(
-        'DEBUG SetupController.setupAdminRoles: Starting admin roles setup...'
+        'DEBUG setupAdminRoles: Admin roles setup job queued successfully:',
+        jobResponse.data,
       );
 
-      const result = await this.flowService.setupAdminRoles();
-
-      console.log('DEBUG SetupController.setupAdminRoles: Result:', result);
-
-      return result;
+      return jobResponse;
     } catch (error) {
-      console.error('ERROR SetupController.setupAdminRoles: Failed:', error);
-
+      console.error('ERROR setupAdminRoles: Unexpected error:', error);
       return createErrorResponse({
-        code: 'SETUP_FAILED',
-        message: 'Admin roles setup failed',
+        code: API_ERROR_CODES.INTERNAL_SERVER_ERROR,
+        message: 'Failed to queue admin roles setup job',
         details: error instanceof Error ? error.message : 'Unknown error',
       });
     }

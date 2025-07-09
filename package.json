@@ -61,6 +61,8 @@
     "typescript": "^5.8.3"
   },
   "dependencies": {
+    "@aws-sdk/client-cloudwatch-logs": "^3.840.0",
+    "@aws-sdk/client-sqs": "^3.840.0",
     "@onflow/fcl": "^1.19.0",
     "@onflow/types": "^1.4.1",
     "@onflow/util-encode-key": "^1.2.4",

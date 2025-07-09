@@ -311,6 +311,7 @@ export interface TransactionJobRequest {
   jobId: string;
   /** Transaction type */
   type:
+    | 'setup'
     | 'mint'
     | 'transfer'
     | 'burn'

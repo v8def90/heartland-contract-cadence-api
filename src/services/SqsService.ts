@@ -57,7 +57,7 @@ export class SqsService {
    * @returns Promise resolving to job information
    */
   async queueTransactionJob(
-    jobRequest: Omit<TransactionJobRequest, 'jobId'>
+    jobRequest: Omit<TransactionJobRequest, 'jobId'>,
   ): Promise<ApiResponse<TransactionJobData>> {
     try {
       // Generate unique job ID
@@ -107,11 +107,11 @@ export class SqsService {
       };
 
       const result = await this.sqsClient.send(
-        new SendMessageCommand(sqsMessage)
+        new SendMessageCommand(sqsMessage),
       );
 
       console.log(
-        `[JOB_QUEUED] ${jobId}: Job queued successfully with messageId: ${result.MessageId}`
+        `[JOB_QUEUED] ${jobId}: Job queued successfully with messageId: ${result.MessageId}`,
       );
 
       const jobData: TransactionJobData = {
@@ -155,7 +155,7 @@ export class SqsService {
         logGroupName,
         filterPattern,
         startTime,
-        endTime
+        endTime,
       );
 
       if (logEvents.length === 0) {
@@ -170,14 +170,14 @@ export class SqsService {
       const jobStatus = this.parseJobStatusFromLogs(jobId, logEvents);
 
       console.log(
-        `[JOB_STATUS_CHECK] ${jobId}: Job status retrieved: ${jobStatus.status}`
+        `[JOB_STATUS_CHECK] ${jobId}: Job status retrieved: ${jobStatus.status}`,
       );
 
       return createSuccessResponse<JobStatusData>(jobStatus);
     } catch (error) {
       console.error(
         `[JOB_STATUS_ERROR] ${jobId}: Failed to retrieve job status:`,
-        error
+        error,
       );
       return createErrorResponse({
         code: API_ERROR_CODES.INTERNAL_SERVER_ERROR,
@@ -197,7 +197,7 @@ export class SqsService {
   static logJobStatusUpdate(
     jobId: string,
     status: JobStatus,
-    details: Record<string, unknown> = {}
+    details: Record<string, unknown> = {},
   ): void {
     const logData = {
       jobId,
@@ -223,7 +223,7 @@ export class SqsService {
     logGroupName: string,
     filterPattern: string,
     startTime: number,
-    endTime: number
+    endTime: number,
   ): Promise<Array<{ timestamp: number; message: string }>> {
     try {
       const command = new FilterLogEventsCommand({
@@ -241,7 +241,7 @@ export class SqsService {
           (event: { timestamp?: number; message?: string }) => ({
             timestamp: event.timestamp || 0,
             message: event.message || '',
-          })
+          }),
         ) || []
       );
     } catch (error) {
@@ -260,7 +260,7 @@ export class SqsService {
    */
   private parseJobStatusFromLogs(
     jobId: string,
-    logEvents: Array<{ timestamp: number; message: string }>
+    logEvents: Array<{ timestamp: number; message: string }>,
   ): JobStatusData {
     const sortedEvents = logEvents.sort((a, b) => a.timestamp - b.timestamp);
     const logs = sortedEvents.map(event => event.message);
@@ -281,16 +281,16 @@ export class SqsService {
 
     // Extract timestamps
     const createdEvent = sortedEvents.find(e =>
-      e.message.includes('[JOB_QUEUED]')
+      e.message.includes('[JOB_QUEUED]'),
     );
     const startedEvent = sortedEvents.find(e =>
-      e.message.includes('[JOB_PROCESSING]')
+      e.message.includes('[JOB_PROCESSING]'),
     );
     const completedEvent = sortedEvents.find(
       e =>
         e.message.includes('[JOB_COMPLETED]') ||
         e.message.includes('[JOB_FAILED]') ||
-        e.message.includes('[JOB_CANCELLED]')
+        e.message.includes('[JOB_CANCELLED]'),
     );
 
     // Extract transaction type
@@ -324,17 +324,17 @@ export class SqsService {
    */
   private calculateProgress(status: JobStatus): number {
     switch (status) {
-      case 'queued':
-        return 0;
-      case 'processing':
-        return 50;
-      case 'completed':
-        return 100;
-      case 'failed':
-      case 'cancelled':
-        return 0;
-      default:
-        return 0;
+    case 'queued':
+      return 0;
+    case 'processing':
+      return 50;
+    case 'completed':
+      return 100;
+    case 'failed':
+    case 'cancelled':
+      return 0;
+    default:
+      return 0;
     }
   }
 
@@ -366,7 +366,7 @@ export class SqsService {
 
       const result = await this.sqsClient.send(command);
       const queueLength = parseInt(
-        result.Attributes?.ApproximateNumberOfMessages || '0'
+        result.Attributes?.ApproximateNumberOfMessages || '0',
       );
 
       return queueLength + 1; // Current position = queue length + 1

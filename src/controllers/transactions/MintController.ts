@@ -13,10 +13,10 @@ import {
   Example,
   SuccessResponse,
   Response,
-  Security,
 } from 'tsoa';
 import type { ApiResponse } from '../../models/responses/ApiResponse';
-import { FlowService } from '../../services/FlowService';
+import { SqsService } from '../../services/SqsService';
+import type { TransactionJobData } from '../../models/responses';
 import {
   createErrorResponse,
   API_ERROR_CODES,
@@ -33,81 +33,62 @@ interface MintRequest {
 }
 
 /**
- * Mint response data structure
- */
-interface MintData {
-  /** Transaction ID */
-  txId: string;
-  /** Recipient address */
-  recipient: string;
-  /** Amount minted */
-  amount: string;
-  /** Transaction status */
-  status: string;
-  /** Block height */
-  blockHeight?: number;
-  /** Transaction events */
-  events?: unknown[];
-}
-
-/**
  * Mint Controller
  *
- * @description Handles HEART token minting operations using the actual Contract
+ * @description Handles HEART token minting operations using asynchronous SQS processing
  */
 @Route('mint')
 @Tags('Mint')
 export class MintController extends Controller {
-  private flowService: FlowService;
+  private sqsService: SqsService;
 
   constructor() {
     super();
-    this.flowService = new FlowService();
+    this.sqsService = new SqsService();
   }
 
   /**
-   * Mint HEART tokens to a specified recipient
+   * Mint HEART tokens to a specified recipient (Asynchronous)
    *
-   * @description Mints new HEART tokens to the specified recipient address.
-   * Requires MINTER role capability. Uses the actual mint-tokens.transaction.cdc.
+   * @description Queues a request to mint new HEART tokens to the specified recipient address.
+   * Requires MINTER role capability. The operation is processed asynchronously via SQS queue
+   * for better scalability and returns a job ID for tracking progress.
    *
    * @param request - Mint request containing recipient and amount
-   * @returns Promise resolving to mint transaction information
+   * @returns Promise resolving to job tracking information
    *
    * @security JWT authentication required (admin only)
    */
   @Post('')
   // @Security('jwt') // Temporarily disabled for testing
-  @SuccessResponse('200', 'Tokens minted successfully')
+  @SuccessResponse('200', 'Mint job queued successfully')
   @Response('400', 'Invalid request parameters')
   @Response('401', 'Authentication required')
   @Response('403', 'Insufficient permissions (MINTER role required)')
-  @Response('500', 'Transaction failed')
+  @Response('500', 'Failed to queue mint job')
   @Example({
     success: true,
     data: {
-      txId: 'abc123def456',
-      recipient: '0x1234567890abcdef',
-      amount: '1000.0',
-      status: 'sealed',
-      blockHeight: 12345678,
-      events: [
-        {
-          type: 'A.58f9e6153690c852.Heart.TokensMinted',
-          transactionId: 'abc123def456',
-          data: {
-            amount: '1000.0',
-            recipient: '0x1234567890abcdef',
-          },
-        },
-      ],
+      jobId: 'job_1704067200000_abc123',
+      status: 'queued',
+      type: 'mint',
+      estimatedCompletionTime: '2024-01-01T00:05:00.000Z',
+      trackingUrl: '/jobs/job_1704067200000_abc123',
+      queuePosition: 2,
     },
     timestamp: '2024-01-01T00:00:00.000Z',
   })
   public async mintTokens(
-    @Body() request: MintRequest
-  ): Promise<ApiResponse<MintData>> {
+    @Body() request: MintRequest,
+  ): Promise<ApiResponse<TransactionJobData>> {
     try {
+      console.log(
+        'DEBUG mintTokens: Queueing mint job for recipient:',
+        request.recipient,
+        'amount:',
+        request.amount,
+      );
+
       // Validate request parameters
       if (!request.recipient || !request.amount) {
         return createErrorResponse({
@@ -127,18 +108,51 @@ export class MintController extends Controller {
         });
       }
 
-      // Execute the mint transaction using FlowService
-      const result = await this.flowService.mintTokens(
-        request.recipient,
-        request.amount
+      // Basic Flow address format validation
+      if (
+        !request.recipient.startsWith('0x') ||
+        request.recipient.length !== 18
+      ) {
+        return createErrorResponse({
+          code: API_ERROR_CODES.INVALID_ADDRESS,
+          message: 'Invalid recipient address format',
+          details: 'Address must be 18 characters long and start with 0x',
+        });
+      }
+
+      // Queue the mint transaction job
+      const jobResponse = await this.sqsService.queueTransactionJob({
+        type: 'mint',
+        userAddress: process.env.ADMIN_ADDRESS || '0x58f9e6153690c852',
+        params: {
+          recipient: request.recipient,
+          amount: request.amount,
+        },
+        metadata: {
+          memo: `Mint ${request.amount} HEART tokens to ${request.recipient}`,
+          priority: 'normal',
+        },
+      });
+
+      if (!jobResponse.success) {
+        console.error(
+          'ERROR mintTokens: Failed to queue mint job:',
+          jobResponse.error,
+        );
+        return jobResponse;
+      }
+
+      console.log(
+        'DEBUG mintTokens: Mint job queued successfully:',
+        jobResponse.data,
       );
 
-      return result;
+      return jobResponse;
     } catch (error) {
       console.error('ERROR mintTokens: Mint operation failed:', error);
       return createErrorResponse({
-        code: API_ERROR_CODES.FLOW_TRANSACTION_ERROR,
-        message: 'Failed to mint tokens',
+        code: API_ERROR_CODES.INTERNAL_SERVER_ERROR,
+        message: 'Failed to queue mint job',
         details: error instanceof Error ? error.message : 'Unknown error',
       });
     }
