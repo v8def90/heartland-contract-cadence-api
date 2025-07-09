@@ -1,35 +1,35 @@
-import FungibleToken from 0x9a0766d93b6608b7
-import Heart from 0x58f9e6153690c852
+import "Heart"
 
-/// Check admin capabilities for a specific address
+/// Check admin capabilities for a given account address
+/// Returns which administrative roles the account has access to
 /// 
-/// @param address: The Flow address to check capabilities for
-/// @return {String: Bool}: A dictionary of capabilities and their status
-access(all) fun main(address: Address): {String: Bool} {
-    // Get the account for the given address
-    let account = getAccount(address)
+/// @param accountAddress: Address to check for admin capabilities
+/// @return: Dictionary containing boolean flags for each admin role
+access(all) fun main(accountAddress: Address): {String: AnyStruct} {
     
-    // Check if this is the contract address (always has admin rights)
-    let isContractAddress = address == 0x58f9e6153690c852
+    let account = getAccount(accountAddress)
     
-    // In a real implementation, you would check for specific capabilities:
-    // - AdminCapability resource in account storage
-    // - Specific capability links for minting, pausing, etc.
-    // For now, we'll use the contract address as the primary admin
+    // Check each administrative role capability
+    let hasAdmin = account.storage.type(at: Heart.AdminStoragePath) != nil
+    let hasMinter = account.storage.type(at: Heart.MinterStoragePath) != nil  
+    let hasPauser = account.storage.type(at: Heart.PauserStoragePath) != nil
+    let hasTaxManager = account.storage.type(at: Heart.TaxManagerStoragePath) != nil
     
-    // Additional logic could include:
-    // let hasAdminResource = account.storage.borrow<&AdminResource>(from: /storage/AdminResource) != nil
-    // let hasMintCap = account.capabilities.borrow<&MinterCapability>(/public/Minter) != nil
+    // Count total administrative roles
+    let totalRoles = (hasAdmin ? 1 : 0) + (hasMinter ? 1 : 0) + (hasPauser ? 1 : 0) + (hasTaxManager ? 1 : 0)
     
-    let isAdmin = isContractAddress
-    
+    // Return comprehensive capability information
     return {
-        "canMint": isAdmin,
-        "canBurn": isAdmin,
-        "canPause": isAdmin,
-        "canSetTaxRate": isAdmin,
-        "canSetTreasury": isAdmin,
-        "isAdmin": isAdmin,
-        "isContractOwner": isContractAddress
+        "accountAddress": accountAddress,
+        "hasAdmin": hasAdmin,
+        "hasMinter": hasMinter,
+        "hasPauser": hasPauser,
+        "hasTaxManager": hasTaxManager,
+        "totalAdminRoles": totalRoles,
+        "isFullAdmin": hasAdmin,
+        "hasAnyAdminRole": totalRoles > 0,
+        "adminLevel": totalRoles == 4 ? "SUPER_ADMIN" : 
+                     totalRoles >= 2 ? "MULTI_ROLE" : 
+                     totalRoles == 1 ? "SINGLE_ROLE" : "NO_ADMIN"
     }
 } 

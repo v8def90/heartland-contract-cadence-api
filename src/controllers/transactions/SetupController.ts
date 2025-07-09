@@ -122,4 +122,119 @@ export class SetupController extends Controller {
       });
     }
   }
+
+  /**
+   * Set up admin account with minter role
+   *
+   * @description Creates a Minter resource in the admin account to enable token minting.
+   * Requires the account to already have admin privileges.
+   *
+   * @returns Promise resolving to setup completion status
+   */
+  @Post('/admin-minter')
+  @SuccessResponse('200', 'Admin minter role setup completed successfully')
+  @Response<ErrorResponse>('500', 'Setup transaction failed')
+  @Example<ApiResponse<{ success: boolean; message: string; txId?: string }>>({
+    success: true,
+    data: {
+      success: true,
+      message: 'Admin minter role setup completed successfully',
+      txId: 'abc123def456',
+    },
+    timestamp: '2024-01-01T00:00:00.000Z',
+  })
+  public async setupAdminWithMinter(): Promise<
+    ApiResponse<{
+      success: boolean;
+      message: string;
+      txId?: string;
+    }>
+  > {
+    try {
+      console.log('DEBUG setupAdminWithMinter: Starting admin minter setup...');
+
+      // Use FlowService to set up admin minter role
+      const flowResponse = await this.flowService.setupAdminWithMinter();
+
+      if (!flowResponse.success) {
+        console.error(
+          'ERROR setupAdminWithMinter: FlowService returned error:',
+          flowResponse.error
+        );
+        return flowResponse;
+      }
+
+      console.log(
+        'DEBUG setupAdminWithMinter: Admin minter setup completed:',
+        flowResponse.data
+      );
+
+      return flowResponse;
+    } catch (error) {
+      console.error('ERROR setupAdminWithMinter: Unexpected error:', error);
+      return createErrorResponse({
+        code: API_ERROR_CODES.FLOW_TRANSACTION_ERROR,
+        message: 'Failed to setup admin minter role',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+
+  /**
+   * Set up admin roles (Minter, Pauser, TaxManager) for admin account
+   *
+   * @description Creates Minter, Pauser, and TaxManager resources in the admin account.
+   * Requires the account to already have admin privileges.
+   *
+   * @returns Promise resolving to admin roles setup completion status
+   */
+  @Post('/admin-roles')
+  @SuccessResponse('200', 'Admin roles setup completed successfully')
+  @Response<ErrorResponse>('500', 'Setup transaction failed')
+  @Example<
+    ApiResponse<{
+      success: boolean;
+      message: string;
+      txId?: string;
+      roles?: string[];
+    }>
+  >({
+    success: true,
+    data: {
+      success: true,
+      message:
+        'Admin roles (Minter, Pauser, TaxManager) setup completed successfully',
+      txId: 'abc123def456',
+      roles: ['Minter', 'Pauser', 'TaxManager'],
+    },
+    timestamp: '2024-01-01T00:00:00.000Z',
+  })
+  public async setupAdminRoles(): Promise<
+    ApiResponse<{
+      success: boolean;
+      message: string;
+      txId?: string;
+      roles?: string[];
+    }>
+  > {
+    try {
+      console.log(
+        'DEBUG SetupController.setupAdminRoles: Starting admin roles setup...'
+      );
+
+      const result = await this.flowService.setupAdminRoles();
+
+      console.log('DEBUG SetupController.setupAdminRoles: Result:', result);
+
+      return result;
+    } catch (error) {
+      console.error('ERROR SetupController.setupAdminRoles: Failed:', error);
+
+      return createErrorResponse({
+        code: 'SETUP_FAILED',
+        message: 'Admin roles setup failed',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
 }
