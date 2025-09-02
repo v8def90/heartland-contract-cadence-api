@@ -66,17 +66,22 @@ export const createApp = (): express.Application => {
     next();
   });
 
-  // CORS middleware
+  // Enhanced CORS middleware for Swagger UI compatibility
   app.use((req: Request, res: Response, next: NextFunction) => {
     res.header('Access-Control-Allow-Origin', '*');
     res.header(
       'Access-Control-Allow-Methods',
-      'GET, POST, PUT, DELETE, OPTIONS'
+      'GET, POST, PUT, DELETE, PATCH, OPTIONS'
     );
     res.header(
       'Access-Control-Allow-Headers',
-      'Origin, X-Requested-With, Content-Type, Accept, Authorization'
+      'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control'
     );
+    res.header(
+      'Access-Control-Expose-Headers',
+      'Content-Length, Content-Type'
+    );
+    res.header('Access-Control-Max-Age', '86400'); // 24 hours
 
     if (req.method === 'OPTIONS') {
       res.sendStatus(200);
