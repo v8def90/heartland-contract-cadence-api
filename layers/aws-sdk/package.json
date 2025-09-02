@@ -1,0 +1,10 @@
+{
+  "name": "heartland-aws-sdk-layer",
+  "version": "1.0.0",
+  "description": "AWS SDK dependencies layer",
+  "private": true,
+  "dependencies": {
+    "@aws-sdk/client-cloudwatch-logs": "^3.840.0",
+    "@aws-sdk/client-sqs": "^3.840.0"
+  }
+}

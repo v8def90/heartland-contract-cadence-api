@@ -177,7 +177,7 @@ export const createApp = (): express.Application => {
   // Register tsoa routes
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { RegisterRoutes } = require('../build/routes');
+    const { RegisterRoutes } = require('./routes');
     RegisterRoutes(app);
     console.log('✅ tsoa routes loaded successfully');
   } catch (error) {

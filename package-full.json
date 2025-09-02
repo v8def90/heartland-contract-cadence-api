@@ -34,13 +34,7 @@
   "license": "MIT",
   "packageManager": "pnpm@10.8.0",
   "devDependencies": {
-    "@aws-sdk/client-cloudwatch-logs": "^3.879.0",
-    "@aws-sdk/client-sqs": "^3.879.0",
-    "@codegenie/serverless-express": "^4.17.0",
     "@eslint/js": "^9.30.1",
-    "@onflow/fcl": "^1.20.0",
-    "@onflow/types": "^1.4.1",
-    "@onflow/util-encode-key": "^1.2.4",
     "@types/aws-lambda": "^8.10.150",
     "@types/express": "^5.0.3",
     "@types/jest": "^30.0.0",
@@ -55,7 +49,6 @@
     "eslint-config-prettier": "^10.1.5",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-tsdoc": "^0.4.0",
-    "express": "^5.1.0",
     "jest": "^30.0.4",
     "prettier": "^3.6.2",
     "serverless": "^4.17.1",
@@ -63,36 +56,26 @@
     "serverless-plugin-typescript": "^2.1.5",
     "serverless-plugin-warmup": "^8.3.0",
     "supertest": "^7.1.1",
-    "swagger-ui-express": "^5.0.1",
     "ts-jest": "^29.4.0",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.8.3"
   },
   "dependencies": {
+    "@aws-sdk/client-cloudwatch-logs": "^3.840.0",
+    "@aws-sdk/client-sqs": "^3.840.0",
+    "@codegenie/serverless-express": "^4.17.0",
+    "@onflow/fcl": "^1.19.0",
+    "@onflow/types": "^1.4.1",
+    "@onflow/util-encode-key": "^1.2.4",
     "@tsoa/runtime": "^6.6.0",
     "@types/dotenv": "^8.2.3",
     "@types/elliptic": "^6.4.18",
     "dotenv": "^17.1.0",
     "elliptic": "^6.6.1",
+    "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
     "sha3": "^2.1.4",
+    "swagger-ui-express": "^5.0.1",
     "tsoa": "^6.6.0"
-  },
-  "comment": "Layer化により以下の依存関係を削除:",
-  "removed_dependencies": {
-    "aws_sdk": [
-      "@aws-sdk/client-cloudwatch-logs",
-      "@aws-sdk/client-sqs"
-    ],
-    "flow_sdk": [
-      "@onflow/fcl",
-      "@onflow/types",
-      "@onflow/util-encode-key"
-    ],
-    "web_deps": [
-      "express",
-      "swagger-ui-express",
-      "@codegenie/serverless-express"
-    ]
   }
 }

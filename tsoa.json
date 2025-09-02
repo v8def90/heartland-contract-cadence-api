@@ -57,7 +57,8 @@
     ]
   },
   "routes": {
-    "routesDir": "build",
+    "routesDir": "src",
+    "routesFileName": "routes.ts",
     "middleware": "express"
   },
   "ignore": ["**/node_modules/**", "**/build/**", "**/dist/**", "**/tests/**"]

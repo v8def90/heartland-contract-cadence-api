@@ -1,0 +1,14 @@
+{
+  "name": "heartland-runtime-layer",
+  "version": "1.0.0",
+  "description": "Basic runtime dependencies - dotenv, jsonwebtoken, etc",
+  "private": true,
+  "dependencies": {
+    "dotenv": "^17.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "sha3": "^2.1.4",
+    "elliptic": "^6.6.1",
+    "@tsoa/runtime": "^6.6.0",
+    "tsoa": "^6.6.0"
+  }
+}

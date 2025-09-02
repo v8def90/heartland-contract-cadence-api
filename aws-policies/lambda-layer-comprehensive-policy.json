@@ -1,0 +1,44 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "LambdaLayerFullManagement",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:PublishLayerVersion",
+        "lambda:GetLayerVersion",
+        "lambda:DeleteLayerVersion",
+        "lambda:ListLayerVersions",
+        "lambda:GetLayerVersionPolicy",
+        "lambda:AddLayerVersionPermission",
+        "lambda:RemoveLayerVersionPermission",
+        "lambda:ListLayers"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "S3LayerUpload",
+      "Effect": "Allow",
+      "Action": ["s3:PutObject", "s3:GetObject", "s3:DeleteObject"],
+      "Resource": [
+        "arn:aws:s3:::serverless-framework-deployments-ap-northeast-1-*/*"
+      ]
+    },
+    {
+      "Sid": "CloudFormationLayerDeployment",
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:CreateStack",
+        "cloudformation:UpdateStack",
+        "cloudformation:DeleteStack",
+        "cloudformation:DescribeStacks",
+        "cloudformation:DescribeStackEvents",
+        "cloudformation:DescribeStackResources",
+        "cloudformation:ValidateTemplate"
+      ],
+      "Resource": [
+        "arn:aws:cloudformation:ap-northeast-1:048772807834:stack/heartland-api-v3-*/*"
+      ]
+    }
+  ]
+}

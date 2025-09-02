@@ -44,15 +44,6 @@ plugins:
 
 # Lambda Layers定義 (最適化版)
 layers:
-  # 基本ランタイム Layer (~5MB)
-  runtimeLayer:
-    path: layers/runtime
-    name: ${self:service}-runtime-${self:provider.stage}
-    description: Basic runtime dependencies - dotenv, jsonwebtoken, tsoa
-    compatibleRuntimes:
-      - nodejs22.x
-    retain: false
-
   # 統合ブロックチェーン Layer (~160MB)
   blockchainLayer:
     path: layers/blockchain
@@ -85,7 +76,6 @@ functions:
   app:
     handler: dist/lambda.handler
     layers:
-      - { Ref: RuntimeLayerLambdaLayer } # 基本ランタイム
       - { Ref: AwsSdkLayerLambdaLayer }
       - { Ref: BlockchainLayerLambdaLayer } # Flow SDK統合
       - { Ref: WebDepsLayerLambdaLayer }
@@ -98,7 +88,6 @@ functions:
     timeout: 300
     memorySize: 1024
     layers:
-      - { Ref: RuntimeLayerLambdaLayer } # 基本ランタイム
       - { Ref: AwsSdkLayerLambdaLayer }
       - { Ref: BlockchainLayerLambdaLayer } # WalletConnect含む統合Layer
     events:
@@ -114,8 +103,7 @@ functions:
     handler: dist/workers/jobCleanup.handler
     timeout: 60
     layers:
-      - { Ref: RuntimeLayerLambdaLayer } # 基本ランタイム
-      - { Ref: AwsSdkLayerLambdaLayer } # CloudWatch Logs用
+      - { Ref: AwsSdkLayerLambdaLayer } # CloudWatch Logs用のみ
     events:
       - schedule: rate(1 day)
 
@@ -123,7 +111,6 @@ functions:
   swaggerUI:
     handler: dist/swagger.handler
     layers:
-      - { Ref: RuntimeLayerLambdaLayer } # 基本ランタイム
       - { Ref: WebDepsLayerLambdaLayer } # Swagger UI用
     events:
       - httpApi:
@@ -160,42 +147,45 @@ custom:
     resourceRoutes: true
 
 package:
-  # 完全除外: node_modulesを含めない（Layersで提供）
-  excludeDevDependencies: false # この機能は無効化
+  # 自動的に開発依存関係を除外（Serverless Framework v4の機能）
+  excludeDevDependencies: true
 
   patterns:
-    # 必要最小限のファイルのみ含める
+    # 必要なファイルのみを明示的に含める
     - 'dist/**'
     - 'build/swagger.json'
     - 'package.json'
 
-    # 全依存関係を明示的に除外（Layersで提供）
-    - '!node_modules/**'
-
-    # 開発・設定ファイルを除外
+    # 不要なファイルを明示的に除外
     - '!src/**'
     - '!tests/**'
     - '!coverage/**'
-    - '!layers/**'
-    - '!aws-policies/**'
-    - '!scripts/**'
-    - '!transactions/**'
-    - '!contracts/**'
-    - '!docs/**'
     - '!*.md'
     - '!.env*'
     - '!.cursor*'
     - '!.git*'
-    - '!.eslint*'
-    - '!.prettier*'
-    - '!.serverless*'
     - '!tsconfig.json'
     - '!tsoa.json'
     - '!jest.config.js'
     - '!eslint.config.js'
+    - '!.prettier*'
+    - '!scripts/**'
+    - '!transactions/**'
+    - '!contracts/**'
+    - '!docs/**'
     - '!flow.json'
     - '!setup-minter-role.js'
     - '!test-keys.js'
     - '!sample.env'
-    - '!package-*.json'
-    - '!pnpm-lock.yaml'
+
+    # 開発依存関係のnode_modulesを除外
+    - '!node_modules/@types/**'
+    - '!node_modules/@typescript-eslint/**'
+    - '!node_modules/@eslint/**'
+    - '!node_modules/eslint/**'
+    - '!node_modules/prettier/**'
+    - '!node_modules/jest/**'
+    - '!node_modules/ts-jest/**'
+    - '!node_modules/typescript/**'
+    - '!node_modules/serverless/**'
+    - '!node_modules/serverless-offline/**'
