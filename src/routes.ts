@@ -4,6 +4,8 @@
 import type { TsoaRoute } from '@tsoa/runtime';
 import {  fetchMiddlewares, ExpressTemplateService } from '@tsoa/runtime';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { TransferController } from './controllers/transactions/TransferController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { SetupController } from './controllers/transactions/SetupController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { MintController } from './controllers/transactions/MintController';
@@ -68,6 +70,16 @@ const models: TsoaRoute.Models = {
     "ApiResponse_TransactionJobData_": {
         "dataType": "refAlias",
         "type": {"dataType":"union","subSchemas":[{"ref":"SuccessResponse_TransactionJobData_"},{"ref":"ErrorResponse"}],"validators":{}},
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "TransferRequest": {
+        "dataType": "refObject",
+        "properties": {
+            "recipient": {"dataType":"string","required":true},
+            "amount": {"dataType":"string","required":true},
+            "memo": {"dataType":"string"},
+        },
+        "additionalProperties": false,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     "SetupAccountRequest": {
@@ -358,6 +370,36 @@ export function RegisterRoutes(app: Router) {
 
 
     
+        const argsTransferController_transferTokens: Record<string, TsoaRoute.ParameterSchema> = {
+                request: {"in":"body","name":"request","required":true,"ref":"TransferRequest"},
+        };
+        app.post('/transfer',
+            ...(fetchMiddlewares<RequestHandler>(TransferController)),
+            ...(fetchMiddlewares<RequestHandler>(TransferController.prototype.transferTokens)),
+
+            async function TransferController_transferTokens(request: ExRequest, response: ExResponse, next: any) {
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({ args: argsTransferController_transferTokens, request, response });
+
+                const controller = new TransferController();
+
+              await templateService.apiHandler({
+                methodName: 'transferTokens',
+                controller,
+                response,
+                next,
+                validatedArgs,
+                successStatus: 200,
+              });
+            } catch (err) {
+                return next(err);
+            }
+        });
+        // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
         const argsSetupController_setupAccount: Record<string, TsoaRoute.ParameterSchema> = {
                 request: {"in":"body","name":"request","required":true,"ref":"SetupAccountRequest"},
         };

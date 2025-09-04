@@ -283,12 +283,56 @@ async function executeTransferTokens(
   blockHeight?: string;
   error?: string;
 }> {
-  // Note: Transfer implementation would go here when TransferService is ready
-  // For now, return a placeholder
-  return {
-    success: false,
-    error: 'Transfer tokens not yet implemented',
-  };
+  try {
+    const { recipient, amount } = jobRequest.params as {
+      recipient: string;
+      amount: string;
+      memo?: string;
+    };
+
+    // Use userAddress as sender (from JWT token in real implementation)
+    const sender = jobRequest.userAddress;
+
+    console.log(
+      `[TRANSFER_START] Executing transfer: ${amount} HEART from ${sender} to ${recipient}`
+    );
+
+    const result = await flowService.transferTokens(sender, recipient, amount);
+
+    if (result.success) {
+      console.log(`[TRANSFER_SUCCESS] Transfer completed: ${result.data.txId}`);
+
+      const response: {
+        success: boolean;
+        txId?: string;
+        blockHeight?: string;
+        error?: string;
+      } = {
+        success: true,
+        txId: result.data.txId,
+      };
+
+      // Only add blockHeight if it exists
+      if (result.data.blockHeight) {
+        response.blockHeight = result.data.blockHeight.toString();
+      }
+
+      return response;
+    } else {
+      console.error('[TRANSFER_FAILED]', result.error);
+      return {
+        success: false,
+        error: result.error?.message || 'Transfer tokens failed',
+      };
+    }
+  } catch (error) {
+    console.error('[TRANSFER_ERROR]', error);
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'Transfer execution failed',
+    };
+  }
 }
 
 /**
