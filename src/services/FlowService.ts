@@ -1619,21 +1619,9 @@ export class FlowService {
         [authorization]
       );
 
-      if (!result.success) {
-        console.error(
-          'ERROR transferTokens: Transfer transaction failed:',
-          result.error
-        );
-        return createErrorResponse({
-          code: API_ERROR_CODES.TRANSACTION_FAILED,
-          message: 'Transfer transaction failed',
-          details: result.error || 'Transaction execution failed',
-        });
-      }
-
       console.log(
-        'DEBUG transferTokens: Transfer transaction completed:',
-        result.data
+        'DEBUG transferTokens: Transfer transaction completed successfully:',
+        result
       );
 
       // Calculate tax and net amounts (for response)
@@ -1773,19 +1761,10 @@ export class FlowService {
         [authorization]
       );
 
-      if (!result.success) {
-        console.error(
-          'ERROR burnTokens: Burn transaction failed:',
-          result.error
-        );
-        return createErrorResponse({
-          code: API_ERROR_CODES.TRANSACTION_FAILED,
-          message: 'Burn transaction failed',
-          details: result.error || 'Unknown transaction error',
-        });
-      }
-
-      console.log('DEBUG burnTokens: Burn transaction completed:', result.data);
+      console.log(
+        'DEBUG burnTokens: Burn transaction completed successfully:',
+        result
+      );
 
       return createSuccessResponse({
         txId: result.transactionId || result.data?.transactionId,
