@@ -347,11 +347,74 @@ async function executeSetTaxRate(
   blockHeight?: string;
   error?: string;
 }> {
-  // Note: Set tax rate implementation would go here when implemented
-  return {
-    success: false,
-    error: 'Set tax rate not yet implemented',
-  };
+  try {
+    const { newTaxRate } = jobRequest.params as {
+      newTaxRate: string;
+    };
+
+    if (!newTaxRate) {
+      throw new Error('New tax rate is required');
+    }
+
+    console.log(
+      `[SET_TAX_RATE_EXECUTING] ${jobRequest.jobId}: Setting tax rate to ${newTaxRate}%`
+    );
+
+    // Execute set tax rate transaction using FlowService
+    const result = await flowService.setTaxRate(newTaxRate);
+
+    if (result.success) {
+      console.log(
+        `[SET_TAX_RATE_SUCCESS] ${jobRequest.jobId}: Tax rate set successfully`,
+        {
+          txId: result.data.txId,
+          newTaxRate: result.data.newTaxRate,
+          status: result.data.status,
+          blockHeight: result.data.blockHeight,
+        }
+      );
+
+      const response: {
+        success: boolean;
+        txId?: string;
+        blockHeight?: string;
+        error?: string;
+      } = {
+        success: true,
+        txId: result.data.txId,
+      };
+
+      if (result.data.blockHeight) {
+        response.blockHeight = result.data.blockHeight.toString();
+      }
+
+      return response;
+    } else {
+      console.error(
+        `[SET_TAX_RATE_FAILED] ${jobRequest.jobId}: Set tax rate transaction failed`,
+        {
+          error: result.error,
+        }
+      );
+
+      return {
+        success: false,
+        error: result.error?.message || 'Set tax rate transaction failed',
+      };
+    }
+  } catch (error) {
+    console.error(
+      `[SET_TAX_RATE_ERROR] ${jobRequest.jobId}: Error executing set tax rate`,
+      {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      }
+    );
+
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to set tax rate',
+    };
+  }
 }
 
 /**

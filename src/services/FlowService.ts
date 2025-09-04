@@ -141,6 +141,15 @@ export class FlowService {
             // Default to String for other arguments
             transactionArgs.push(fcl.arg(arg, fcl.t.String));
           }
+        } else if (transactionPath.includes('set-tax-rate.transaction.cdc')) {
+          // For set tax rate transaction: newTaxRate (UFix64)
+          if (index === 0) {
+            // First argument: newTaxRate as UFix64
+            transactionArgs.push(fcl.arg(arg, fcl.t.UFix64));
+          } else {
+            // Default to String for other arguments
+            transactionArgs.push(fcl.arg(arg, fcl.t.String));
+          }
         } else if (transactionPath.includes('setup-account.transaction.cdc')) {
           // Setup account has no arguments, but prepare for future extensions
           transactionArgs.push(fcl.arg(arg, fcl.t.String));
@@ -2056,6 +2065,151 @@ export class FlowService {
       return createErrorResponse({
         code: API_ERROR_CODES.UNKNOWN_ERROR,
         message: 'Unpause operation failed',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+
+  /**
+   * Set HEART token tax rate
+   *
+   * @description Sets the tax rate for HEART token transfers.
+   * Requires ADMIN role capability. This is an admin-only operation.
+   *
+   * @param newTaxRate - New tax rate percentage (0.0 to 100.0)
+   * @returns Promise resolving to set tax rate transaction result
+   */
+  async setTaxRate(newTaxRate: string): Promise<
+    ApiResponse<{
+      txId: string;
+      newTaxRate: string;
+      status: string;
+      blockHeight?: string;
+      events?: any[];
+    }>
+  > {
+    try {
+      console.log('DEBUG setTaxRate: Starting set tax rate transaction');
+
+      // Validate tax rate format and range
+      const taxRateFloat = parseFloat(newTaxRate);
+      if (isNaN(taxRateFloat) || taxRateFloat < 0 || taxRateFloat > 100) {
+        return createErrorResponse({
+          code: API_ERROR_CODES.INVALID_AMOUNT,
+          message: 'Invalid tax rate',
+          details: 'Tax rate must be a number between 0.0 and 100.0',
+        });
+      }
+
+      // Check if we have admin credentials for real transaction
+      const adminPrivateKey = process.env.ADMIN_PRIVATE_KEY;
+      const adminAddress = process.env.ADMIN_ADDRESS || '0x58f9e6153690c852';
+
+      if (!adminPrivateKey) {
+        console.log(
+          'DEBUG setTaxRate: No admin private key found, using mock implementation'
+        );
+
+        // Mock set tax rate transaction for demonstration
+        const mockTxId = `mock_set_tax_rate_${Date.now()}`;
+
+        console.log('DEBUG setTaxRate: Mock set tax rate completed:', {
+          txId: mockTxId,
+          newTaxRate,
+          status: 'sealed',
+          blockHeight: 12345678,
+        });
+
+        return createSuccessResponse({
+          txId: mockTxId,
+          newTaxRate,
+          status: 'sealed',
+          blockHeight: '12345678',
+          events: [],
+        });
+      }
+
+      // Real transaction execution using Flow SDK
+      console.log(
+        'DEBUG setTaxRate: Executing real set tax rate transaction...'
+      );
+
+      // Create authorization function for the admin account
+      const authorization = async (account: any = {}) => {
+        const accountInfo = await fcl.account(adminAddress);
+        const keyIndex = 0;
+
+        return {
+          ...account,
+          tempId: `${adminAddress}-${keyIndex}`,
+          addr: fcl.sansPrefix(adminAddress),
+          keyId: keyIndex,
+          signingFunction: async (signable: any) => {
+            const signature = await this.signWithPrivateKey(
+              signable.message,
+              adminPrivateKey
+            );
+            return {
+              addr: fcl.sansPrefix(adminAddress),
+              keyId: keyIndex,
+              signature,
+            };
+          },
+        };
+      };
+
+      // Execute the set tax rate transaction
+      const result = await this.executeTransaction(
+        'transactions/set-tax-rate.transaction.cdc',
+        [newTaxRate], // newTaxRate parameter as UFix64
+        [authorization]
+      );
+
+      console.log(
+        'DEBUG setTaxRate: Set tax rate transaction completed successfully:',
+        result
+      );
+
+      return createSuccessResponse({
+        txId: result.transactionId,
+        newTaxRate,
+        status: result.status || 'completed',
+        blockHeight: result.blockId,
+        events: result.events || [],
+      });
+    } catch (error) {
+      console.error(
+        'ERROR setTaxRate: Set tax rate transaction failed:',
+        error
+      );
+
+      // Check for specific error types
+      if (
+        error instanceof Error &&
+        (error.message.includes('Could not borrow admin resource') ||
+          error.message.includes('does not have ADMIN role'))
+      ) {
+        return createErrorResponse({
+          code: API_ERROR_CODES.INSUFFICIENT_PERMISSIONS,
+          message: 'Insufficient permissions for tax rate change',
+          details: 'Account does not have ADMIN role capability',
+        });
+      }
+
+      if (
+        error instanceof Error &&
+        error.message.includes('invalid tax rate')
+      ) {
+        return createErrorResponse({
+          code: API_ERROR_CODES.INVALID_AMOUNT,
+          message: 'Invalid tax rate value',
+          details: error.message,
+        });
+      }
+
+      return createErrorResponse({
+        code: API_ERROR_CODES.UNKNOWN_ERROR,
+        message: 'Set tax rate operation failed',
         details: error instanceof Error ? error.message : 'Unknown error',
       });
     }

@@ -10,6 +10,8 @@ import { TransferController } from './controllers/transactions/TransferControlle
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { SetupController } from './controllers/transactions/SetupController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { SetTaxRateController } from './controllers/transactions/SetTaxRateController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { PauseController } from './controllers/transactions/PauseController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { MintController } from './controllers/transactions/MintController';
@@ -92,6 +94,15 @@ const models: TsoaRoute.Models = {
         "dataType": "refObject",
         "properties": {
             "address": {"dataType":"string","required":true},
+        },
+        "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "SetTaxRateRequest": {
+        "dataType": "refObject",
+        "properties": {
+            "newTaxRate": {"dataType":"string","required":true},
+            "memo": {"dataType":"string"},
         },
         "additionalProperties": false,
     },
@@ -521,6 +532,36 @@ export function RegisterRoutes(app: Router) {
 
               await templateService.apiHandler({
                 methodName: 'setupAdminRoles',
+                controller,
+                response,
+                next,
+                validatedArgs,
+                successStatus: 200,
+              });
+            } catch (err) {
+                return next(err);
+            }
+        });
+        // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+        const argsSetTaxRateController_setTaxRate: Record<string, TsoaRoute.ParameterSchema> = {
+                request: {"in":"body","name":"request","required":true,"ref":"SetTaxRateRequest"},
+        };
+        app.post('/set-tax-rate',
+            ...(fetchMiddlewares<RequestHandler>(SetTaxRateController)),
+            ...(fetchMiddlewares<RequestHandler>(SetTaxRateController.prototype.setTaxRate)),
+
+            async function SetTaxRateController_setTaxRate(request: ExRequest, response: ExResponse, next: any) {
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({ args: argsSetTaxRateController_setTaxRate, request, response });
+
+                const controller = new SetTaxRateController();
+
+              await templateService.apiHandler({
+                methodName: 'setTaxRate',
                 controller,
                 response,
                 next,
