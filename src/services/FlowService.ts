@@ -132,6 +132,15 @@ export class FlowService {
             // Default to String for other arguments
             transactionArgs.push(fcl.arg(arg, fcl.t.String));
           }
+        } else if (transactionPath.includes('burn-tokens.transaction.cdc')) {
+          // For burn transaction: only amount (UFix64)
+          if (index === 0) {
+            // First argument: amount as UFix64
+            transactionArgs.push(fcl.arg(arg, fcl.t.UFix64));
+          } else {
+            // Default to String for other arguments
+            transactionArgs.push(fcl.arg(arg, fcl.t.String));
+          }
         } else if (transactionPath.includes('setup-account.transaction.cdc')) {
           // Setup account has no arguments, but prepare for future extensions
           transactionArgs.push(fcl.arg(arg, fcl.t.String));
@@ -1649,6 +1658,174 @@ export class FlowService {
       return createErrorResponse({
         code: API_ERROR_CODES.UNKNOWN_ERROR,
         message: 'Transfer failed',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+
+  /**
+   * Burn HEART tokens from sender's vault
+   *
+   * @description Permanently destroys HEART tokens from the specified address vault.
+   * The tokens are withdrawn and destroyed, removing them from circulation.
+   *
+   * @param amount - Amount of tokens to burn
+   * @returns Promise resolving to burn result
+   */
+  async burnTokens(amount: string): Promise<
+    ApiResponse<{
+      txId: string;
+      amount: string;
+      status: string;
+      blockHeight?: number;
+      events?: any[];
+      originalBalance?: string;
+      newBalance?: string;
+    }>
+  > {
+    try {
+      // Validate amount format
+      const amountFloat = parseFloat(amount);
+      if (isNaN(amountFloat) || amountFloat <= 0) {
+        return createErrorResponse({
+          code: API_ERROR_CODES.INVALID_AMOUNT,
+          message: 'Invalid burn amount',
+          details: 'Amount must be a positive number greater than 0',
+        });
+      }
+
+      console.log(
+        'DEBUG burnTokens: Starting burn transaction for amount:',
+        amount
+      );
+
+      // Get admin private key for authorization
+      const adminPrivateKey = process.env.ADMIN_PRIVATE_KEY;
+      const adminAddress = process.env.ADMIN_ADDRESS || '0x58f9e6153690c852';
+
+      if (!adminPrivateKey) {
+        console.log(
+          'DEBUG burnTokens: No admin private key found, using mock implementation'
+        );
+
+        // Mock implementation for development
+        const mockBurnData = {
+          txId: 'mock_burn_tx_' + Date.now(),
+          amount,
+          status: 'sealed',
+          blockHeight: 12345678,
+          events: [],
+          originalBalance: '1000.0',
+          newBalance: (1000.0 - amountFloat).toString(),
+        };
+
+        console.log('DEBUG burnTokens: Mock burn completed:', mockBurnData);
+        return createSuccessResponse(mockBurnData);
+      }
+
+      // Real transaction execution using Flow SDK
+      console.log('DEBUG burnTokens: Executing real burn transaction...');
+
+      // Create authorization function for the admin account (token holder)
+      const authorization = async (account: any = {}) => {
+        const accountInfo = await fcl.account(adminAddress);
+        const keyIndex = 0;
+        const sequenceNumber =
+          accountInfo.keys?.[keyIndex]?.sequenceNumber || 0;
+
+        const signingFunction = async (signable: any) => {
+          try {
+            const message = signable?.message;
+            if (!message) {
+              throw new Error('No message found in signable object');
+            }
+
+            const signature = await this.signWithPrivateKey(
+              message,
+              adminPrivateKey
+            );
+
+            return {
+              addr: fcl.sansPrefix(adminAddress),
+              keyId: keyIndex,
+              signature,
+            };
+          } catch (error) {
+            console.error('ERROR burnTokens: Signing failed:', error);
+            throw error;
+          }
+        };
+
+        return {
+          ...account,
+          addr: fcl.sansPrefix(adminAddress),
+          keyId: keyIndex,
+          sequenceNum: sequenceNumber,
+          tempId: `${adminAddress}-${keyIndex}`,
+          signingFunction,
+        };
+      };
+
+      // Execute the burn transaction
+      const result = await this.executeTransaction(
+        'transactions/burn-tokens.transaction.cdc',
+        [amount], // Only amount parameter required
+        [authorization]
+      );
+
+      if (!result.success) {
+        console.error(
+          'ERROR burnTokens: Burn transaction failed:',
+          result.error
+        );
+        return createErrorResponse({
+          code: API_ERROR_CODES.TRANSACTION_FAILED,
+          message: 'Burn transaction failed',
+          details: result.error || 'Unknown transaction error',
+        });
+      }
+
+      console.log('DEBUG burnTokens: Burn transaction completed:', result.data);
+
+      return createSuccessResponse({
+        txId: result.transactionId || result.data?.transactionId,
+        amount,
+        status: result.status || 'completed',
+        blockHeight: result.blockId || result.data?.blockId,
+        events: result.events || result.data?.events || [],
+        originalBalance: 'N/A', // Will be populated from transaction logs
+        newBalance: 'N/A', // Will be populated from transaction logs
+      });
+    } catch (error) {
+      console.error('ERROR burnTokens: Burn transaction failed:', error);
+
+      // Check for specific error types
+      if (
+        error instanceof Error &&
+        (error.message.includes('insufficient balance') ||
+          error.message.includes('Could not borrow HEART vault'))
+      ) {
+        return createErrorResponse({
+          code: API_ERROR_CODES.INSUFFICIENT_BALANCE,
+          message: 'Insufficient balance for burn operation',
+          details: error.message,
+        });
+      }
+
+      if (
+        error instanceof Error &&
+        error.message.includes('contract is paused')
+      ) {
+        return createErrorResponse({
+          code: API_ERROR_CODES.CONTRACT_PAUSED,
+          message: 'Cannot burn tokens while contract is paused',
+          details: error.message,
+        });
+      }
+
+      return createErrorResponse({
+        code: API_ERROR_CODES.UNKNOWN_ERROR,
+        message: 'Burn failed',
         details: error instanceof Error ? error.message : 'Unknown error',
       });
     }

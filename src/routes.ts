@@ -10,6 +10,8 @@ import { SetupController } from './controllers/transactions/SetupController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { MintController } from './controllers/transactions/MintController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { BurnController } from './controllers/transactions/BurnController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { TokenInfoController } from './controllers/queries/TokenInfoController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { JobController } from './controllers/queries/JobController';
@@ -95,6 +97,15 @@ const models: TsoaRoute.Models = {
         "properties": {
             "recipient": {"dataType":"string","required":true},
             "amount": {"dataType":"string","required":true},
+        },
+        "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "BurnRequest": {
+        "dataType": "refObject",
+        "properties": {
+            "amount": {"dataType":"string","required":true},
+            "memo": {"dataType":"string"},
         },
         "additionalProperties": false,
     },
@@ -507,6 +518,36 @@ export function RegisterRoutes(app: Router) {
 
               await templateService.apiHandler({
                 methodName: 'mintTokens',
+                controller,
+                response,
+                next,
+                validatedArgs,
+                successStatus: 200,
+              });
+            } catch (err) {
+                return next(err);
+            }
+        });
+        // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+        const argsBurnController_burnTokens: Record<string, TsoaRoute.ParameterSchema> = {
+                request: {"in":"body","name":"request","required":true,"ref":"BurnRequest"},
+        };
+        app.post('/burn',
+            ...(fetchMiddlewares<RequestHandler>(BurnController)),
+            ...(fetchMiddlewares<RequestHandler>(BurnController.prototype.burnTokens)),
+
+            async function BurnController_burnTokens(request: ExRequest, response: ExResponse, next: any) {
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({ args: argsBurnController_burnTokens, request, response });
+
+                const controller = new BurnController();
+
+              await templateService.apiHandler({
+                methodName: 'burnTokens',
                 controller,
                 response,
                 next,

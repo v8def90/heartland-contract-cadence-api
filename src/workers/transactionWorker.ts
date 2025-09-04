@@ -404,9 +404,69 @@ async function executeBurnTokens(
   blockHeight?: string;
   error?: string;
 }> {
-  // Note: Burn tokens implementation would go here when implemented
-  return {
-    success: false,
-    error: 'Burn tokens not yet implemented',
-  };
+  try {
+    const { amount } = jobRequest.params as {
+      amount: string;
+      memo?: string;
+    };
+
+    if (!amount) {
+      throw new Error('Burn amount is required');
+    }
+
+    console.log(
+      `[BURN_EXECUTING] ${jobRequest.jobId}: Burning ${amount} HEART tokens`
+    );
+
+    // Execute burn transaction using FlowService
+    const result = await flowService.burnTokens(amount);
+
+    if (result.success) {
+      console.log(
+        `[BURN_SUCCESS] ${jobRequest.jobId}: Burn completed successfully`,
+        {
+          txId: result.data.txId,
+          amount: result.data.amount,
+          blockHeight: result.data.blockHeight,
+        }
+      );
+
+      const response: {
+        success: boolean;
+        txId?: string;
+        blockHeight?: string;
+        error?: string;
+      } = {
+        success: true,
+        txId: result.data.txId,
+      };
+
+      if (result.data.blockHeight) {
+        response.blockHeight = result.data.blockHeight.toString();
+      }
+
+      return response;
+    } else {
+      console.error(
+        `[BURN_FAILED] ${jobRequest.jobId}: Burn transaction failed`,
+        {
+          error: result.error,
+        }
+      );
+
+      return {
+        success: false,
+        error: result.error?.message || 'Burn transaction failed',
+      };
+    }
+  } catch (error) {
+    console.error(`[BURN_ERROR] ${jobRequest.jobId}: Error executing burn`, {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to burn tokens',
+    };
+  }
 }
