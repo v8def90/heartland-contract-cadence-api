@@ -168,6 +168,8 @@ package:
     - 'dist/**'
     - 'build/swagger.json'
     - 'package.json'
+    - 'transactions/**' # Cadence transactionファイルを含める
+    - 'scripts/**' # Cadence scriptファイルを含める
 
     # 全依存関係を明示的に除外（Layersで提供）
     - '!node_modules/**'
@@ -178,8 +180,6 @@ package:
     - '!coverage/**'
     - '!layers/**'
     - '!aws-policies/**'
-    - '!scripts/**'
-    - '!transactions/**'
     - '!contracts/**'
     - '!docs/**'
     - '!*.md'
