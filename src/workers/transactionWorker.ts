@@ -336,44 +336,6 @@ async function executeTransferTokens(
 }
 
 /**
- * Execute pause contract transaction
- */
-async function executePauseContract(
-  jobRequest: TransactionJobRequest,
-  flowService: FlowService
-): Promise<{
-  success: boolean;
-  txId?: string;
-  blockHeight?: string;
-  error?: string;
-}> {
-  // Note: Pause implementation would go here when implemented
-  return {
-    success: false,
-    error: 'Pause contract not yet implemented',
-  };
-}
-
-/**
- * Execute unpause contract transaction
- */
-async function executeUnpauseContract(
-  jobRequest: TransactionJobRequest,
-  flowService: FlowService
-): Promise<{
-  success: boolean;
-  txId?: string;
-  blockHeight?: string;
-  error?: string;
-}> {
-  // Note: Unpause implementation would go here when implemented
-  return {
-    success: false,
-    error: 'Unpause contract not yet implemented',
-  };
-}
-
-/**
  * Execute set tax rate transaction
  */
 async function executeSetTaxRate(
@@ -467,6 +429,151 @@ async function executeBurnTokens(
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to burn tokens',
+    };
+  }
+}
+
+/**
+ * Execute pause contract transaction
+ */
+async function executePauseContract(
+  jobRequest: TransactionJobRequest,
+  flowService: FlowService
+): Promise<{
+  success: boolean;
+  txId?: string;
+  blockHeight?: string;
+  error?: string;
+}> {
+  try {
+    console.log(
+      `[PAUSE_EXECUTING] ${jobRequest.jobId}: Pausing HEART contract`
+    );
+
+    // Execute pause transaction using FlowService
+    const result = await flowService.pauseContract();
+
+    if (result.success) {
+      console.log(
+        `[PAUSE_SUCCESS] ${jobRequest.jobId}: Contract paused successfully`,
+        {
+          txId: result.data.txId,
+          status: result.data.status,
+          blockHeight: result.data.blockHeight,
+        }
+      );
+
+      const response: {
+        success: boolean;
+        txId?: string;
+        blockHeight?: string;
+        error?: string;
+      } = {
+        success: true,
+        txId: result.data.txId,
+      };
+
+      if (result.data.blockHeight) {
+        response.blockHeight = result.data.blockHeight.toString();
+      }
+
+      return response;
+    } else {
+      console.error(
+        `[PAUSE_FAILED] ${jobRequest.jobId}: Pause transaction failed`,
+        {
+          error: result.error,
+        }
+      );
+
+      return {
+        success: false,
+        error: result.error?.message || 'Pause transaction failed',
+      };
+    }
+  } catch (error) {
+    console.error(`[PAUSE_ERROR] ${jobRequest.jobId}: Error executing pause`, {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'Failed to pause contract',
+    };
+  }
+}
+
+/**
+ * Execute unpause contract transaction
+ */
+async function executeUnpauseContract(
+  jobRequest: TransactionJobRequest,
+  flowService: FlowService
+): Promise<{
+  success: boolean;
+  txId?: string;
+  blockHeight?: string;
+  error?: string;
+}> {
+  try {
+    console.log(
+      `[UNPAUSE_EXECUTING] ${jobRequest.jobId}: Unpausing HEART contract`
+    );
+
+    // Execute unpause transaction using FlowService
+    const result = await flowService.unpauseContract();
+
+    if (result.success) {
+      console.log(
+        `[UNPAUSE_SUCCESS] ${jobRequest.jobId}: Contract unpaused successfully`,
+        {
+          txId: result.data.txId,
+          status: result.data.status,
+          blockHeight: result.data.blockHeight,
+        }
+      );
+
+      const response: {
+        success: boolean;
+        txId?: string;
+        blockHeight?: string;
+        error?: string;
+      } = {
+        success: true,
+        txId: result.data.txId,
+      };
+
+      if (result.data.blockHeight) {
+        response.blockHeight = result.data.blockHeight.toString();
+      }
+
+      return response;
+    } else {
+      console.error(
+        `[UNPAUSE_FAILED] ${jobRequest.jobId}: Unpause transaction failed`,
+        {
+          error: result.error,
+        }
+      );
+
+      return {
+        success: false,
+        error: result.error?.message || 'Unpause transaction failed',
+      };
+    }
+  } catch (error) {
+    console.error(
+      `[UNPAUSE_ERROR] ${jobRequest.jobId}: Error executing unpause`,
+      {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      }
+    );
+
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'Failed to unpause contract',
     };
   }
 }

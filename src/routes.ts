@@ -4,9 +4,13 @@
 import type { TsoaRoute } from '@tsoa/runtime';
 import {  fetchMiddlewares, ExpressTemplateService } from '@tsoa/runtime';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { UnpauseController } from './controllers/transactions/UnpauseController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { TransferController } from './controllers/transactions/TransferController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { SetupController } from './controllers/transactions/SetupController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { PauseController } from './controllers/transactions/PauseController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { MintController } from './controllers/transactions/MintController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
@@ -381,6 +385,35 @@ export function RegisterRoutes(app: Router) {
 
 
     
+        const argsUnpauseController_unpauseContract: Record<string, TsoaRoute.ParameterSchema> = {
+        };
+        app.post('/unpause',
+            ...(fetchMiddlewares<RequestHandler>(UnpauseController)),
+            ...(fetchMiddlewares<RequestHandler>(UnpauseController.prototype.unpauseContract)),
+
+            async function UnpauseController_unpauseContract(request: ExRequest, response: ExResponse, next: any) {
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({ args: argsUnpauseController_unpauseContract, request, response });
+
+                const controller = new UnpauseController();
+
+              await templateService.apiHandler({
+                methodName: 'unpauseContract',
+                controller,
+                response,
+                next,
+                validatedArgs,
+                successStatus: 200,
+              });
+            } catch (err) {
+                return next(err);
+            }
+        });
+        // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
         const argsTransferController_transferTokens: Record<string, TsoaRoute.ParameterSchema> = {
                 request: {"in":"body","name":"request","required":true,"ref":"TransferRequest"},
         };
@@ -488,6 +521,35 @@ export function RegisterRoutes(app: Router) {
 
               await templateService.apiHandler({
                 methodName: 'setupAdminRoles',
+                controller,
+                response,
+                next,
+                validatedArgs,
+                successStatus: 200,
+              });
+            } catch (err) {
+                return next(err);
+            }
+        });
+        // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+        const argsPauseController_pauseContract: Record<string, TsoaRoute.ParameterSchema> = {
+        };
+        app.post('/pause',
+            ...(fetchMiddlewares<RequestHandler>(PauseController)),
+            ...(fetchMiddlewares<RequestHandler>(PauseController.prototype.pauseContract)),
+
+            async function PauseController_pauseContract(request: ExRequest, response: ExResponse, next: any) {
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({ args: argsPauseController_pauseContract, request, response });
+
+                const controller = new PauseController();
+
+              await templateService.apiHandler({
+                methodName: 'pauseContract',
                 controller,
                 response,
                 next,

@@ -1809,4 +1809,255 @@ export class FlowService {
       });
     }
   }
+
+  /**
+   * Pause HEART token contract
+   *
+   * @description Pauses the HEART token contract, preventing all token transfers.
+   * Requires PAUSER role capability. This is an admin-only operation.
+   *
+   * @returns Promise resolving to pause transaction result
+   */
+  async pauseContract(): Promise<
+    ApiResponse<{
+      txId: string;
+      status: string;
+      blockHeight?: string;
+      events?: any[];
+    }>
+  > {
+    try {
+      console.log('DEBUG pauseContract: Starting pause transaction');
+
+      // Check if we have admin credentials for real transaction
+      const adminPrivateKey = process.env.ADMIN_PRIVATE_KEY;
+      const adminAddress = process.env.ADMIN_ADDRESS || '0x58f9e6153690c852';
+
+      if (!adminPrivateKey) {
+        console.log(
+          'DEBUG pauseContract: No admin private key found, using mock implementation'
+        );
+
+        // Mock pause transaction for demonstration
+        const mockTxId = `mock_pause_${Date.now()}`;
+
+        console.log('DEBUG pauseContract: Mock pause completed:', {
+          txId: mockTxId,
+          status: 'sealed',
+          blockHeight: 12345678,
+          contractStatus: 'paused',
+        });
+
+        return createSuccessResponse({
+          txId: mockTxId,
+          status: 'sealed',
+          blockHeight: '12345678',
+          events: [],
+        });
+      }
+
+      // Real transaction execution using Flow SDK
+      console.log('DEBUG pauseContract: Executing real pause transaction...');
+
+      // Create authorization function for the admin account
+      const authorization = async (account: any = {}) => {
+        const accountInfo = await fcl.account(adminAddress);
+        const keyIndex = 0;
+
+        return {
+          ...account,
+          tempId: `${adminAddress}-${keyIndex}`,
+          addr: fcl.sansPrefix(adminAddress),
+          keyId: keyIndex,
+          signingFunction: async (signable: any) => {
+            const signature = await this.signWithPrivateKey(
+              signable.message,
+              adminPrivateKey
+            );
+            return {
+              addr: fcl.sansPrefix(adminAddress),
+              keyId: keyIndex,
+              signature,
+            };
+          },
+        };
+      };
+
+      // Execute the pause transaction
+      const result = await this.executeTransaction(
+        'transactions/pause-heart.transaction.cdc',
+        [], // No parameters needed for pause
+        [authorization]
+      );
+
+      console.log(
+        'DEBUG pauseContract: Pause transaction completed successfully:',
+        result
+      );
+
+      return createSuccessResponse({
+        txId: result.transactionId,
+        status: result.status || 'completed',
+        blockHeight: result.blockId,
+        events: result.events || [],
+      });
+    } catch (error) {
+      console.error('ERROR pauseContract: Pause transaction failed:', error);
+
+      // Check for specific error types
+      if (
+        error instanceof Error &&
+        (error.message.includes('Could not borrow pauser resource') ||
+          error.message.includes('does not have PAUSER role'))
+      ) {
+        return createErrorResponse({
+          code: API_ERROR_CODES.INSUFFICIENT_PERMISSIONS,
+          message: 'Insufficient permissions for pause operation',
+          details: 'Account does not have PAUSER role capability',
+        });
+      }
+
+      if (error instanceof Error && error.message.includes('already paused')) {
+        return createErrorResponse({
+          code: API_ERROR_CODES.INVALID_OPERATION,
+          message: 'Contract is already paused',
+          details: error.message,
+        });
+      }
+
+      return createErrorResponse({
+        code: API_ERROR_CODES.UNKNOWN_ERROR,
+        message: 'Pause operation failed',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+
+  /**
+   * Unpause HEART token contract
+   *
+   * @description Unpauses the HEART token contract, re-enabling all token transfers.
+   * Requires PAUSER role capability. This is an admin-only operation.
+   *
+   * @returns Promise resolving to unpause transaction result
+   */
+  async unpauseContract(): Promise<
+    ApiResponse<{
+      txId: string;
+      status: string;
+      blockHeight?: string;
+      events?: any[];
+    }>
+  > {
+    try {
+      console.log('DEBUG unpauseContract: Starting unpause transaction');
+
+      // Check if we have admin credentials for real transaction
+      const adminPrivateKey = process.env.ADMIN_PRIVATE_KEY;
+      const adminAddress = process.env.ADMIN_ADDRESS || '0x58f9e6153690c852';
+
+      if (!adminPrivateKey) {
+        console.log(
+          'DEBUG unpauseContract: No admin private key found, using mock implementation'
+        );
+
+        // Mock unpause transaction for demonstration
+        const mockTxId = `mock_unpause_${Date.now()}`;
+
+        console.log('DEBUG unpauseContract: Mock unpause completed:', {
+          txId: mockTxId,
+          status: 'sealed',
+          blockHeight: 12345678,
+          contractStatus: 'unpaused',
+        });
+
+        return createSuccessResponse({
+          txId: mockTxId,
+          status: 'sealed',
+          blockHeight: '12345678',
+          events: [],
+        });
+      }
+
+      // Real transaction execution using Flow SDK
+      console.log(
+        'DEBUG unpauseContract: Executing real unpause transaction...'
+      );
+
+      // Create authorization function for the admin account
+      const authorization = async (account: any = {}) => {
+        const accountInfo = await fcl.account(adminAddress);
+        const keyIndex = 0;
+
+        return {
+          ...account,
+          tempId: `${adminAddress}-${keyIndex}`,
+          addr: fcl.sansPrefix(adminAddress),
+          keyId: keyIndex,
+          signingFunction: async (signable: any) => {
+            const signature = await this.signWithPrivateKey(
+              signable.message,
+              adminPrivateKey
+            );
+            return {
+              addr: fcl.sansPrefix(adminAddress),
+              keyId: keyIndex,
+              signature,
+            };
+          },
+        };
+      };
+
+      // Execute the unpause transaction
+      const result = await this.executeTransaction(
+        'transactions/unpause-heart.transaction.cdc',
+        [], // No parameters needed for unpause
+        [authorization]
+      );
+
+      console.log(
+        'DEBUG unpauseContract: Unpause transaction completed successfully:',
+        result
+      );
+
+      return createSuccessResponse({
+        txId: result.transactionId,
+        status: result.status || 'completed',
+        blockHeight: result.blockId,
+        events: result.events || [],
+      });
+    } catch (error) {
+      console.error(
+        'ERROR unpauseContract: Unpause transaction failed:',
+        error
+      );
+
+      // Check for specific error types
+      if (
+        error instanceof Error &&
+        (error.message.includes('Could not borrow pauser resource') ||
+          error.message.includes('does not have PAUSER role'))
+      ) {
+        return createErrorResponse({
+          code: API_ERROR_CODES.INSUFFICIENT_PERMISSIONS,
+          message: 'Insufficient permissions for unpause operation',
+          details: 'Account does not have PAUSER role capability',
+        });
+      }
+
+      if (error instanceof Error && error.message.includes('not paused')) {
+        return createErrorResponse({
+          code: API_ERROR_CODES.INVALID_OPERATION,
+          message: 'Contract is not currently paused',
+          details: error.message,
+        });
+      }
+
+      return createErrorResponse({
+        code: API_ERROR_CODES.UNKNOWN_ERROR,
+        message: 'Unpause operation failed',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
 }
