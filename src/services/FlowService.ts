@@ -150,6 +150,17 @@ export class FlowService {
             // Default to String for other arguments
             transactionArgs.push(fcl.arg(arg, fcl.t.String));
           }
+        } else if (
+          transactionPath.includes('set-treasury-account.transaction.cdc')
+        ) {
+          // For set treasury account transaction: newTreasuryAccount (Address)
+          if (index === 0) {
+            // First argument: newTreasuryAccount as Address
+            transactionArgs.push(fcl.arg(arg, fcl.t.Address));
+          } else {
+            // Default to String for other arguments
+            transactionArgs.push(fcl.arg(arg, fcl.t.String));
+          }
         } else if (transactionPath.includes('setup-account.transaction.cdc')) {
           // Setup account has no arguments, but prepare for future extensions
           transactionArgs.push(fcl.arg(arg, fcl.t.String));
@@ -2210,6 +2221,151 @@ export class FlowService {
       return createErrorResponse({
         code: API_ERROR_CODES.UNKNOWN_ERROR,
         message: 'Set tax rate operation failed',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+
+  /**
+   * Set HEART token treasury account
+   *
+   * @description Sets the treasury account that will receive tax from all token transfers.
+   * Requires ADMIN role capability. This is an admin-only operation.
+   *
+   * @param newTreasuryAccount - New treasury account address
+   * @returns Promise resolving to set treasury account transaction result
+   */
+  async setTreasuryAccount(newTreasuryAccount: string): Promise<
+    ApiResponse<{
+      txId: string;
+      newTreasuryAccount: string;
+      status: string;
+      blockHeight?: string;
+      events?: any[];
+    }>
+  > {
+    try {
+      console.log(
+        'DEBUG setTreasuryAccount: Starting set treasury account transaction'
+      );
+
+      // Validate treasury account address format
+      if (
+        !newTreasuryAccount ||
+        !newTreasuryAccount.startsWith('0x') ||
+        newTreasuryAccount.length !== 18
+      ) {
+        return createErrorResponse({
+          code: API_ERROR_CODES.INVALID_ADDRESS,
+          message: 'Invalid treasury account address format',
+          details: 'Address must be 18 characters long and start with 0x',
+        });
+      }
+
+      // Check if we have admin credentials for real transaction
+      const adminPrivateKey = process.env.ADMIN_PRIVATE_KEY;
+      const adminAddress = process.env.ADMIN_ADDRESS || '0x58f9e6153690c852';
+
+      if (!adminPrivateKey) {
+        console.log(
+          'DEBUG setTreasuryAccount: No admin private key found, using mock implementation'
+        );
+
+        // Mock set treasury account transaction for demonstration
+        const mockTxId = `mock_set_treasury_${Date.now()}`;
+
+        console.log(
+          'DEBUG setTreasuryAccount: Mock set treasury account completed:',
+          {
+            txId: mockTxId,
+            newTreasuryAccount,
+            status: 'sealed',
+            blockHeight: 12345678,
+          }
+        );
+
+        return createSuccessResponse({
+          txId: mockTxId,
+          newTreasuryAccount,
+          status: 'sealed',
+          blockHeight: '12345678',
+          events: [],
+        });
+      }
+
+      // Real transaction execution using Flow SDK
+      console.log(
+        'DEBUG setTreasuryAccount: Executing real set treasury account transaction...'
+      );
+
+      // Create authorization function for the admin account
+      const authorization = async (account: any = {}) => {
+        const accountInfo = await fcl.account(adminAddress);
+        const keyIndex = 0;
+
+        return {
+          ...account,
+          tempId: adminAddress,
+          addr: fcl.sansPrefix(adminAddress),
+          keyId: Number(keyIndex),
+          sequenceNum: accountInfo.keys?.[keyIndex]?.sequenceNumber || 0,
+          signature: null,
+          signingFunction: async (signable: any) => {
+            const signature = await this.signWithPrivateKey(
+              signable.message,
+              adminPrivateKey
+            );
+            return {
+              addr: fcl.sansPrefix(adminAddress),
+              keyId: keyIndex,
+              signature,
+            };
+          },
+        };
+      };
+
+      // Execute the set treasury account transaction
+      const result = await this.executeTransaction(
+        'transactions/set-treasury-account.transaction.cdc',
+        [newTreasuryAccount],
+        [authorization]
+      );
+
+      console.log('DEBUG setTreasuryAccount: Transaction result:', result);
+
+      return createSuccessResponse({
+        txId: result.txId,
+        newTreasuryAccount,
+        status: result.transaction?.status?.toString() || 'completed',
+        blockHeight: result.transaction?.blockId,
+        events: result.transaction?.events || [],
+      });
+    } catch (error) {
+      console.error('ERROR setTreasuryAccount: Transaction failed:', error);
+
+      // Handle specific error cases
+      if (
+        error instanceof Error &&
+        error.message.includes('Could not borrow admin resource')
+      ) {
+        return createErrorResponse({
+          code: API_ERROR_CODES.INSUFFICIENT_PERMISSIONS,
+          message: 'Admin permissions required',
+          details: 'Account does not have ADMIN role capability',
+        });
+      }
+
+      if (error instanceof Error && error.message.includes('invalid address')) {
+        return createErrorResponse({
+          code: API_ERROR_CODES.INVALID_ADDRESS,
+          message: 'Invalid treasury account address',
+          details: error.message,
+        });
+      }
+
+      return createErrorResponse({
+        code: API_ERROR_CODES.UNKNOWN_ERROR,
+        message: 'Set treasury account operation failed',
         details: error instanceof Error ? error.message : 'Unknown error',
       });
     }

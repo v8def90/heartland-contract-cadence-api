@@ -144,6 +144,9 @@ async function executeTransactionJob(
       case 'setTaxRate':
         return await executeSetTaxRate(jobRequest, flowService);
 
+      case 'setTreasury':
+        return await executeSetTreasury(jobRequest, flowService);
+
       case 'burn':
         return await executeBurnTokens(jobRequest, flowService);
 
@@ -637,6 +640,92 @@ async function executeUnpauseContract(
       success: false,
       error:
         error instanceof Error ? error.message : 'Failed to unpause contract',
+    };
+  }
+}
+
+/**
+ * Execute set treasury account transaction
+ */
+async function executeSetTreasury(
+  jobRequest: TransactionJobRequest,
+  flowService: FlowService
+): Promise<{
+  success: boolean;
+  txId?: string;
+  blockHeight?: string;
+  error?: string;
+}> {
+  try {
+    const { newTreasuryAccount } = jobRequest.params as {
+      newTreasuryAccount: string;
+    };
+
+    if (!newTreasuryAccount) {
+      throw new Error('New treasury account is required');
+    }
+
+    console.log(
+      `[SET_TREASURY_EXECUTING] ${jobRequest.jobId}: Setting treasury account to ${newTreasuryAccount}`
+    );
+
+    // Execute set treasury account transaction using FlowService
+    const result = await flowService.setTreasuryAccount(newTreasuryAccount);
+
+    if (result.success) {
+      console.log(
+        `[SET_TREASURY_SUCCESS] ${jobRequest.jobId}: Treasury account set successfully`,
+        {
+          txId: result.data.txId,
+          newTreasuryAccount: result.data.newTreasuryAccount,
+          status: result.data.status,
+          blockHeight: result.data.blockHeight,
+        }
+      );
+
+      const response: {
+        success: boolean;
+        txId?: string;
+        blockHeight?: string;
+        error?: string;
+      } = {
+        success: true,
+        txId: result.data.txId,
+      };
+
+      if (result.data.blockHeight) {
+        response.blockHeight = result.data.blockHeight.toString();
+      }
+
+      return response;
+    } else {
+      console.error(
+        `[SET_TREASURY_FAILED] ${jobRequest.jobId}: Set treasury account transaction failed`,
+        {
+          error: result.error,
+        }
+      );
+
+      return {
+        success: false,
+        error:
+          result.error?.message || 'Set treasury account transaction failed',
+      };
+    }
+  } catch (error) {
+    console.error(
+      `[SET_TREASURY_ERROR] ${jobRequest.jobId}: Error executing set treasury account`,
+      {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      }
+    );
+
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : 'Failed to set treasury account',
     };
   }
 }

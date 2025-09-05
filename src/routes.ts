@@ -10,6 +10,8 @@ import { TransferController } from './controllers/transactions/TransferControlle
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { SetupController } from './controllers/transactions/SetupController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { SetTreasuryController } from './controllers/transactions/SetTreasuryController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { SetTaxRateController } from './controllers/transactions/SetTaxRateController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { PauseController } from './controllers/transactions/PauseController';
@@ -94,6 +96,15 @@ const models: TsoaRoute.Models = {
         "dataType": "refObject",
         "properties": {
             "address": {"dataType":"string","required":true},
+        },
+        "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "SetTreasuryRequest": {
+        "dataType": "refObject",
+        "properties": {
+            "newTreasuryAccount": {"dataType":"string","required":true},
+            "memo": {"dataType":"string"},
         },
         "additionalProperties": false,
     },
@@ -532,6 +543,36 @@ export function RegisterRoutes(app: Router) {
 
               await templateService.apiHandler({
                 methodName: 'setupAdminRoles',
+                controller,
+                response,
+                next,
+                validatedArgs,
+                successStatus: 200,
+              });
+            } catch (err) {
+                return next(err);
+            }
+        });
+        // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+        const argsSetTreasuryController_setTreasury: Record<string, TsoaRoute.ParameterSchema> = {
+                request: {"in":"body","name":"request","required":true,"ref":"SetTreasuryRequest"},
+        };
+        app.post('/set-treasury',
+            ...(fetchMiddlewares<RequestHandler>(SetTreasuryController)),
+            ...(fetchMiddlewares<RequestHandler>(SetTreasuryController.prototype.setTreasury)),
+
+            async function SetTreasuryController_setTreasury(request: ExRequest, response: ExResponse, next: any) {
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({ args: argsSetTreasuryController_setTreasury, request, response });
+
+                const controller = new SetTreasuryController();
+
+              await templateService.apiHandler({
+                methodName: 'setTreasury',
                 controller,
                 response,
                 next,
