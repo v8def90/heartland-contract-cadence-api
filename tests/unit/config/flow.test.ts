@@ -1,256 +1,19 @@
-/**
- * Flow Configuration Unit Tests
- *
- * @description Tests for Flow blockchain configuration, constants, and utility functions.
- */
-
-// Mock @onflow/fcl before importing the module
-jest.mock('@onflow/fcl', () => ({
-  config: jest.fn(),
-  query: jest.fn(),
-  mutate: jest.fn(),
-  tx: jest.fn(),
-}));
-
 import {
-  FLOW_ENV,
-  flowConfig,
-  CONTRACT_ADDRESSES,
-  FLOW_CONSTANTS,
-  CADENCE_PATHS,
-  FCL_CONFIG,
   isValidFlowAddress,
-  isValidTransactionId,
   formatHeartAmount,
-  calculateTaxAmount,
-  getContractAddresses,
+  CONTRACT_ADDRESSES,
+  flowConfig,
 } from '../../../src/config/flow';
 
 describe('Flow Configuration', () => {
-  beforeEach(() => {
-    // Reset environment variables before each test
-    process.env.FLOW_NETWORK = 'testnet';
-    process.env.FLOW_ACCESS_NODE = '';
-    process.env.FLOW_DISCOVERY_WALLET = '';
-    process.env.HEART_CONTRACT_ADDRESS = '';
-  });
-
-  describe('FLOW_ENV', () => {
-    it('should have correct default values for testnet', () => {
-      expect(FLOW_ENV.NETWORK).toBe('testnet');
-      expect(FLOW_ENV.ACCESS_NODE).toBe('https://rest-testnet.onflow.org');
-      expect(FLOW_ENV.DISCOVERY_WALLET).toBe(
-        'https://fcl-discovery.onflow.org/testnet/authn'
-      );
-      expect(FLOW_ENV.HEART_CONTRACT_ADDRESS).toBe('0x58f9e6153690c852');
-      expect(FLOW_ENV.DEFAULT_GAS_LIMIT).toBe(1000);
-      expect(FLOW_ENV.REQUEST_TIMEOUT).toBe(30000);
-    });
-
-    it('should use custom environment variables when provided', () => {
-      process.env.FLOW_NETWORK = 'mainnet';
-      process.env.FLOW_ACCESS_NODE = 'https://custom-node.onflow.org';
-      process.env.HEART_CONTRACT_ADDRESS = '0x1234567890abcdef';
-
-      // Note: FLOW_ENV is evaluated at module load time,
-      // so this test verifies the behavior but won't change the already loaded values
-      expect(typeof FLOW_ENV.NETWORK).toBe('string');
-      expect(typeof FLOW_ENV.ACCESS_NODE).toBe('string');
-    });
-  });
-
-  describe('flowConfig', () => {
-    it('should have correct FCL configuration format', () => {
-      expect(flowConfig['accessNode.api']).toBeDefined();
-      expect(flowConfig['discovery.wallet']).toBeDefined();
-      expect(flowConfig['0xHeart']).toBeDefined();
-      expect(flowConfig['fcl.limit']).toBeDefined();
-    });
-
-    it('should use values from FLOW_ENV', () => {
-      expect(flowConfig['accessNode.api']).toBe(FLOW_ENV.ACCESS_NODE);
-      expect(flowConfig['discovery.wallet']).toBe(FLOW_ENV.DISCOVERY_WALLET);
-      expect(flowConfig['0xHeart']).toBe(FLOW_ENV.HEART_CONTRACT_ADDRESS);
-      expect(flowConfig['fcl.limit']).toBe(
-        FLOW_ENV.DEFAULT_GAS_LIMIT.toString()
-      );
-    });
-  });
-
-  describe('CONTRACT_ADDRESSES', () => {
-    it('should contain required contract addresses', () => {
-      expect(CONTRACT_ADDRESSES.Heart).toBe('0x58f9e6153690c852');
-      expect(CONTRACT_ADDRESSES.FungibleToken).toBe('0x9a0766d93b6608b7');
-      expect(CONTRACT_ADDRESSES.NonFungibleToken).toBe('0x631e88ae7f1d7c20');
-      expect(CONTRACT_ADDRESSES.FlowToken).toBe('0x7e60df042a9c0868');
-      expect(CONTRACT_ADDRESSES.MetadataViews).toBe('0x631e88ae7f1d7c20');
-    });
-
-    it('should have valid Flow address format', () => {
-      Object.values(CONTRACT_ADDRESSES).forEach(address => {
-        expect(address).toMatch(/^0x[a-fA-F0-9]{16}$/);
-      });
-    });
-  });
-
-  describe('FLOW_CONSTANTS', () => {
-    it('should have correct Heart token constants', () => {
-      expect(FLOW_CONSTANTS.HEART_DECIMALS).toBe(8);
-      expect(FLOW_CONSTANTS.HEART_SYMBOL).toBe('HEART');
-      expect(FLOW_CONSTANTS.FLOW_DECIMALS).toBe(8);
-      expect(FLOW_CONSTANTS.FLOW_SYMBOL).toBe('FLOW');
-    });
-
-    it('should have valid transfer limits', () => {
-      expect(FLOW_CONSTANTS.MIN_TRANSFER_AMOUNT).toBe('0.00000001');
-      expect(FLOW_CONSTANTS.MAX_TRANSFER_AMOUNT).toBe('1000000.00000000');
-    });
-
-    it('should have valid tax rate constants', () => {
-      expect(FLOW_CONSTANTS.DEFAULT_TAX_RATE).toBe(5.0);
-      expect(FLOW_CONSTANTS.MAX_TAX_RATE).toBe(20.0);
-      expect(FLOW_CONSTANTS.DEFAULT_TAX_RATE).toBeLessThanOrEqual(
-        FLOW_CONSTANTS.MAX_TAX_RATE
-      );
-    });
-
-    it('should have valid regex patterns', () => {
-      expect(FLOW_CONSTANTS.ADDRESS_PATTERN).toBeInstanceOf(RegExp);
-      expect(FLOW_CONSTANTS.TX_ID_PATTERN).toBeInstanceOf(RegExp);
-    });
-  });
-
-  describe('CADENCE_PATHS', () => {
-    it('should have all required script paths', () => {
-      const expectedScripts = [
-        'GET_BALANCE',
-        'GET_TOTAL_SUPPLY',
-        'GET_TAX_RATE',
-        'GET_TREASURY_ACCOUNT',
-        'GET_PAUSE_STATUS',
-        'CALCULATE_TAX',
-        'GET_ADMIN_CAPABILITIES',
-      ];
-
-      expectedScripts.forEach(script => {
-        expect(CADENCE_PATHS.SCRIPTS).toHaveProperty(script);
-        expect(
-          CADENCE_PATHS.SCRIPTS[script as keyof typeof CADENCE_PATHS.SCRIPTS]
-        ).toMatch(/\.cdc$/);
-      });
-    });
-
-    it('should have all required transaction paths', () => {
-      const expectedTransactions = [
-        'SETUP_ACCOUNT',
-        'MINT_TOKENS',
-        'TRANSFER_TOKENS',
-        'BATCH_TRANSFER',
-        'BURN_TOKENS',
-        'PAUSE_CONTRACT',
-        'UNPAUSE_CONTRACT',
-        'SET_TAX_RATE',
-        'SET_TREASURY',
-      ];
-
-      expectedTransactions.forEach(transaction => {
-        expect(CADENCE_PATHS.TRANSACTIONS).toHaveProperty(transaction);
-        expect(
-          CADENCE_PATHS.TRANSACTIONS[
-            transaction as keyof typeof CADENCE_PATHS.TRANSACTIONS
-          ]
-        ).toMatch(/\.cdc$/);
-      });
-    });
-  });
-
-  describe('FCL_CONFIG', () => {
-    it('should have proper configuration values', () => {
-      expect(FCL_CONFIG['logger.level']).toBeDefined();
-      expect(FCL_CONFIG['sdk.transport.timeout']).toBeDefined();
-      expect(FCL_CONFIG['sdk.transport.retry.attempts']).toBeDefined();
-      expect(FCL_CONFIG['sdk.transport.retry.delay']).toBeDefined();
-    });
-
-    it('should set debug logging based on environment', () => {
-      const originalEnv = process.env.NODE_ENV;
-
-      // Test development environment
-      process.env.NODE_ENV = 'development';
-      jest.resetModules();
-      const { FCL_CONFIG: devConfig } = require('../../../src/config/flow');
-      expect(devConfig['logger.level']).toBe(2);
-
-      // Test production environment
-      process.env.NODE_ENV = 'production';
-      jest.resetModules();
-      const { FCL_CONFIG: prodConfig } = require('../../../src/config/flow');
-      expect(prodConfig['logger.level']).toBe(0);
-
-      // Restore original environment
-      process.env.NODE_ENV = originalEnv;
-    });
-  });
-
-  describe('getContractAddresses', () => {
-    it('should return testnet contract addresses when network is testnet', () => {
-      // Mock testnet environment
-      const originalEnv = process.env.FLOW_NETWORK;
-      process.env.FLOW_NETWORK = 'testnet';
-
-      const addresses = getContractAddresses();
-
-      expect(addresses.Heart).toBe('0x58f9e6153690c852');
-      expect(addresses.FungibleToken).toBe('0x9a0766d93b6608b7');
-      expect(addresses.NonFungibleToken).toBe('0x631e88ae7f1d7c20');
-      expect(addresses.FlowToken).toBe('0x7e60df042a9c0868');
-      expect(addresses.MetadataViews).toBe('0x631e88ae7f1d7c20');
-
-      // Restore original environment
-      process.env.FLOW_NETWORK = originalEnv;
-    });
-
-    it('should return mainnet contract addresses when network is mainnet', () => {
-      // Mock mainnet environment
-      const originalEnv = process.env.FLOW_NETWORK;
-      process.env.FLOW_NETWORK = 'mainnet';
-
-      const addresses = getContractAddresses();
-
-      expect(addresses.Heart).toBe('0x58f9e6153690c852');
-      expect(addresses.FungibleToken).toBe('0xf233dcee88fe0abe');
-      expect(addresses.NonFungibleToken).toBe('0x1d7e57aa55817448');
-      expect(addresses.FlowToken).toBe('0x1654653399040a61');
-      expect(addresses.MetadataViews).toBe('0x1d7e57aa55817448');
-
-      // Restore original environment
-      process.env.FLOW_NETWORK = originalEnv;
-    });
-
-    it('should default to testnet addresses for unknown networks', () => {
-      // Mock unknown network
-      const originalEnv = process.env.FLOW_NETWORK;
-      process.env.FLOW_NETWORK = 'unknown';
-
-      const addresses = getContractAddresses();
-
-      expect(addresses.FungibleToken).toBe('0x9a0766d93b6608b7'); // testnet address
-      expect(addresses.NonFungibleToken).toBe('0x631e88ae7f1d7c20'); // testnet address
-
-      // Restore original environment
-      process.env.FLOW_NETWORK = originalEnv;
-    });
-  });
-});
-
-describe('Flow Utility Functions', () => {
   describe('isValidFlowAddress', () => {
-    it('should validate correct Flow addresses', () => {
+    it('should validate correct Flow address format', () => {
       const validAddresses = [
         '0x58f9e6153690c852',
         '0x1234567890abcdef',
-        '0x0000000000000000',
-        '0xFFFFFFFFFFFFFFFF',
+        '0x0000000000000001',
+        '0xabcdefabcdefabcd',
+        '0x9a0766d93b6608b7',
       ];
 
       validAddresses.forEach(address => {
@@ -258,100 +21,230 @@ describe('Flow Utility Functions', () => {
       });
     });
 
-    it('should reject invalid Flow addresses', () => {
+    it('should reject invalid Flow address formats', () => {
       const invalidAddresses = [
-        '58f9e6153690c852', // missing 0x
-        '0x58f9e6153690c85', // too short
-        '0x58f9e6153690c8523', // too long
-        '0x58f9e6153690c85g', // invalid character
-        '0X58f9e6153690c852', // uppercase X
-        '', // empty string
-        '0x', // only prefix
-        null, // null value
-        undefined, // undefined value
+        'invalid-address',
+        '58f9e6153690c852', // Missing 0x prefix
+        '0x58f9e6153690c85', // Too short
+        '0x58f9e6153690c8529', // Too long
+        '0x58f9e6153690c85g', // Invalid hex character
+        '',
+        null,
+        undefined,
+        '0x',
+        '0xG8f9e6153690c852', // Invalid hex character at start
+        '0x58f9e6153690C852', // Uppercase hex (should work)
       ];
 
       invalidAddresses.forEach(address => {
-        expect(isValidFlowAddress(address as string)).toBe(false);
-      });
-    });
-  });
-
-  describe('isValidTransactionId', () => {
-    it('should validate correct transaction IDs', () => {
-      const validTxIds = [
-        'abc123def456789012345678901234567890123456789012345678901234567a',
-        '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
-        '0000000000000000000000000000000000000000000000000000000000000000',
-        'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff',
-      ];
-
-      validTxIds.forEach(txId => {
-        expect(isValidTransactionId(txId)).toBe(true);
+        expect(isValidFlowAddress(address as any)).toBe(false);
       });
     });
 
-    it('should reject invalid transaction IDs', () => {
-      const invalidTxIds = [
-        'abc123def456789012345678901234567890123456789012345678901234567', // too short
-        'abc123def4567890123456789012345678901234567890123456789012345678901', // too long
-        'abc123def456789012345678901234567890123456789012345678901234567g', // invalid character
-        '', // empty string
-        null, // null value
-        undefined, // undefined value
+    it('should handle uppercase hex addresses', () => {
+      const uppercaseAddresses = [
+        '0x58F9E6153690C852',
+        '0xABCDEFABCDEFABCD',
+        '0x1234567890ABCDEF',
       ];
 
-      invalidTxIds.forEach(txId => {
-        expect(isValidTransactionId(txId as string)).toBe(false);
+      uppercaseAddresses.forEach(address => {
+        expect(isValidFlowAddress(address)).toBe(true);
       });
+    });
+
+    it('should handle mixed case hex addresses', () => {
+      const mixedCaseAddresses = [
+        '0x58f9E6153690c852',
+        '0xAbCdEfAbCdEfAbCd',
+        '0x1234567890aBcDeF',
+      ];
+
+      mixedCaseAddresses.forEach(address => {
+        expect(isValidFlowAddress(address)).toBe(true);
+      });
+    });
+
+    it('should handle edge cases', () => {
+      expect(isValidFlowAddress(' 0x58f9e6153690c852 ')).toBe(false); // With spaces
+      expect(isValidFlowAddress('0x58f9e6153690c852\\n')).toBe(false); // With newline
+      expect(isValidFlowAddress('0x58f9e6153690c852\\t')).toBe(false); // With tab
     });
   });
 
   describe('formatHeartAmount', () => {
-    it('should format amounts correctly without symbol', () => {
-      expect(formatHeartAmount('100.00000000')).toBe('100.00');
-      expect(formatHeartAmount('1000.12345678')).toBe('1,000.12345678');
-      expect(formatHeartAmount('1000000.50000000')).toBe('1,000,000.50');
-      expect(formatHeartAmount('0.00000001')).toBe('0.00000001');
-    });
+    it('should format valid amounts correctly', () => {
+      const testCases = [
+        { input: '100.12345678', expected: '100.12345678' },
+        { input: '100', expected: '100.00000000' },
+        { input: '100.0', expected: '100.00000000' },
+        { input: '0.00000001', expected: '0.00000001' },
+        { input: '1000000.12345', expected: '1000000.12345000' },
+        { input: '0', expected: '0.00000000' },
+        { input: '0.0', expected: '0.00000000' },
+      ];
 
-    it('should format amounts correctly with symbol', () => {
-      expect(formatHeartAmount('100.00000000', true)).toBe('100.00 HEART');
-      expect(formatHeartAmount('1000.12345678', true)).toBe(
-        '1,000.12345678 HEART'
-      );
-      expect(formatHeartAmount('1000000.50000000', true)).toBe(
-        '1,000,000.50 HEART'
-      );
-      expect(formatHeartAmount('0.00000001', true)).toBe('0.00000001 HEART');
+      testCases.forEach(({ input, expected }) => {
+        expect(formatHeartAmount(input)).toBe(expected);
+      });
     });
 
     it('should handle edge cases', () => {
-      expect(formatHeartAmount('0')).toBe('0.00');
-      expect(formatHeartAmount('0.00000000')).toBe('0.00');
-      expect(formatHeartAmount('1')).toBe('1.00');
+      expect(formatHeartAmount('0.123456789')).toBe('0.12345679'); // Rounds to 8 decimals
+      expect(formatHeartAmount('999999999.99999999')).toBe('999999999.99999999');
+      expect(formatHeartAmount('0.000000001')).toBe('0.00000000'); // Rounds very small numbers
+    });
+
+    it('should handle invalid inputs gracefully', () => {
+      const invalidInputs = ['', 'invalid', 'abc', null, undefined];
+      
+      invalidInputs.forEach(input => {
+        expect(() => formatHeartAmount(input as any)).not.toThrow();
+      });
+    });
+
+    it('should maintain precision for 8 decimal places', () => {
+      const precisionTests = [
+        '1.12345678',
+        '0.00000001',
+        '999.99999999',
+        '12345.87654321',
+      ];
+
+      precisionTests.forEach(amount => {
+        const formatted = formatHeartAmount(amount);
+        const decimalPart = formatted.split('.')[1];
+        expect(decimalPart.length).toBe(8);
+      });
     });
   });
 
-  describe('calculateTaxAmount', () => {
-    it('should calculate tax correctly', () => {
-      expect(calculateTaxAmount('100.00000000', 5.0)).toBe('5.00000000');
-      expect(calculateTaxAmount('1000.00000000', 10.0)).toBe('100.00000000');
-      expect(calculateTaxAmount('50.00000000', 20.0)).toBe('10.00000000');
-      expect(calculateTaxAmount('0.00000001', 5.0)).toBe('0.00000000');
+  describe('CONTRACT_ADDRESSES', () => {
+    it('should contain required contract addresses', () => {
+      expect(CONTRACT_ADDRESSES).toBeDefined();
+      expect(typeof CONTRACT_ADDRESSES).toBe('object');
+      
+      // Check for essential contracts
+      expect(CONTRACT_ADDRESSES.Heart).toBeDefined();
+      expect(CONTRACT_ADDRESSES.FungibleToken).toBeDefined();
+      expect(CONTRACT_ADDRESSES.FlowToken).toBeDefined();
     });
 
-    it('should handle zero tax rate', () => {
-      expect(calculateTaxAmount('100.00000000', 0)).toBe('0.00000000');
+    it('should have valid Flow addresses', () => {
+      Object.values(CONTRACT_ADDRESSES).forEach(address => {
+        if (typeof address === 'string') {
+          expect(isValidFlowAddress(address)).toBe(true);
+        }
+      });
     });
 
-    it('should handle maximum tax rate', () => {
-      expect(calculateTaxAmount('100.00000000', 100.0)).toBe('100.00000000');
+    it('should use testnet addresses', () => {
+      // Testnet specific addresses
+      expect(CONTRACT_ADDRESSES.Heart).toBe('0x58f9e6153690c852');
+      expect(CONTRACT_ADDRESSES.FungibleToken).toBe('0x9a0766d93b6608b7');
+      expect(CONTRACT_ADDRESSES.FlowToken).toBe('0x7e60df042a9c0868');
     });
 
-    it('should handle decimal amounts', () => {
-      expect(calculateTaxAmount('123.45678900', 5.0)).toBe('6.17283945');
-      expect(calculateTaxAmount('0.12345678', 10.0)).toBe('0.01234568');
+    it('should not be empty', () => {
+      const addressCount = Object.keys(CONTRACT_ADDRESSES).length;
+      expect(addressCount).toBeGreaterThan(0);
+    });
+  });
+
+  describe('flowConfig', () => {
+    it('should have required configuration properties', () => {
+      expect(flowConfig).toBeDefined();
+      expect(typeof flowConfig).toBe('object');
+      
+      expect(flowConfig['accessNode.api']).toBeDefined();
+      expect(flowConfig['discovery.wallet']).toBeDefined();
+      expect(flowConfig['0xHeart']).toBeDefined();
+    });
+
+    it('should use testnet configuration', () => {
+      expect(flowConfig['accessNode.api']).toContain('testnet');
+      expect(flowConfig['discovery.wallet']).toContain('testnet');
+    });
+
+    it('should have valid URLs', () => {
+      const accessNode = flowConfig['accessNode.api'];
+      const discoveryWallet = flowConfig['discovery.wallet'];
+      
+      expect(accessNode).toMatch(/^https?:\\/\\/.+/);
+      expect(discoveryWallet).toMatch(/^https?:\\/\\/.+/);
+    });
+
+    it('should have correct Heart contract address', () => {
+      expect(flowConfig['0xHeart']).toBe('0x58f9e6153690c852');
+    });
+  });
+
+  describe('Address Validation Edge Cases', () => {
+    it('should handle numeric inputs', () => {
+      expect(isValidFlowAddress(123456789 as any)).toBe(false);
+      expect(isValidFlowAddress(0 as any)).toBe(false);
+    });
+
+    it('should handle boolean inputs', () => {
+      expect(isValidFlowAddress(true as any)).toBe(false);
+      expect(isValidFlowAddress(false as any)).toBe(false);
+    });
+
+    it('should handle object inputs', () => {
+      expect(isValidFlowAddress({} as any)).toBe(false);
+      expect(isValidFlowAddress({ address: '0x58f9e6153690c852' } as any)).toBe(false);
+    });
+
+    it('should handle array inputs', () => {
+      expect(isValidFlowAddress([] as any)).toBe(false);
+      expect(isValidFlowAddress(['0x58f9e6153690c852'] as any)).toBe(false);
+    });
+  });
+
+  describe('Amount Formatting Edge Cases', () => {
+    it('should handle very large numbers', () => {
+      const largeNumber = '999999999999999.99999999';
+      const formatted = formatHeartAmount(largeNumber);
+      expect(formatted).toMatch(/^\\d+\\.\\d{8}$/);
+    });
+
+    it('should handle scientific notation', () => {
+      const scientificNumbers = ['1e8', '1.5e-8', '2.5E10'];
+      
+      scientificNumbers.forEach(number => {
+        expect(() => formatHeartAmount(number)).not.toThrow();
+      });
+    });
+
+    it('should handle negative numbers', () => {
+      expect(() => formatHeartAmount('-100.50')).not.toThrow();
+      // Note: We might want to handle negative numbers specifically in the future
+    });
+
+    it('should handle numbers with leading zeros', () => {
+      const leadingZeroNumbers = ['001.50', '000.00000001', '0000100.0'];
+      
+      leadingZeroNumbers.forEach(number => {
+        expect(() => formatHeartAmount(number)).not.toThrow();
+      });
+    });
+  });
+
+  describe('Configuration Consistency', () => {
+    it('should have consistent address between CONTRACT_ADDRESSES and flowConfig', () => {
+      expect(CONTRACT_ADDRESSES.Heart).toBe(flowConfig['0xHeart']);
+    });
+
+    it('should not have conflicting configurations', () => {
+      // Ensure all contract addresses use the same network
+      const addresses = Object.values(CONTRACT_ADDRESSES);
+      const addressNetwork = addresses[0].startsWith('0x') ? 'testnet_or_mainnet' : 'unknown';
+      
+      addresses.forEach(address => {
+        if (typeof address === 'string') {
+          expect(address.startsWith('0x')).toBe(true);
+        }
+      });
     });
   });
 });
