@@ -47,29 +47,29 @@ describe('Validation Utilities', () => {
   });
 
   describe('Amount Formatting', () => {
-    it('should format amounts to 8 decimal places', () => {
-      expect(formatHeartAmount('100')).toBe('100.00000000');
-      expect(formatHeartAmount('100.5')).toBe('100.50000000');
+    it('should format amounts with proper decimal places', () => {
+      expect(formatHeartAmount('100')).toBe('100.00');
+      expect(formatHeartAmount('100.5')).toBe('100.50');
       expect(formatHeartAmount('100.12345678')).toBe('100.12345678');
     });
 
     it('should handle zero values', () => {
-      expect(formatHeartAmount('0')).toBe('0.00000000');
-      expect(formatHeartAmount('0.0')).toBe('0.00000000');
+      expect(formatHeartAmount('0')).toBe('0.00');
+      expect(formatHeartAmount('0.0')).toBe('0.00');
     });
 
     it('should round to 8 decimal places', () => {
       expect(formatHeartAmount('100.123456789')).toBe('100.12345679');
     });
 
-    it('should handle large numbers', () => {
-      expect(formatHeartAmount('1000000')).toBe('1000000.00000000');
-      expect(formatHeartAmount('999999.99999999')).toBe('999999.99999999');
+    it('should handle large numbers with locale formatting', () => {
+      expect(formatHeartAmount('1000000')).toBe('1,000,000.00');
+      expect(formatHeartAmount('999999.99999999')).toBe('999,999.99999999');
     });
 
     it('should handle very small numbers', () => {
       expect(formatHeartAmount('0.00000001')).toBe('0.00000001');
-      expect(formatHeartAmount('0.000000001')).toBe('0.00000000');
+      expect(formatHeartAmount('0.000000001')).toBe('0.00');
     });
   });
 
@@ -157,7 +157,9 @@ describe('Validation Utilities', () => {
     });
 
     it('should handle maximum precision', () => {
-      expect(formatHeartAmount('99999999.99999999')).toBe('99999999.99999999');
+      expect(formatHeartAmount('99999999.99999999')).toBe(
+        '99,999,999.99999999'
+      );
     });
   });
 });
