@@ -20,6 +20,8 @@ import { MintController } from './controllers/transactions/MintController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { BurnController } from './controllers/transactions/BurnController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { BatchTransferController } from './controllers/transactions/BatchTransferController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { TokenInfoController } from './controllers/queries/TokenInfoController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { JobController } from './controllers/queries/JobController';
@@ -131,6 +133,24 @@ const models: TsoaRoute.Models = {
         "dataType": "refObject",
         "properties": {
             "amount": {"dataType":"string","required":true},
+            "memo": {"dataType":"string"},
+        },
+        "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "BatchTransferItem": {
+        "dataType": "refObject",
+        "properties": {
+            "recipient": {"dataType":"string","required":true},
+            "amount": {"dataType":"string","required":true},
+        },
+        "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "BatchTransferRequest": {
+        "dataType": "refObject",
+        "properties": {
+            "transfers": {"dataType":"array","array":{"dataType":"refObject","ref":"BatchTransferItem"},"required":true},
             "memo": {"dataType":"string"},
         },
         "additionalProperties": false,
@@ -692,6 +712,36 @@ export function RegisterRoutes(app: Router) {
 
               await templateService.apiHandler({
                 methodName: 'burnTokens',
+                controller,
+                response,
+                next,
+                validatedArgs,
+                successStatus: 200,
+              });
+            } catch (err) {
+                return next(err);
+            }
+        });
+        // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+        const argsBatchTransferController_batchTransferTokens: Record<string, TsoaRoute.ParameterSchema> = {
+                request: {"in":"body","name":"request","required":true,"ref":"BatchTransferRequest"},
+        };
+        app.post('/batch-transfer',
+            ...(fetchMiddlewares<RequestHandler>(BatchTransferController)),
+            ...(fetchMiddlewares<RequestHandler>(BatchTransferController.prototype.batchTransferTokens)),
+
+            async function BatchTransferController_batchTransferTokens(request: ExRequest, response: ExResponse, next: any) {
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({ args: argsBatchTransferController_batchTransferTokens, request, response });
+
+                const controller = new BatchTransferController();
+
+              await templateService.apiHandler({
+                methodName: 'batchTransferTokens',
                 controller,
                 response,
                 next,

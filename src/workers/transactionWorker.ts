@@ -147,6 +147,9 @@ async function executeTransactionJob(
       case 'setTreasury':
         return await executeSetTreasury(jobRequest, flowService);
 
+      case 'batchTransfer':
+        return await executeBatchTransfer(jobRequest, flowService);
+
       case 'burn':
         return await executeBurnTokens(jobRequest, flowService);
 
@@ -726,6 +729,102 @@ async function executeSetTreasury(
         error instanceof Error
           ? error.message
           : 'Failed to set treasury account',
+    };
+  }
+}
+
+/**
+ * Execute batch transfer tokens transaction
+ */
+async function executeBatchTransfer(
+  jobRequest: TransactionJobRequest,
+  flowService: FlowService
+): Promise<{
+  success: boolean;
+  txId?: string;
+  blockHeight?: string;
+  error?: string;
+}> {
+  try {
+    const { transfers } = jobRequest.params as {
+      transfers: Array<{ recipient: string; amount: string }>;
+    };
+
+    if (!transfers || !Array.isArray(transfers) || transfers.length === 0) {
+      throw new Error('Transfer list is required');
+    }
+
+    console.log(
+      `[BATCH_TRANSFER_EXECUTING] ${jobRequest.jobId}: Processing batch transfer to ${transfers.length} recipients`
+    );
+
+    // Log transfer details
+    console.log(
+      `[BATCH_TRANSFER_DETAILS] ${jobRequest.jobId}: Recipients:`,
+      transfers.map(t => `${t.recipient} (${t.amount} HEART)`).join(', ')
+    );
+
+    // Execute batch transfer transaction using FlowService
+    const result = await flowService.batchTransferTokens(
+      transfers,
+      jobRequest.userAddress
+    );
+
+    if (result.success) {
+      console.log(
+        `[BATCH_TRANSFER_SUCCESS] ${jobRequest.jobId}: Batch transfer completed successfully`,
+        {
+          txId: result.data.txId,
+          transferCount: result.data.transferCount,
+          totalAmount: result.data.totalAmount,
+          totalTax: result.data.totalTax,
+          status: result.data.status,
+          blockHeight: result.data.blockHeight,
+        }
+      );
+
+      const response: {
+        success: boolean;
+        txId?: string;
+        blockHeight?: string;
+        error?: string;
+      } = {
+        success: true,
+        txId: result.data.txId,
+      };
+
+      if (result.data.blockHeight) {
+        response.blockHeight = result.data.blockHeight.toString();
+      }
+
+      return response;
+    } else {
+      console.error(
+        `[BATCH_TRANSFER_FAILED] ${jobRequest.jobId}: Batch transfer transaction failed`,
+        {
+          error: result.error,
+        }
+      );
+
+      return {
+        success: false,
+        error: result.error?.message || 'Batch transfer transaction failed',
+      };
+    }
+  } catch (error) {
+    console.error(
+      `[BATCH_TRANSFER_ERROR] ${jobRequest.jobId}: Error executing batch transfer`,
+      {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      }
+    );
+
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : 'Failed to execute batch transfer',
     };
   }
 }
