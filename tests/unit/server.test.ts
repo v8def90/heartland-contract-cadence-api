@@ -13,8 +13,8 @@ describe('Server Integration Tests', () => {
       const response = await request(app).get('/health').expect(200);
 
       expect(response.body).toEqual({
-        success: true,
-        message: 'Flow Heart Token API is healthy',
+        status: 'healthy',
+        service: 'heartland-contract-cadence-api',
         timestamp: expect.any(String),
         version: expect.any(String),
       });
@@ -175,8 +175,8 @@ describe('Server Integration Tests', () => {
       const responses = await Promise.all(requests);
 
       responses.forEach(response => {
-        expect(response.body.success).toBe(true);
-        expect(response.body.message).toBe('Flow Heart Token API is healthy');
+        expect(response.body.status).toBe('healthy');
+        expect(response.body.service).toBe('heartland-contract-cadence-api');
       });
     });
   });
@@ -235,7 +235,7 @@ describe('Server Integration Tests', () => {
     it('should maintain consistent response format', async () => {
       const healthResponse = await request(app).get('/health').expect(200);
 
-      expect(healthResponse.body).toHaveProperty('success');
+      expect(healthResponse.body).toHaveProperty('status');
       expect(healthResponse.body).toHaveProperty('timestamp');
 
       const infoResponse = await request(app).get('/api/info').expect(200);

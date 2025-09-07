@@ -25,7 +25,7 @@ function getNetworkConfig(): {
   network: string;
   accessNode: string;
   discoveryWallet: string;
-  } {
+} {
   const network = process.env.FLOW_NETWORK || 'testnet';
 
   // Default endpoints based on network
@@ -158,7 +158,7 @@ export function getContractAddresses(): {
   NonFungibleToken: string;
   FlowToken: string;
   MetadataViews: string;
-  } {
+} {
   const network = (process.env.FLOW_NETWORK || 'testnet') as
     | 'testnet'
     | 'mainnet';
@@ -227,10 +227,10 @@ export const FLOW_CONSTANTS = {
   MAX_TAX_RATE: 20.0,
 
   /** Address validation regex pattern */
-  ADDRESS_PATTERN: /^0x[a-fA-F0-9]{16}$/,
+  ADDRESS_PATTERN: /^0x[a-f0-9]{16}$/,
 
   /** Transaction ID validation regex pattern */
-  TX_ID_PATTERN: /^[a-fA-F0-9]{64}$/,
+  TX_ID_PATTERN: /^[a-f0-9]{64}$/,
 } as const;
 
 /**
@@ -340,7 +340,14 @@ export const initializeFlowConfig = (): void => {
  * ```
  */
 export const isValidFlowAddress = (address: string): boolean => {
-  return FLOW_CONSTANTS.ADDRESS_PATTERN.test(address);
+  // Handle null, undefined, and non-string inputs
+  if (!address || typeof address !== 'string') {
+    return false;
+  }
+
+  // Flow addresses are case-insensitive, but we normalize to lowercase for validation
+  const normalizedAddress = address.toLowerCase();
+  return FLOW_CONSTANTS.ADDRESS_PATTERN.test(normalizedAddress);
 };
 
 /**
@@ -357,7 +364,14 @@ export const isValidFlowAddress = (address: string): boolean => {
  * ```
  */
 export const isValidTransactionId = (txId: string): boolean => {
-  return FLOW_CONSTANTS.TX_ID_PATTERN.test(txId);
+  // Handle null, undefined, and non-string inputs
+  if (!txId || typeof txId !== 'string') {
+    return false;
+  }
+
+  // Transaction IDs are case-insensitive, normalize to lowercase for validation
+  const normalizedTxId = txId.toLowerCase();
+  return FLOW_CONSTANTS.TX_ID_PATTERN.test(normalizedTxId);
 };
 
 /**
@@ -376,10 +390,18 @@ export const isValidTransactionId = (txId: string): boolean => {
  */
 export const formatHeartAmount = (
   amount: string,
-  includeSymbol = false,
+  includeSymbol = false
 ): string => {
   try {
     const numAmount = parseFloat(amount);
+
+    // Check for invalid numbers (NaN, Infinity, etc.)
+    if (!isFinite(numAmount)) {
+      return includeSymbol
+        ? `${amount} ${FLOW_CONSTANTS.HEART_SYMBOL}`
+        : amount;
+    }
+
     const formatted = numAmount.toLocaleString('en-US', {
       minimumFractionDigits: 2,
       maximumFractionDigits: FLOW_CONSTANTS.HEART_DECIMALS,
@@ -411,7 +433,19 @@ export const formatHeartAmount = (
 export const calculateTaxAmount = (amount: string, taxRate: number): string => {
   try {
     const numAmount = parseFloat(amount);
+
+    // Check for invalid numbers (NaN, Infinity, etc.)
+    if (!isFinite(numAmount) || !isFinite(taxRate)) {
+      return '0.00000000';
+    }
+
     const taxAmount = (numAmount * taxRate) / 100;
+
+    // Double-check the tax amount calculation result
+    if (!isFinite(taxAmount)) {
+      return '0.00000000';
+    }
+
     return taxAmount.toFixed(FLOW_CONSTANTS.HEART_DECIMALS);
   } catch (error) {
     console.warn('Failed to calculate tax amount:', amount, taxRate, error);

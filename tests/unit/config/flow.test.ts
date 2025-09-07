@@ -199,11 +199,11 @@ describe('Flow Configuration', () => {
     });
 
     it('should handle array inputs', () => {
-      expect(isValidFlowAddress([] as any)).toBe(false); // Empty array converts to empty string
-      expect(isValidFlowAddress(['0x58f9e6153690c852'] as any)).toBe(true); // Single element array converts to valid address string
+      expect(isValidFlowAddress([] as any)).toBe(false); // Array is not a string
+      expect(isValidFlowAddress(['0x58f9e6153690c852'] as any)).toBe(false); // Array is not a string
       expect(isValidFlowAddress(['0x58f9e6153690c852', 'other'] as any)).toBe(
         false
-      ); // Multi-element array has commas
+      ); // Array is not a string
     });
   });
 

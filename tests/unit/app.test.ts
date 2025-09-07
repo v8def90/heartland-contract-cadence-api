@@ -23,8 +23,8 @@ describe('Express Application', () => {
       const response = await request(app).get('/health');
 
       expect(response.status).toBe(200);
-      expect(response.body.success).toBe(true);
-      expect(response.body.message).toBe('Flow Heart Token API is healthy');
+      expect(response.body.status).toBe('healthy');
+      expect(response.body.service).toBe('heartland-contract-cadence-api');
       expect(response.body.version).toBe('1.0.0');
       expect(response.body.timestamp).toBeDefined();
     });

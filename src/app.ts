@@ -58,10 +58,10 @@ export const createApp = (): express.Application => {
   // Request logging middleware
   app.use((req: Request, res: Response, next: NextFunction) => {
     console.log('=== REQUEST LOG ===');
-    console.log('URL:', req.url);
-    console.log('Method:', req.method);
-    console.log('Path:', req.path);
-    console.log('Query:', JSON.stringify(req.query));
+    console.log(`URL: ${req.url}`);
+    console.log(`Method: ${req.method}`);
+    console.log(`Path: ${req.path}`);
+    console.log(`Query: ${JSON.stringify(req.query)}`);
     console.log('==================');
     next();
   });
@@ -77,10 +77,7 @@ export const createApp = (): express.Application => {
       'Access-Control-Allow-Headers',
       'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control'
     );
-    res.header(
-      'Access-Control-Expose-Headers',
-      'Content-Length, Content-Type'
-    );
+    res.header('Access-Control-Expose-Headers', 'Content-Length, Content-Type');
     res.header('Access-Control-Max-Age', '86400'); // 24 hours
 
     if (req.method === 'OPTIONS') {
@@ -93,8 +90,8 @@ export const createApp = (): express.Application => {
   // Health check endpoint
   app.get('/health', (req: Request, res: Response) => {
     res.json({
-      success: true,
-      message: 'Flow Heart Token API is healthy',
+      status: 'healthy',
+      service: 'heartland-contract-cadence-api',
       version: '1.0.0',
       timestamp: new Date().toISOString(),
     });
@@ -212,16 +209,39 @@ export const createApp = (): express.Application => {
   }
 
   // Error handling middleware
-  app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+  app.use((err: any, req: Request, res: Response, next: NextFunction) => {
     console.error('=== ERROR MIDDLEWARE TRIGGERED ===');
-    console.error('Request URL:', req.url);
-    console.error('Request method:', req.method);
-    console.error('Request query:', JSON.stringify(req.query));
-    console.error('Error name:', err.name);
-    console.error('Error message:', err.message);
-    console.error('Error stack:', err.stack);
+    console.error(`Request URL: ${req.url}`);
+    console.error(`Request method: ${req.method}`);
+    console.error(`Request query: ${JSON.stringify(req.query)}`);
+    console.error(`Error name: ${err.name}`);
+    console.error(`Error message: ${err.message}`);
+    console.error(`Error stack: ${err.stack}`);
     console.error('=====================================');
 
+    // Handle tsoa ValidateError
+    if (err.name === 'ValidateError') {
+      const errorResponse = createErrorResponse({
+        code: API_ERROR_CODES.VALIDATION_ERROR,
+        message: 'Validation failed',
+        details: err.fields ? JSON.stringify(err.fields) : err.message,
+      });
+      res.status(400).json(errorResponse);
+      return;
+    }
+
+    // Handle JSON parsing errors
+    if (err.type === 'entity.parse.failed') {
+      const errorResponse = createErrorResponse({
+        code: API_ERROR_CODES.VALIDATION_ERROR,
+        message: 'Invalid JSON format',
+        details: 'Request body contains malformed JSON',
+      });
+      res.status(400).json(errorResponse);
+      return;
+    }
+
+    // Default error handling
     const errorResponse = createErrorResponse({
       code: API_ERROR_CODES.INTERNAL_SERVER_ERROR,
       message: 'Internal server error',
