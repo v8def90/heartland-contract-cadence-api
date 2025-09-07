@@ -37,7 +37,7 @@ export const handler = async (event: SQSEvent): Promise<void> => {
  */
 async function processTransactionJob(
   record: SQSRecord,
-  flowService: FlowService
+  flowService: FlowService,
 ): Promise<void> {
   let jobRequest: TransactionJobRequest | undefined;
 
@@ -51,7 +51,7 @@ async function processTransactionJob(
         type: jobRequest.type,
         userAddress: jobRequest.userAddress,
         messageId: record.messageId,
-      }
+      },
     );
 
     // Log job status update
@@ -69,7 +69,7 @@ async function processTransactionJob(
         {
           txId: result.txId,
           blockHeight: result.blockHeight,
-        }
+        },
       );
 
       SqsService.logJobStatusUpdate(jobRequest.jobId, 'completed', {
@@ -94,7 +94,7 @@ async function processTransactionJob(
       {
         error: error instanceof Error ? error.message : 'Unknown error',
         messageId: record.messageId,
-      }
+      },
     );
 
     SqsService.logJobStatusUpdate(jobId, 'failed', {
@@ -117,7 +117,7 @@ async function processTransactionJob(
  */
 async function executeTransactionJob(
   jobRequest: TransactionJobRequest,
-  flowService: FlowService
+  flowService: FlowService,
 ): Promise<{
   success: boolean;
   txId?: string;
@@ -126,35 +126,35 @@ async function executeTransactionJob(
 }> {
   try {
     switch (jobRequest.type) {
-      case 'setup':
-        return await executeSetupAccount(jobRequest, flowService);
+    case 'setup':
+      return await executeSetupAccount(jobRequest, flowService);
 
-      case 'mint':
-        return await executeMintTokens(jobRequest, flowService);
+    case 'mint':
+      return await executeMintTokens(jobRequest, flowService);
 
-      case 'transfer':
-        return await executeTransferTokens(jobRequest, flowService);
+    case 'transfer':
+      return await executeTransferTokens(jobRequest, flowService);
 
-      case 'pause':
-        return await executePauseContract(jobRequest, flowService);
+    case 'pause':
+      return await executePauseContract(jobRequest, flowService);
 
-      case 'unpause':
-        return await executeUnpauseContract(jobRequest, flowService);
+    case 'unpause':
+      return await executeUnpauseContract(jobRequest, flowService);
 
-      case 'setTaxRate':
-        return await executeSetTaxRate(jobRequest, flowService);
+    case 'setTaxRate':
+      return await executeSetTaxRate(jobRequest, flowService);
 
-      case 'setTreasury':
-        return await executeSetTreasury(jobRequest, flowService);
+    case 'setTreasury':
+      return await executeSetTreasury(jobRequest, flowService);
 
-      case 'batchTransfer':
-        return await executeBatchTransfer(jobRequest, flowService);
+    case 'batchTransfer':
+      return await executeBatchTransfer(jobRequest, flowService);
 
-      case 'burn':
-        return await executeBurnTokens(jobRequest, flowService);
+    case 'burn':
+      return await executeBurnTokens(jobRequest, flowService);
 
-      default:
-        throw new Error(`Unknown job type: ${jobRequest.type}`);
+    default:
+      throw new Error(`Unknown job type: ${jobRequest.type}`);
     }
   } catch (error) {
     return {
@@ -169,7 +169,7 @@ async function executeTransactionJob(
  */
 async function executeSetupAccount(
   jobRequest: TransactionJobRequest,
-  flowService: FlowService
+  flowService: FlowService,
 ): Promise<{
   success: boolean;
   txId?: string;
@@ -193,7 +193,7 @@ async function executeSetupAccount(
       result = await flowService.setupAccount(address);
     } else {
       throw new Error(
-        'Invalid setup parameters: address or setupType required'
+        'Invalid setup parameters: address or setupType required',
       );
     }
 
@@ -231,7 +231,7 @@ async function executeSetupAccount(
  */
 async function executeMintTokens(
   jobRequest: TransactionJobRequest,
-  flowService: FlowService
+  flowService: FlowService,
 ): Promise<{
   success: boolean;
   txId?: string;
@@ -282,7 +282,7 @@ async function executeMintTokens(
  */
 async function executeTransferTokens(
   jobRequest: TransactionJobRequest,
-  flowService: FlowService
+  flowService: FlowService,
 ): Promise<{
   success: boolean;
   txId?: string;
@@ -300,7 +300,7 @@ async function executeTransferTokens(
     const sender = jobRequest.userAddress;
 
     console.log(
-      `[TRANSFER_START] Executing transfer: ${amount} HEART from ${sender} to ${recipient}`
+      `[TRANSFER_START] Executing transfer: ${amount} HEART from ${sender} to ${recipient}`,
     );
 
     const result = await flowService.transferTokens(sender, recipient, amount);
@@ -346,7 +346,7 @@ async function executeTransferTokens(
  */
 async function executeSetTaxRate(
   jobRequest: TransactionJobRequest,
-  flowService: FlowService
+  flowService: FlowService,
 ): Promise<{
   success: boolean;
   txId?: string;
@@ -363,7 +363,7 @@ async function executeSetTaxRate(
     }
 
     console.log(
-      `[SET_TAX_RATE_EXECUTING] ${jobRequest.jobId}: Setting tax rate to ${newTaxRate}%`
+      `[SET_TAX_RATE_EXECUTING] ${jobRequest.jobId}: Setting tax rate to ${newTaxRate}%`,
     );
 
     // Execute set tax rate transaction using FlowService
@@ -377,7 +377,7 @@ async function executeSetTaxRate(
           newTaxRate: result.data.newTaxRate,
           status: result.data.status,
           blockHeight: result.data.blockHeight,
-        }
+        },
       );
 
       const response: {
@@ -400,7 +400,7 @@ async function executeSetTaxRate(
         `[SET_TAX_RATE_FAILED] ${jobRequest.jobId}: Set tax rate transaction failed`,
         {
           error: result.error,
-        }
+        },
       );
 
       return {
@@ -413,7 +413,7 @@ async function executeSetTaxRate(
       `[SET_TAX_RATE_ERROR] ${jobRequest.jobId}: Error executing set tax rate`,
       {
         error: error instanceof Error ? error.message : 'Unknown error',
-      }
+      },
     );
 
     return {
@@ -428,7 +428,7 @@ async function executeSetTaxRate(
  */
 async function executeBurnTokens(
   jobRequest: TransactionJobRequest,
-  flowService: FlowService
+  flowService: FlowService,
 ): Promise<{
   success: boolean;
   txId?: string;
@@ -446,7 +446,7 @@ async function executeBurnTokens(
     }
 
     console.log(
-      `[BURN_EXECUTING] ${jobRequest.jobId}: Burning ${amount} HEART tokens`
+      `[BURN_EXECUTING] ${jobRequest.jobId}: Burning ${amount} HEART tokens`,
     );
 
     // Execute burn transaction using FlowService
@@ -459,7 +459,7 @@ async function executeBurnTokens(
           txId: result.data.txId,
           amount: result.data.amount,
           blockHeight: result.data.blockHeight,
-        }
+        },
       );
 
       const response: {
@@ -482,7 +482,7 @@ async function executeBurnTokens(
         `[BURN_FAILED] ${jobRequest.jobId}: Burn transaction failed`,
         {
           error: result.error,
-        }
+        },
       );
 
       return {
@@ -507,7 +507,7 @@ async function executeBurnTokens(
  */
 async function executePauseContract(
   jobRequest: TransactionJobRequest,
-  flowService: FlowService
+  flowService: FlowService,
 ): Promise<{
   success: boolean;
   txId?: string;
@@ -516,7 +516,7 @@ async function executePauseContract(
 }> {
   try {
     console.log(
-      `[PAUSE_EXECUTING] ${jobRequest.jobId}: Pausing HEART contract`
+      `[PAUSE_EXECUTING] ${jobRequest.jobId}: Pausing HEART contract`,
     );
 
     // Execute pause transaction using FlowService
@@ -529,7 +529,7 @@ async function executePauseContract(
           txId: result.data.txId,
           status: result.data.status,
           blockHeight: result.data.blockHeight,
-        }
+        },
       );
 
       const response: {
@@ -552,7 +552,7 @@ async function executePauseContract(
         `[PAUSE_FAILED] ${jobRequest.jobId}: Pause transaction failed`,
         {
           error: result.error,
-        }
+        },
       );
 
       return {
@@ -578,7 +578,7 @@ async function executePauseContract(
  */
 async function executeUnpauseContract(
   jobRequest: TransactionJobRequest,
-  flowService: FlowService
+  flowService: FlowService,
 ): Promise<{
   success: boolean;
   txId?: string;
@@ -587,7 +587,7 @@ async function executeUnpauseContract(
 }> {
   try {
     console.log(
-      `[UNPAUSE_EXECUTING] ${jobRequest.jobId}: Unpausing HEART contract`
+      `[UNPAUSE_EXECUTING] ${jobRequest.jobId}: Unpausing HEART contract`,
     );
 
     // Execute unpause transaction using FlowService
@@ -600,7 +600,7 @@ async function executeUnpauseContract(
           txId: result.data.txId,
           status: result.data.status,
           blockHeight: result.data.blockHeight,
-        }
+        },
       );
 
       const response: {
@@ -623,7 +623,7 @@ async function executeUnpauseContract(
         `[UNPAUSE_FAILED] ${jobRequest.jobId}: Unpause transaction failed`,
         {
           error: result.error,
-        }
+        },
       );
 
       return {
@@ -636,7 +636,7 @@ async function executeUnpauseContract(
       `[UNPAUSE_ERROR] ${jobRequest.jobId}: Error executing unpause`,
       {
         error: error instanceof Error ? error.message : 'Unknown error',
-      }
+      },
     );
 
     return {
@@ -652,7 +652,7 @@ async function executeUnpauseContract(
  */
 async function executeSetTreasury(
   jobRequest: TransactionJobRequest,
-  flowService: FlowService
+  flowService: FlowService,
 ): Promise<{
   success: boolean;
   txId?: string;
@@ -669,7 +669,7 @@ async function executeSetTreasury(
     }
 
     console.log(
-      `[SET_TREASURY_EXECUTING] ${jobRequest.jobId}: Setting treasury account to ${newTreasuryAccount}`
+      `[SET_TREASURY_EXECUTING] ${jobRequest.jobId}: Setting treasury account to ${newTreasuryAccount}`,
     );
 
     // Execute set treasury account transaction using FlowService
@@ -683,7 +683,7 @@ async function executeSetTreasury(
           newTreasuryAccount: result.data.newTreasuryAccount,
           status: result.data.status,
           blockHeight: result.data.blockHeight,
-        }
+        },
       );
 
       const response: {
@@ -706,7 +706,7 @@ async function executeSetTreasury(
         `[SET_TREASURY_FAILED] ${jobRequest.jobId}: Set treasury account transaction failed`,
         {
           error: result.error,
-        }
+        },
       );
 
       return {
@@ -720,7 +720,7 @@ async function executeSetTreasury(
       `[SET_TREASURY_ERROR] ${jobRequest.jobId}: Error executing set treasury account`,
       {
         error: error instanceof Error ? error.message : 'Unknown error',
-      }
+      },
     );
 
     return {
@@ -738,7 +738,7 @@ async function executeSetTreasury(
  */
 async function executeBatchTransfer(
   jobRequest: TransactionJobRequest,
-  flowService: FlowService
+  flowService: FlowService,
 ): Promise<{
   success: boolean;
   txId?: string;
@@ -755,19 +755,19 @@ async function executeBatchTransfer(
     }
 
     console.log(
-      `[BATCH_TRANSFER_EXECUTING] ${jobRequest.jobId}: Processing batch transfer to ${transfers.length} recipients`
+      `[BATCH_TRANSFER_EXECUTING] ${jobRequest.jobId}: Processing batch transfer to ${transfers.length} recipients`,
     );
 
     // Log transfer details
     console.log(
       `[BATCH_TRANSFER_DETAILS] ${jobRequest.jobId}: Recipients:`,
-      transfers.map(t => `${t.recipient} (${t.amount} HEART)`).join(', ')
+      transfers.map(t => `${t.recipient} (${t.amount} HEART)`).join(', '),
     );
 
     // Execute batch transfer transaction using FlowService
     const result = await flowService.batchTransferTokens(
       transfers,
-      jobRequest.userAddress
+      jobRequest.userAddress,
     );
 
     if (result.success) {
@@ -780,7 +780,7 @@ async function executeBatchTransfer(
           totalTax: result.data.totalTax,
           status: result.data.status,
           blockHeight: result.data.blockHeight,
-        }
+        },
       );
 
       const response: {
@@ -803,7 +803,7 @@ async function executeBatchTransfer(
         `[BATCH_TRANSFER_FAILED] ${jobRequest.jobId}: Batch transfer transaction failed`,
         {
           error: result.error,
-        }
+        },
       );
 
       return {
@@ -816,7 +816,7 @@ async function executeBatchTransfer(
       `[BATCH_TRANSFER_ERROR] ${jobRequest.jobId}: Error executing batch transfer`,
       {
         error: error instanceof Error ? error.message : 'Unknown error',
-      }
+      },
     );
 
     return {
