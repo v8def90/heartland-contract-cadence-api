@@ -391,9 +391,7 @@ describe('SqsService - Mock Tests', () => {
       const result = await sqsService.getJobStatus('any-job-id');
 
       expect(result.success).toBe(false);
-      expect((result as any).error?.code).toBe(
-        API_ERROR_CODES.INTERNAL_SERVER_ERROR
-      );
+      expect((result as any).error?.code).toBe(API_ERROR_CODES.NOT_FOUND);
     });
   });
 
