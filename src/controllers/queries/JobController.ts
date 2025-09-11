@@ -90,7 +90,7 @@ export class JobController extends Controller {
 
     if (result.success) {
       console.log(
-        `DEBUG getJobStatus: Job status retrieved successfully: ${result.data.status}`,
+        `DEBUG getJobStatus: Job status retrieved successfully: ${result.data?.status || 'unknown'}`,
       );
     } else {
       console.log(
