@@ -90,7 +90,7 @@ export class TransferController extends Controller {
     error: {
       code: 'INVALID_AMOUNT',
       message: 'Invalid transfer amount',
-      details: 'Amount must be a positive number greater than 0',
+      details: 'Amount must be a positive finite number greater than 0',
     },
     timestamp: '2024-01-01T00:00:00.000Z',
   })
@@ -125,11 +125,11 @@ export class TransferController extends Controller {
 
       // Validate amount
       const amountNum = parseFloat(request.amount);
-      if (isNaN(amountNum) || amountNum <= 0) {
+      if (isNaN(amountNum) || !isFinite(amountNum) || amountNum <= 0) {
         return createErrorResponse({
           code: API_ERROR_CODES.INVALID_AMOUNT,
           message: 'Invalid transfer amount',
-          details: 'Amount must be a positive number greater than 0',
+          details: 'Amount must be a positive finite number greater than 0',
         });
       }
 
@@ -175,12 +175,18 @@ export class TransferController extends Controller {
         },
       });
 
-      if (!jobResponse.success) {
+      if (!jobResponse || !jobResponse.success) {
         console.error(
           'ERROR transferTokens: Failed to queue transfer job:',
-          jobResponse.error
+          jobResponse?.error || 'Unknown error'
         );
-        return jobResponse;
+        return jobResponse?.success === false
+          ? jobResponse
+          : createErrorResponse({
+              code: API_ERROR_CODES.INTERNAL_SERVER_ERROR,
+              message: 'Failed to queue transfer job',
+              details: 'Unknown error',
+            });
       }
 
       console.log(

@@ -129,7 +129,7 @@ export class BatchTransferController extends Controller {
     try {
       console.log(
         'DEBUG batchTransferTokens: Queueing batch transfer job for',
-        request.transfers.length,
+        request.transfers?.length || 0,
         'recipients'
       );
 
@@ -179,11 +179,11 @@ export class BatchTransferController extends Controller {
 
         // Validate amount
         const amountNum = parseFloat(transfer.amount);
-        if (isNaN(amountNum) || amountNum <= 0) {
+        if (isNaN(amountNum) || !isFinite(amountNum) || amountNum <= 0) {
           return createErrorResponse({
             code: API_ERROR_CODES.INVALID_AMOUNT,
             message: 'Invalid transfer amount',
-            details: `Amount at index ${i} must be a positive number greater than 0`,
+            details: `Amount at index ${i} must be a positive finite number greater than 0`,
           });
         }
 
@@ -200,11 +200,7 @@ export class BatchTransferController extends Controller {
         }
       }
 
-      // TODO: Extract user address from JWT token once authentication is implemented
-      // For now, using environment variable as sender
-      const senderAddress = process.env.ADMIN_ADDRESS || '0x58f9e6153690c852';
-
-      // Check for duplicate recipients
+      // Check for duplicate recipients after validation
       const recipients = request.transfers.map(t => t.recipient.toLowerCase());
       const uniqueRecipients = new Set(recipients);
       if (recipients.length !== uniqueRecipients.size) {
@@ -214,6 +210,10 @@ export class BatchTransferController extends Controller {
           details: 'Each recipient address must be unique in the batch',
         });
       }
+
+      // TODO: Extract user address from JWT token once authentication is implemented
+      // For now, using environment variable as sender
+      const senderAddress = process.env.ADMIN_ADDRESS || '0x58f9e6153690c852';
 
       // Prevent self-transfer
       const hasSelfTransfer = recipients.some(
@@ -255,12 +255,18 @@ export class BatchTransferController extends Controller {
         },
       });
 
-      if (!jobResponse.success) {
+      if (!jobResponse || !jobResponse.success) {
         console.error(
           'ERROR batchTransferTokens: Failed to queue batch transfer job:',
-          jobResponse.error
+          jobResponse?.error || 'Unknown error'
         );
-        return jobResponse;
+        return jobResponse?.success === false
+          ? jobResponse
+          : createErrorResponse({
+              code: API_ERROR_CODES.INTERNAL_SERVER_ERROR,
+              message: 'Failed to queue batch transfer job',
+              details: 'Unknown error',
+            });
       }
 
       console.log(
