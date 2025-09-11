@@ -444,4 +444,387 @@ describe('SetupController', () => {
       expect((result as any).error?.code).toBe(API_ERROR_CODES.INVALID_ADDRESS);
     });
   });
+
+  describe('setupAdminWithMinter', () => {
+    beforeEach(() => {
+      // Set up environment variable for admin address
+      process.env.ADMIN_ADDRESS = '0x58f9e6153690c852';
+    });
+
+    afterEach(() => {
+      // Clean up environment variable
+      delete process.env.ADMIN_ADDRESS;
+    });
+
+    it('should queue admin minter setup job successfully', async () => {
+      const mockJobData = {
+        jobId: 'job_1704067200000_def456',
+        status: 'queued',
+        type: 'setup',
+        estimatedCompletionTime: '2024-01-01T00:05:00.000Z',
+        trackingUrl: '/jobs/job_1704067200000_def456',
+        queuePosition: 1,
+      };
+
+      mockSqsService.queueTransactionJob.mockResolvedValue({
+        success: true,
+        data: mockJobData,
+        timestamp: '2024-01-01T00:00:00.000Z',
+      } as any);
+
+      const result = await controller.setupAdminWithMinter();
+
+      expect(result.success).toBe(true);
+      expect((result as any).data?.jobId).toBe('job_1704067200000_def456');
+      expect((result as any).data?.status).toBe('queued');
+      expect((result as any).data?.type).toBe('setup');
+      expect(mockSqsService.queueTransactionJob).toHaveBeenCalledWith({
+        type: 'setup',
+        userAddress: '0x58f9e6153690c852',
+        params: {
+          setupType: 'adminMinter',
+        },
+        metadata: {
+          memo: 'Setup admin account with minter role',
+          priority: 'high',
+        },
+      });
+    });
+
+    it('should use default admin address when ADMIN_ADDRESS is not set', async () => {
+      delete process.env.ADMIN_ADDRESS;
+
+      const mockJobData = {
+        jobId: 'job_1704067200000_def456',
+        status: 'queued',
+        type: 'setup',
+        estimatedCompletionTime: '2024-01-01T00:05:00.000Z',
+        trackingUrl: '/jobs/job_1704067200000_def456',
+        queuePosition: 1,
+      };
+
+      mockSqsService.queueTransactionJob.mockResolvedValue({
+        success: true,
+        data: mockJobData,
+        timestamp: '2024-01-01T00:00:00.000Z',
+      } as any);
+
+      const result = await controller.setupAdminWithMinter();
+
+      expect(result.success).toBe(true);
+      expect(mockSqsService.queueTransactionJob).toHaveBeenCalledWith({
+        type: 'setup',
+        userAddress: '0x58f9e6153690c852', // Default address
+        params: {
+          setupType: 'adminMinter',
+        },
+        metadata: {
+          memo: 'Setup admin account with minter role',
+          priority: 'high',
+        },
+      });
+    });
+
+    it('should handle SQS service failure', async () => {
+      process.env.ADMIN_ADDRESS = '0x58f9e6153690c852';
+
+      mockSqsService.queueTransactionJob.mockResolvedValue({
+        success: false,
+        error: {
+          code: API_ERROR_CODES.QUEUE_ERROR,
+          message: 'SQS service unavailable',
+          details: 'Queue is temporarily unavailable',
+        },
+        timestamp: '2024-01-01T00:00:00.000Z',
+      } as any);
+
+      const result = await controller.setupAdminWithMinter();
+
+      expect(result.success).toBe(false);
+      expect((result as any).error?.code).toBe(API_ERROR_CODES.QUEUE_ERROR);
+      expect((result as any).error?.message).toBe('SQS service unavailable');
+    });
+
+    it('should handle unexpected errors', async () => {
+      process.env.ADMIN_ADDRESS = '0x58f9e6153690c852';
+
+      mockSqsService.queueTransactionJob.mockRejectedValue(
+        new Error('Unexpected error')
+      );
+
+      const result = await controller.setupAdminWithMinter();
+
+      expect(result.success).toBe(false);
+      expect((result as any).error?.code).toBe(
+        API_ERROR_CODES.INTERNAL_SERVER_ERROR
+      );
+      expect((result as any).error?.message).toBe(
+        'Failed to queue admin minter setup job'
+      );
+      expect((result as any).error?.details).toBe('Unexpected error');
+    });
+
+    it('should handle non-Error exceptions', async () => {
+      process.env.ADMIN_ADDRESS = '0x58f9e6153690c852';
+
+      mockSqsService.queueTransactionJob.mockRejectedValue('String error');
+
+      const result = await controller.setupAdminWithMinter();
+
+      expect(result.success).toBe(false);
+      expect((result as any).error?.code).toBe(
+        API_ERROR_CODES.INTERNAL_SERVER_ERROR
+      );
+      expect((result as any).error?.message).toBe(
+        'Failed to queue admin minter setup job'
+      );
+      expect((result as any).error?.details).toBe('Unknown error');
+    });
+  });
+
+  describe('setupAdminRoles', () => {
+    beforeEach(() => {
+      // Set up environment variable for admin address
+      process.env.ADMIN_ADDRESS = '0x58f9e6153690c852';
+    });
+
+    afterEach(() => {
+      // Clean up environment variable
+      delete process.env.ADMIN_ADDRESS;
+    });
+
+    it('should queue admin roles setup job successfully', async () => {
+      const mockJobData = {
+        jobId: 'job_1704067200000_ghi789',
+        status: 'queued',
+        type: 'setup',
+        estimatedCompletionTime: '2024-01-01T00:05:00.000Z',
+        trackingUrl: '/jobs/job_1704067200000_ghi789',
+        queuePosition: 2,
+      };
+
+      mockSqsService.queueTransactionJob.mockResolvedValue({
+        success: true,
+        data: mockJobData,
+        timestamp: '2024-01-01T00:00:00.000Z',
+      } as any);
+
+      const result = await controller.setupAdminRoles();
+
+      expect(result.success).toBe(true);
+      expect((result as any).data?.jobId).toBe('job_1704067200000_ghi789');
+      expect((result as any).data?.status).toBe('queued');
+      expect((result as any).data?.type).toBe('setup');
+      expect(mockSqsService.queueTransactionJob).toHaveBeenCalledWith({
+        type: 'setup',
+        userAddress: '0x58f9e6153690c852',
+        params: {
+          setupType: 'adminRoles',
+        },
+        metadata: {
+          memo: 'Setup admin roles (Minter, Pauser, TaxManager)',
+          priority: 'high',
+        },
+      });
+    });
+
+    it('should use default admin address when ADMIN_ADDRESS is not set', async () => {
+      delete process.env.ADMIN_ADDRESS;
+
+      const mockJobData = {
+        jobId: 'job_1704067200000_ghi789',
+        status: 'queued',
+        type: 'setup',
+        estimatedCompletionTime: '2024-01-01T00:05:00.000Z',
+        trackingUrl: '/jobs/job_1704067200000_ghi789',
+        queuePosition: 2,
+      };
+
+      mockSqsService.queueTransactionJob.mockResolvedValue({
+        success: true,
+        data: mockJobData,
+        timestamp: '2024-01-01T00:00:00.000Z',
+      } as any);
+
+      const result = await controller.setupAdminRoles();
+
+      expect(result.success).toBe(true);
+      expect(mockSqsService.queueTransactionJob).toHaveBeenCalledWith({
+        type: 'setup',
+        userAddress: '0x58f9e6153690c852', // Default address
+        params: {
+          setupType: 'adminRoles',
+        },
+        metadata: {
+          memo: 'Setup admin roles (Minter, Pauser, TaxManager)',
+          priority: 'high',
+        },
+      });
+    });
+
+    it('should handle SQS service failure', async () => {
+      process.env.ADMIN_ADDRESS = '0x58f9e6153690c852';
+
+      mockSqsService.queueTransactionJob.mockResolvedValue({
+        success: false,
+        error: {
+          code: API_ERROR_CODES.QUEUE_ERROR,
+          message: 'SQS service unavailable',
+          details: 'Queue is temporarily unavailable',
+        },
+        timestamp: '2024-01-01T00:00:00.000Z',
+      } as any);
+
+      const result = await controller.setupAdminRoles();
+
+      expect(result.success).toBe(false);
+      expect((result as any).error?.code).toBe(API_ERROR_CODES.QUEUE_ERROR);
+      expect((result as any).error?.message).toBe('SQS service unavailable');
+    });
+
+    it('should handle unexpected errors', async () => {
+      process.env.ADMIN_ADDRESS = '0x58f9e6153690c852';
+
+      mockSqsService.queueTransactionJob.mockRejectedValue(
+        new Error('Unexpected error')
+      );
+
+      const result = await controller.setupAdminRoles();
+
+      expect(result.success).toBe(false);
+      expect((result as any).error?.code).toBe(
+        API_ERROR_CODES.INTERNAL_SERVER_ERROR
+      );
+      expect((result as any).error?.message).toBe(
+        'Failed to queue admin roles setup job'
+      );
+      expect((result as any).error?.details).toBe('Unexpected error');
+    });
+
+    it('should handle non-Error exceptions', async () => {
+      process.env.ADMIN_ADDRESS = '0x58f9e6153690c852';
+
+      mockSqsService.queueTransactionJob.mockRejectedValue('String error');
+
+      const result = await controller.setupAdminRoles();
+
+      expect(result.success).toBe(false);
+      expect((result as any).error?.code).toBe(
+        API_ERROR_CODES.INTERNAL_SERVER_ERROR
+      );
+      expect((result as any).error?.message).toBe(
+        'Failed to queue admin roles setup job'
+      );
+      expect((result as any).error?.details).toBe('Unknown error');
+    });
+
+    it('should handle different admin addresses', async () => {
+      process.env.ADMIN_ADDRESS = '0x1234567890abcdef';
+
+      const mockJobData = {
+        jobId: 'job_1704067200000_ghi789',
+        status: 'queued',
+        type: 'setup',
+        estimatedCompletionTime: '2024-01-01T00:05:00.000Z',
+        trackingUrl: '/jobs/job_1704067200000_ghi789',
+        queuePosition: 2,
+      };
+
+      mockSqsService.queueTransactionJob.mockResolvedValue({
+        success: true,
+        data: mockJobData,
+        timestamp: '2024-01-01T00:00:00.000Z',
+      } as any);
+
+      const result = await controller.setupAdminRoles();
+
+      expect(result.success).toBe(true);
+      expect(mockSqsService.queueTransactionJob).toHaveBeenCalledWith({
+        type: 'setup',
+        userAddress: '0x1234567890abcdef',
+        params: {
+          setupType: 'adminRoles',
+        },
+        metadata: {
+          memo: 'Setup admin roles (Minter, Pauser, TaxManager)',
+          priority: 'high',
+        },
+      });
+    });
+  });
+
+  describe('Admin Setup Integration Tests', () => {
+    beforeEach(() => {
+      process.env.ADMIN_ADDRESS = '0x58f9e6153690c852';
+    });
+
+    afterEach(() => {
+      delete process.env.ADMIN_ADDRESS;
+    });
+
+    it('should handle concurrent admin setup requests', async () => {
+      const mockJobData = {
+        jobId: 'job_1704067200000_admin123',
+        status: 'queued',
+        type: 'setup',
+        estimatedCompletionTime: '2024-01-01T00:05:00.000Z',
+        trackingUrl: '/jobs/job_1704067200000_admin123',
+        queuePosition: 1,
+      };
+
+      mockSqsService.queueTransactionJob.mockResolvedValue({
+        success: true,
+        data: mockJobData,
+        timestamp: '2024-01-01T00:00:00.000Z',
+      } as any);
+
+      const promises = [
+        controller.setupAdminWithMinter(),
+        controller.setupAdminRoles(),
+      ];
+
+      const results = await Promise.all(promises);
+
+      results.forEach(result => {
+        expect(result.success).toBe(true);
+        expect((result as any).data?.type).toBe('setup');
+      });
+
+      expect(mockSqsService.queueTransactionJob).toHaveBeenCalledTimes(2);
+    });
+
+    it('should handle mixed success and failure scenarios', async () => {
+      // First call succeeds
+      mockSqsService.queueTransactionJob
+        .mockResolvedValueOnce({
+          success: true,
+          data: {
+            jobId: 'job_1704067200000_success',
+            status: 'queued',
+            type: 'setup',
+            estimatedCompletionTime: '2024-01-01T00:05:00.000Z',
+            trackingUrl: '/jobs/job_1704067200000_success',
+            queuePosition: 1,
+          },
+          timestamp: '2024-01-01T00:00:00.000Z',
+        } as any)
+        // Second call fails
+        .mockResolvedValueOnce({
+          success: false,
+          error: {
+            code: API_ERROR_CODES.QUEUE_ERROR,
+            message: 'SQS service unavailable',
+            details: 'Queue is temporarily unavailable',
+          },
+          timestamp: '2024-01-01T00:00:00.000Z',
+        } as any);
+
+      const result1 = await controller.setupAdminWithMinter();
+      const result2 = await controller.setupAdminRoles();
+
+      expect(result1.success).toBe(true);
+      expect(result2.success).toBe(false);
+      expect((result2 as any).error?.code).toBe(API_ERROR_CODES.QUEUE_ERROR);
+    });
+  });
 });
