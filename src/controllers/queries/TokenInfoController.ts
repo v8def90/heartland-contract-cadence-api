@@ -144,10 +144,6 @@ export class TokenInfoController extends Controller {
   })
   public async getTaxRate(): Promise<ApiResponse<TaxRateData>> {
     try {
-      console.log(
-        'DEBUG getTaxRate: Starting tax rate retrieval via FlowService'
-      );
-
       // Use FlowService to get tax rate from Flow blockchain
       const flowResponse = await this.flowService.getTaxRate();
 
@@ -165,11 +161,6 @@ export class TokenInfoController extends Controller {
         formatted: flowResponse.data.formatted,
         lastUpdated: new Date().toISOString(),
       };
-
-      console.log(
-        'DEBUG getTaxRate: Successfully retrieved tax rate via Flow script:',
-        `${taxRatePercentage}%`
-      );
 
       return createSuccessResponse<TaxRateData>(taxRateData);
     } catch (error) {
@@ -204,25 +195,12 @@ export class TokenInfoController extends Controller {
   })
   public async getPauseStatus(): Promise<ApiResponse<PauseStatusData>> {
     try {
-      console.log(
-        'DEBUG getPauseStatus: Starting pause status retrieval via FlowService'
-      );
-
       // Use FlowService to get pause status from Flow blockchain
       const flowResponse = await this.flowService.getPauseStatus();
 
       if (!flowResponse.success) {
         return flowResponse;
       }
-
-      console.log(
-        'DEBUG getPauseStatus: FlowService response:',
-        flowResponse.data
-      );
-      console.log(
-        'DEBUG getPauseStatus: Successfully retrieved pause status via Flow script:',
-        flowResponse.data.isPaused
-      );
 
       return flowResponse;
     } catch (error) {
@@ -269,18 +247,15 @@ export class TokenInfoController extends Controller {
     try {
       // Validate amount
       const numAmount = parseFloat(amount);
-      if (isNaN(numAmount) || numAmount <= 0) {
+      if (isNaN(numAmount) || !isFinite(numAmount) || numAmount <= 0) {
         return createErrorResponse({
           code: API_ERROR_CODES.INVALID_AMOUNT,
           message: 'Invalid amount format',
-          details: 'Amount must be a positive number',
+          details: 'Amount must be a positive finite number',
         });
       }
 
       // Get current tax rate from FlowService
-      console.log(
-        'DEBUG calculateTax: Retrieving current tax rate via FlowService'
-      );
       const taxRateResponse = await this.flowService.getTaxRate();
 
       if (!taxRateResponse.success) {
@@ -292,11 +267,6 @@ export class TokenInfoController extends Controller {
       }
 
       const currentTaxRate = taxRateResponse.data.taxRate;
-      console.log(
-        'DEBUG calculateTax: Retrieved tax rate:',
-        currentTaxRate,
-        '%'
-      );
 
       const taxRateDecimal = currentTaxRate / 100;
 
@@ -313,15 +283,6 @@ export class TokenInfoController extends Controller {
         formattedTax: formatHeartAmount(taxAmount.toFixed(8)),
         formattedNet: formatHeartAmount(netAmount.toFixed(8)),
       };
-
-      console.log(
-        'DEBUG calculateTax: Tax calculation completed - Tax Rate:',
-        currentTaxRate,
-        '%, Tax Amount:',
-        taxAmount,
-        ', Net Amount:',
-        netAmount
-      );
 
       return createSuccessResponse<TaxCalculationData>(taxCalculationData);
     } catch (error) {
@@ -358,10 +319,6 @@ export class TokenInfoController extends Controller {
   })
   public async getTotalSupply(): Promise<ApiResponse<TotalSupplyData>> {
     try {
-      console.log(
-        'DEBUG getTotalSupply: Starting total supply retrieval via FlowService'
-      );
-
       // Use FlowService to get total supply from Flow blockchain
       const flowResponse = await this.flowService.getTotalSupply();
 
@@ -382,15 +339,6 @@ export class TokenInfoController extends Controller {
         maxSupply: '10000000.0', // Mock max supply for now
         circulatingSupply: flowResponse.data.totalSupply, // Same as total for now
       };
-
-      console.log(
-        'DEBUG getTotalSupply: Successfully retrieved total supply via Flow script:',
-        flowResponse.data.totalSupply
-      );
-      console.log(
-        'DEBUG getTotalSupply: Final response data:',
-        totalSupplyData
-      );
 
       return createSuccessResponse<TotalSupplyData>(totalSupplyData);
     } catch (error) {
@@ -427,10 +375,6 @@ export class TokenInfoController extends Controller {
   })
   public async getTreasuryAccount(): Promise<ApiResponse<TreasuryAccountData>> {
     try {
-      console.log(
-        'DEBUG getTreasuryAccount: Starting treasury account retrieval via FlowService'
-      );
-
       // Use FlowService to get treasury account from Flow blockchain
       const flowResponse = await this.flowService.getTreasuryAccount();
 
@@ -442,11 +386,6 @@ export class TokenInfoController extends Controller {
         });
       }
 
-      console.log(
-        'DEBUG getTreasuryAccount: FlowService response:',
-        flowResponse.data
-      );
-
       // Get balance for treasury account (mock for now)
       const mockTreasuryBalance = '50000.0';
 
@@ -457,11 +396,6 @@ export class TokenInfoController extends Controller {
         lastUpdated: new Date().toISOString(),
         capabilities: ['receive', 'withdraw', 'tax_collection'],
       };
-
-      console.log(
-        'DEBUG getTreasuryAccount: Successfully retrieved treasury account via Flow script:',
-        flowResponse.data.treasuryAddress
-      );
 
       return createSuccessResponse<TreasuryAccountData>(treasuryAccountData);
     } catch (error) {

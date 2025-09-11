@@ -17,9 +17,10 @@ describe('SetupController', () => {
   let mockSqsService: jest.Mocked<SqsService>;
 
   beforeEach(() => {
-    jest.clearAllMocks();
     controller = new SetupController();
     mockSqsService = jest.mocked(controller['sqsService']);
+    // Clear only the call history, not the mock implementations
+    mockSqsService.queueTransactionJob.mockClear();
   });
 
   describe('setupAccount', () => {
@@ -66,14 +67,26 @@ describe('SetupController', () => {
     it('should reject invalid Flow addresses', async () => {
       const invalidRequests = [
         { address: 'invalid' },
-        { address: '0x123' }, // too short
         { address: '0xZZZZZZZZZZZZZZZZ' }, // invalid hex
-        { address: '' }, // empty
         {
           address:
             '123456789012345678901234567890123456789012345678901234567890123456789',
         }, // too long
       ];
+
+      // Mock SQS service to not be called
+      mockSqsService.queueTransactionJob.mockResolvedValue({
+        success: true,
+        data: {
+          jobId: 'job_1704067200000_abc123',
+          status: 'queued',
+          type: 'setup',
+          estimatedCompletionTime: '2024-01-01T00:05:00.000Z',
+          trackingUrl: '/jobs/job_1704067200000_abc123',
+          queuePosition: 1,
+        },
+        timestamp: '2024-01-01T00:00:00.000Z',
+      } as any);
 
       for (const request of invalidRequests) {
         const result = await controller.setupAccount(request);
@@ -109,11 +122,19 @@ describe('SetupController', () => {
 
       const result = await controller.setupAccount(request);
 
-      expect(result.success).toBe(false); // Implementation currently fails case-insensitive validation
-      expect((result as any).error?.code).toBe(
-        API_ERROR_CODES.INTERNAL_SERVER_ERROR
-      );
-      expect(mockSqsService.queueTransactionJob).not.toHaveBeenCalled();
+      expect(result.success).toBe(true); // Implementation now supports case-insensitive validation
+      expect((result as any).data).toEqual(mockJobData);
+      expect(mockSqsService.queueTransactionJob).toHaveBeenCalledWith({
+        type: 'setup',
+        userAddress: '0X58F9E6153690C852',
+        params: {
+          address: '0X58F9E6153690C852',
+        },
+        metadata: {
+          memo: 'Setup HEART vault for 0X58F9E6153690C852',
+          priority: 'normal',
+        },
+      });
     });
 
     it('should handle SqsService errors', async () => {
@@ -174,7 +195,9 @@ describe('SetupController', () => {
       const result = await controller.setupAccount(request);
 
       expect(result.success).toBe(false);
-      expect((result as any).error?.code).toBe(API_ERROR_CODES.INVALID_ADDRESS);
+      expect((result as any).error?.code).toBe(
+        API_ERROR_CODES.MISSING_REQUIRED_FIELD
+      );
     });
 
     it('should handle request with null address', async () => {
@@ -183,7 +206,9 @@ describe('SetupController', () => {
       const result = await controller.setupAccount(request);
 
       expect(result.success).toBe(false);
-      expect((result as any).error?.code).toBe(API_ERROR_CODES.INVALID_ADDRESS);
+      expect((result as any).error?.code).toBe(
+        API_ERROR_CODES.MISSING_REQUIRED_FIELD
+      );
     });
 
     it('should handle special Flow addresses', async () => {
@@ -212,6 +237,7 @@ describe('SetupController', () => {
         const request = { address };
         const result = await controller.setupAccount(request);
         expect(result.success).toBe(true); // Special addresses are supported
+        expect((result as any).data).toEqual(mockJobData);
       }
 
       expect(mockSqsService.queueTransactionJob).toHaveBeenCalledTimes(

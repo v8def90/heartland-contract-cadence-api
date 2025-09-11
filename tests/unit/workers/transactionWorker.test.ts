@@ -281,6 +281,7 @@ describe('TransactionWorker', () => {
         {
           type: 'transfer',
           params: {
+            sender: '0x58f9e6153690c852',
             recipient: '0x1234567890abcdef',
             amount: '500.0',
           },
@@ -419,6 +420,7 @@ describe('TransactionWorker', () => {
               type: 'batchTransfer',
               userAddress: '0x58f9e6153690c852',
               params: {
+                sender: '0x58f9e6153690c852',
                 transfers: [
                   { recipient: '0x1234567890abcdef', amount: '100.0' },
                   { recipient: '0xabcdef1234567890', amount: '200.0' },

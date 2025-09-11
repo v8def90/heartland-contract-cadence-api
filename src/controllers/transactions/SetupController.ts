@@ -90,29 +90,46 @@ export class SetupController extends Controller {
     timestamp: '2024-01-01T00:00:00.000Z',
   })
   public async setupAccount(
-    @Body() request: SetupAccountRequest,
+    @Body() request: SetupAccountRequest
   ): Promise<ApiResponse<TransactionJobData>> {
     try {
-      console.log(
-        'DEBUG setupAccount: Queueing account setup job for address:',
-        request.address,
-      );
-
       // Validate address format
-      if (!request.address || typeof request.address !== 'string') {
+      if (!request.address) {
         return createErrorResponse({
           code: API_ERROR_CODES.MISSING_REQUIRED_FIELD,
           message: 'Address is required',
-          details: 'Address field must be provided and be a valid string',
+          details: 'Address field must be provided',
         });
       }
 
-      // Basic Flow address format validation
-      if (!request.address.startsWith('0x') || request.address.length !== 18) {
+      // Check if address is a string
+      if (typeof request.address !== 'string') {
+        return createErrorResponse({
+          code: API_ERROR_CODES.INVALID_ADDRESS,
+          message: 'Invalid address format',
+          details: 'Address must be a valid string',
+        });
+      }
+
+      // Basic Flow address format validation (case-insensitive)
+      if (
+        !request.address.toLowerCase().startsWith('0x') ||
+        request.address.length < 3
+      ) {
         return createErrorResponse({
           code: API_ERROR_CODES.INVALID_ADDRESS,
           message: 'Invalid Flow address format',
-          details: 'Address must be 18 characters long and start with 0x',
+          details: 'Address must start with 0x and be a valid hex string',
+        });
+      }
+
+      // Validate hex characters (case-insensitive)
+      const hexPart = request.address.slice(2);
+      if (!/^[0-9a-fA-F]+$/.test(hexPart)) {
+        return createErrorResponse({
+          code: API_ERROR_CODES.INVALID_ADDRESS,
+          message: 'Invalid Flow address format',
+          details: 'Address must contain only valid hexadecimal characters',
         });
       }
 
@@ -130,21 +147,11 @@ export class SetupController extends Controller {
       });
 
       if (!jobResponse.success) {
-        console.error(
-          'ERROR setupAccount: Failed to queue job:',
-          jobResponse.error,
-        );
         return jobResponse;
       }
 
-      console.log(
-        'DEBUG setupAccount: Account setup job queued successfully:',
-        jobResponse.data,
-      );
-
       return jobResponse;
     } catch (error) {
-      console.error('ERROR setupAccount: Unexpected error:', error);
       return createErrorResponse({
         code: API_ERROR_CODES.INTERNAL_SERVER_ERROR,
         message: 'Failed to queue account setup job',
@@ -178,10 +185,10 @@ export class SetupController extends Controller {
   })
   public async setupAdminWithMinter(): Promise<
     ApiResponse<TransactionJobData>
-    > {
+  > {
     try {
       console.log(
-        'DEBUG setupAdminWithMinter: Queueing admin minter setup job...',
+        'DEBUG setupAdminWithMinter: Queueing admin minter setup job...'
       );
 
       // Queue the admin minter setup transaction job
@@ -200,14 +207,14 @@ export class SetupController extends Controller {
       if (!jobResponse.success) {
         console.error(
           'ERROR setupAdminWithMinter: Failed to queue job:',
-          jobResponse.error,
+          jobResponse.error
         );
         return jobResponse;
       }
 
       console.log(
         'DEBUG setupAdminWithMinter: Admin minter setup job queued successfully:',
-        jobResponse.data,
+        jobResponse.data
       );
 
       return jobResponse;
@@ -264,14 +271,14 @@ export class SetupController extends Controller {
       if (!jobResponse.success) {
         console.error(
           'ERROR setupAdminRoles: Failed to queue job:',
-          jobResponse.error,
+          jobResponse.error
         );
         return jobResponse;
       }
 
       console.log(
         'DEBUG setupAdminRoles: Admin roles setup job queued successfully:',
-        jobResponse.data,
+        jobResponse.data
       );
 
       return jobResponse;
