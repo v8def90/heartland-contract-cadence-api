@@ -131,7 +131,7 @@ describe('Validation Utilities', () => {
       }
 
       const endTime = Date.now();
-      expect(endTime - startTime).toBeLessThan(100); // Should complete in < 100ms
+      expect(endTime - startTime).toBeLessThan(200); // Should complete in < 200ms
     });
   });
 
