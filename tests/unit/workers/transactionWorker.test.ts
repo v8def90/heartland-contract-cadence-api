@@ -664,8 +664,10 @@ describe('TransactionWorker', () => {
       // Mock successful transactions
       mockFlowService.setupAccount.mockResolvedValue({
         success: true,
-        txId: 'tx-success',
-        blockHeight: 12345,
+        data: {
+          txId: 'tx-success',
+          blockHeight: 12345,
+        },
       } as any);
 
       await handler(mockSqsEvent);
