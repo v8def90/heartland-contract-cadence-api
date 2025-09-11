@@ -110,12 +110,18 @@ export class PauseController extends Controller {
         },
       });
 
-      if (!jobResponse.success) {
+      if (!jobResponse || !jobResponse.success) {
         console.error(
           'ERROR pauseContract: Failed to queue pause job:',
-          jobResponse.error
+          jobResponse?.error || 'Unknown error'
         );
-        return jobResponse;
+        return jobResponse?.success === false
+          ? jobResponse
+          : createErrorResponse({
+              code: API_ERROR_CODES.INTERNAL_SERVER_ERROR,
+              message: 'Failed to queue pause job',
+              details: 'Unknown error',
+            });
       }
 
       console.log(

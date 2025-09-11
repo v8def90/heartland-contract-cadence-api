@@ -118,12 +118,12 @@ export class BurnController extends Controller {
 
       // Validate amount is positive number
       const amount = parseFloat(request.amount);
-      if (isNaN(amount) || amount <= 0) {
+      if (isNaN(amount) || !isFinite(amount) || amount <= 0) {
         console.log('DEBUG burnTokens: Invalid amount:', request.amount);
         return createErrorResponse({
           code: API_ERROR_CODES.INVALID_AMOUNT,
           message: 'Invalid burn amount',
-          details: 'Amount must be a positive number greater than 0',
+          details: 'Amount must be a positive finite number greater than 0',
         });
       }
 

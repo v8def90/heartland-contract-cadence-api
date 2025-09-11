@@ -150,12 +150,18 @@ export class SetTaxRateController extends Controller {
         },
       });
 
-      if (!jobResponse.success) {
+      if (!jobResponse || !jobResponse.success) {
         console.error(
           'ERROR setTaxRate: Failed to queue set tax rate job:',
-          jobResponse.error
+          jobResponse?.error || 'Unknown error'
         );
-        return jobResponse;
+        return jobResponse?.success === false
+          ? jobResponse
+          : createErrorResponse({
+              code: API_ERROR_CODES.INTERNAL_SERVER_ERROR,
+              message: 'Failed to queue set tax rate job',
+              details: 'Unknown error',
+            });
       }
 
       console.log(
