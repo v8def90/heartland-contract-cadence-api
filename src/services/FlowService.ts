@@ -588,11 +588,11 @@ export class FlowService {
   async calculateTax(amount: string): Promise<ApiResponse<TaxCalculationData>> {
     // Validate amount
     const amountNum = parseFloat(amount);
-    if (isNaN(amountNum) || amountNum <= 0) {
+    if (isNaN(amountNum) || amountNum <= 0 || !isFinite(amountNum)) {
       return createErrorResponse({
         code: API_ERROR_CODES.INVALID_AMOUNT,
         message: 'Invalid amount',
-        details: 'Amount must be a positive number',
+        details: 'Amount must be a positive finite number',
       });
     }
 
@@ -1367,11 +1367,11 @@ export class FlowService {
 
     // Validate amount
     const amountNum = parseFloat(amount);
-    if (isNaN(amountNum) || amountNum <= 0) {
+    if (isNaN(amountNum) || amountNum <= 0 || !isFinite(amountNum)) {
       return createErrorResponse({
         code: API_ERROR_CODES.INVALID_AMOUNT,
         message: 'Invalid amount',
-        details: 'Amount must be a positive number',
+        details: 'Amount must be a positive finite number',
       });
     }
 
@@ -1715,11 +1715,11 @@ export class FlowService {
     try {
       // Validate amount format
       const amountFloat = parseFloat(amount);
-      if (isNaN(amountFloat) || amountFloat <= 0) {
+      if (isNaN(amountFloat) || amountFloat <= 0 || !isFinite(amountFloat)) {
         return createErrorResponse({
           code: API_ERROR_CODES.INVALID_AMOUNT,
           message: 'Invalid burn amount',
-          details: 'Amount must be a positive number greater than 0',
+          details: 'Amount must be a positive finite number greater than 0',
         });
       }
 
