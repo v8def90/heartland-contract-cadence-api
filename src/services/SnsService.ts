@@ -63,6 +63,8 @@ export interface DynamoDBPostItem {
   GSI2SK: string; // META
   postId: string;
   authorId: string;
+  authorName: string;
+  authorUsername: string;
   content: string;
   images?: string[] | undefined;
   tags?: string[] | undefined;
@@ -120,15 +122,42 @@ export interface DynamoDBFollowItem {
  * SNS Service Class
  */
 export class SnsService {
-  private client: DynamoDBDocumentClient;
+  private client: DynamoDBDocumentClient | null;
   private tableName: string;
 
   constructor() {
-    const dynamoClient = new DynamoDBClient({
-      region: process.env.AWS_REGION || 'ap-northeast-1',
-    });
-    this.client = DynamoDBDocumentClient.from(dynamoClient);
-    this.tableName = process.env.SNS_TABLE_NAME || 'heartland-api-v3-sns-dev';
+    // For local development, skip DynamoDB client initialization
+    if (process.env.NODE_ENV === 'development' || !process.env.AWS_REGION) {
+      console.log(
+        'Skipping DynamoDB client initialization for local development'
+      );
+      this.client = null;
+      this.tableName = 'mock-table';
+    } else {
+      // Only initialize DynamoDB client if AWS credentials are available
+      try {
+        // Check if AWS credentials are available
+        if (!process.env.AWS_ACCESS_KEY_ID && !process.env.AWS_PROFILE) {
+          console.log('No AWS credentials found, using mock mode');
+          this.client = null;
+          this.tableName = 'mock-table';
+        } else {
+          const dynamoClient = new DynamoDBClient({
+            region: process.env.AWS_REGION || 'ap-northeast-1',
+          });
+          this.client = DynamoDBDocumentClient.from(dynamoClient);
+          this.tableName =
+            process.env.SNS_TABLE_NAME || 'heartland-api-v3-sns-dev';
+        }
+      } catch (error) {
+        console.log(
+          'Failed to initialize DynamoDB client, using mock mode:',
+          error
+        );
+        this.client = null;
+        this.tableName = 'mock-table';
+      }
+    }
   }
 
   /**
@@ -165,6 +194,12 @@ export class SnsService {
     userId: string,
     profile: Omit<UserProfile, 'userId' | 'createdAt' | 'updatedAt'>
   ): Promise<void> {
+    if (!this.client) {
+      // For local development, just log the operation
+      console.log('Mock createUserProfile:', { userId, profile });
+      return;
+    }
+
     const item: DynamoDBUserItem = {
       PK: `USER#${userId}`,
       SK: 'PROFILE',
@@ -189,6 +224,22 @@ export class SnsService {
    * Get user profile
    */
   async getUserProfile(userId: string): Promise<UserProfile | null> {
+    if (!this.client) {
+      // Return mock data for local development
+      return {
+        userId,
+        displayName: 'Mock User',
+        username: 'mockuser',
+        bio: 'This is a mock user for local development',
+        avatarUrl: 'https://example.com/avatar.jpg',
+        followerCount: 0,
+        followingCount: 0,
+        postCount: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+    }
+
     const command = new GetCommand({
       TableName: this.tableName,
       Key: {
@@ -223,10 +274,26 @@ export class SnsService {
   async createPost(
     postId: string,
     authorId: string,
+    authorName: string,
+    authorUsername: string,
     content: string,
     images?: string[],
     tags?: string[]
   ): Promise<void> {
+    if (!this.client) {
+      // For local development, just log the operation
+      console.log('Mock createPost:', {
+        postId,
+        authorId,
+        authorName,
+        authorUsername,
+        content,
+        images,
+        tags,
+      });
+      return;
+    }
+
     const now = new Date().toISOString();
     const item: DynamoDBPostItem = {
       PK: `POST#${postId}`,
@@ -237,6 +304,8 @@ export class SnsService {
       GSI2SK: 'META',
       postId,
       authorId,
+      authorName,
+      authorUsername,
       content,
       images,
       tags,
@@ -259,6 +328,24 @@ export class SnsService {
    * Get post by ID
    */
   async getPost(postId: string): Promise<PostData | null> {
+    if (!this.client) {
+      // Return mock data for local development
+      return {
+        postId,
+        authorId: 'mock-author',
+        authorName: 'Mock Author',
+        authorUsername: 'mockauthor',
+        content: 'This is a mock post for local development',
+        images: [],
+        tags: [],
+        likeCount: 0,
+        commentCount: 0,
+        isLiked: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+    }
+
     const command = new GetCommand({
       TableName: this.tableName,
       Key: {
@@ -288,6 +375,136 @@ export class SnsService {
   }
 
   /**
+   * Get all posts (global feed)
+   *
+   * @param limit - Number of posts to return
+   * @param cursor - Pagination cursor
+   * @returns Promise resolving to paginated posts
+   */
+  async getAllPosts(
+    limit: number = 20,
+    cursor?: string
+  ): Promise<{
+    success: boolean;
+    data?: PaginatedData<PostData>;
+    error?: string;
+  }> {
+    try {
+      // For local development, return mock data
+      console.log('NODE_ENV:', process.env.NODE_ENV);
+      console.log('AWS_REGION:', process.env.AWS_REGION);
+      console.log(
+        'Should use mock data:',
+        process.env.NODE_ENV === 'development' || !process.env.AWS_REGION
+      );
+      console.log('Client is null:', this.client === null);
+      if (
+        this.client === null ||
+        process.env.NODE_ENV === 'development' ||
+        !process.env.AWS_REGION
+      ) {
+        const mockPosts: PostData[] = [
+          {
+            postId: 'post-1',
+            authorId: 'user-1',
+            authorName: 'John Doe',
+            authorUsername: 'johndoe',
+            content: 'Hello, world! This is a test post.',
+            images: ['https://example.com/image1.jpg'],
+            tags: ['hello', 'world', 'test'],
+            likeCount: 5,
+            commentCount: 2,
+            isLiked: false,
+            createdAt: '2024-01-01T00:00:00.000Z',
+            updatedAt: '2024-01-01T00:00:00.000Z',
+          },
+          {
+            postId: 'post-2',
+            authorId: 'user-2',
+            authorName: 'Jane Smith',
+            authorUsername: 'janesmith',
+            content: 'Another test post for the SNS API.',
+            images: [],
+            tags: ['test', 'api'],
+            likeCount: 3,
+            commentCount: 1,
+            isLiked: false,
+            createdAt: '2024-01-01T01:00:00.000Z',
+            updatedAt: '2024-01-01T01:00:00.000Z',
+          },
+        ];
+
+        return {
+          success: true,
+          data: {
+            items: mockPosts.slice(0, limit),
+            nextCursor: undefined,
+            hasMore: false,
+          },
+        };
+      }
+
+      const exclusiveStartKey = cursor ? this.decodeCursor(cursor) : undefined;
+
+      const command = new QueryCommand({
+        TableName: this.tableName,
+        IndexName: 'GSI2',
+        KeyConditionExpression: 'GSI2PK = :gsi2pk',
+        ExpressionAttributeValues: {
+          ':gsi2pk': 'POST',
+        },
+        ScanIndexForward: false, // Sort by creation time descending
+        Limit: limit,
+        ExclusiveStartKey: exclusiveStartKey,
+      });
+
+      const result = await this.client.send(command);
+
+      const posts: PostData[] = [];
+      if (result.Items) {
+        for (const item of result.Items) {
+          const postItem = item as DynamoDBPostItem;
+          posts.push({
+            postId: postItem.postId,
+            authorId: postItem.authorId,
+            authorName: postItem.authorName,
+            authorUsername: postItem.authorUsername,
+            content: postItem.content,
+            images: postItem.images,
+            tags: postItem.tags,
+            likeCount: postItem.likeCount,
+            commentCount: postItem.commentCount,
+            isLiked: false, // TODO: Check if current user liked this post
+            createdAt: postItem.createdAt,
+            updatedAt: postItem.updatedAt,
+          });
+        }
+      }
+
+      const nextCursor = result.LastEvaluatedKey
+        ? this.encodeCursor(result.LastEvaluatedKey)
+        : undefined;
+
+      return {
+        success: true,
+        data: {
+          items: posts,
+          nextCursor,
+          hasMore: !!result.LastEvaluatedKey,
+          // totalCount is optional and not provided by DynamoDB efficiently
+        },
+      };
+    } catch (error) {
+      console.error('Error getting all posts:', error);
+      return {
+        success: false,
+        error:
+          error instanceof Error ? error.message : 'Failed to retrieve posts',
+      };
+    }
+  }
+
+  /**
    * Get user posts with pagination
    */
   async getUserPosts(
@@ -295,6 +512,32 @@ export class SnsService {
     limit: number = 20,
     cursor?: string
   ): Promise<PaginatedData<PostData>> {
+    if (!this.client) {
+      // Return mock data for local development
+      const mockPosts: PostData[] = [
+        {
+          postId: 'mock-post-1',
+          authorId: userId,
+          authorName: 'Mock User',
+          authorUsername: 'mockuser',
+          content: 'This is a mock post for local development',
+          images: [],
+          tags: [],
+          likeCount: 0,
+          commentCount: 0,
+          isLiked: false,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      ];
+
+      return {
+        items: mockPosts.slice(0, limit),
+        nextCursor: undefined,
+        hasMore: false,
+      };
+    }
+
     const exclusiveStartKey = cursor ? this.decodeCursor(cursor) : undefined;
 
     const command = new QueryCommand({
@@ -342,6 +585,12 @@ export class SnsService {
    * Delete post
    */
   async deletePost(postId: string): Promise<void> {
+    if (!this.client) {
+      // For local development, just log the operation
+      console.log('Mock deletePost:', { postId });
+      return;
+    }
+
     // First, get all related items (comments, likes)
     const commentsResult = await this.client.send(
       new QueryCommand({
@@ -399,6 +648,17 @@ export class SnsService {
     authorId: string,
     content: string
   ): Promise<void> {
+    if (!this.client) {
+      // For local development, just log the operation
+      console.log('Mock createComment:', {
+        commentId,
+        postId,
+        authorId,
+        content,
+      });
+      return;
+    }
+
     const now = new Date().toISOString();
     const item: DynamoDBCommentItem = {
       PK: `POST#${postId}`,
@@ -436,6 +696,30 @@ export class SnsService {
     limit: number = 20,
     cursor?: string
   ): Promise<PaginatedData<CommentData>> {
+    if (!this.client) {
+      // Return mock data for local development
+      const mockComments: CommentData[] = [
+        {
+          commentId: 'mock-comment-1',
+          postId,
+          authorId: 'mock-author',
+          authorName: 'Mock Author',
+          authorUsername: 'mockauthor',
+          content: 'This is a mock comment for local development',
+          likeCount: 0,
+          isLiked: false,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      ];
+
+      return {
+        items: mockComments.slice(0, limit),
+        nextCursor: undefined,
+        hasMore: false,
+      };
+    }
+
     const exclusiveStartKey = cursor ? this.decodeCursor(cursor) : undefined;
 
     const command = new QueryCommand({
@@ -481,6 +765,12 @@ export class SnsService {
    * Delete comment
    */
   async deleteComment(postId: string, commentId: string): Promise<void> {
+    if (!this.client) {
+      // For local development, just log the operation
+      console.log('Mock deleteComment:', { postId, commentId });
+      return;
+    }
+
     const command = new DeleteCommand({
       TableName: this.tableName,
       Key: {
@@ -501,6 +791,12 @@ export class SnsService {
    * Like post
    */
   async likePost(postId: string, userId: string): Promise<void> {
+    if (!this.client) {
+      // For local development, just log the operation
+      console.log('Mock likePost:', { postId, userId });
+      return;
+    }
+
     const now = new Date().toISOString();
     const item: DynamoDBLikeItem = {
       PK: `POST#${postId}`,
@@ -530,6 +826,12 @@ export class SnsService {
    * Unlike post
    */
   async unlikePost(postId: string, userId: string): Promise<void> {
+    if (!this.client) {
+      // For local development, just log the operation
+      console.log('Mock unlikePost:', { postId, userId });
+      return;
+    }
+
     const command = new DeleteCommand({
       TableName: this.tableName,
       Key: {
@@ -548,6 +850,11 @@ export class SnsService {
    * Check if user liked post
    */
   async isPostLiked(postId: string, userId: string): Promise<boolean> {
+    if (!this.client) {
+      // For local development, return false
+      return false;
+    }
+
     const command = new GetCommand({
       TableName: this.tableName,
       Key: {
@@ -568,6 +875,25 @@ export class SnsService {
     limit: number = 20,
     cursor?: string
   ): Promise<PaginatedData<LikeData>> {
+    if (!this.client) {
+      // Return mock data for local development
+      const mockLikes: LikeData[] = [
+        {
+          userId: 'mock-user-1',
+          displayName: 'Mock User 1',
+          username: 'mockuser1',
+          avatarUrl: 'https://example.com/avatar1.jpg',
+          likedAt: new Date().toISOString(),
+        },
+      ];
+
+      return {
+        items: mockLikes.slice(0, limit),
+        nextCursor: undefined,
+        hasMore: false,
+      };
+    }
+
     const exclusiveStartKey = cursor ? this.decodeCursor(cursor) : undefined;
 
     const command = new QueryCommand({
@@ -610,6 +936,12 @@ export class SnsService {
    * Follow user
    */
   async followUser(followerId: string, followingId: string): Promise<void> {
+    if (!this.client) {
+      // For local development, just log the operation
+      console.log('Mock followUser:', { followerId, followingId });
+      return;
+    }
+
     const now = new Date().toISOString();
     const item: DynamoDBFollowItem = {
       PK: `USER#${followerId}`,
@@ -639,6 +971,12 @@ export class SnsService {
    * Unfollow user
    */
   async unfollowUser(followerId: string, followingId: string): Promise<void> {
+    if (!this.client) {
+      // For local development, just log the operation
+      console.log('Mock unfollowUser:', { followerId, followingId });
+      return;
+    }
+
     const command = new DeleteCommand({
       TableName: this.tableName,
       Key: {
@@ -657,6 +995,11 @@ export class SnsService {
    * Check if user is following another user
    */
   async isFollowing(followerId: string, followingId: string): Promise<boolean> {
+    if (!this.client) {
+      // For local development, return false
+      return false;
+    }
+
     const command = new GetCommand({
       TableName: this.tableName,
       Key: {
@@ -677,6 +1020,26 @@ export class SnsService {
     limit: number = 20,
     cursor?: string
   ): Promise<PaginatedData<FollowData>> {
+    if (!this.client) {
+      // Return mock data for local development
+      const mockFollowers: FollowData[] = [
+        {
+          userId: 'mock-follower-1',
+          displayName: 'Mock Follower 1',
+          username: 'mockfollower1',
+          avatarUrl: 'https://example.com/avatar1.jpg',
+          followedAt: new Date().toISOString(),
+          isFollowingBack: false,
+        },
+      ];
+
+      return {
+        items: mockFollowers.slice(0, limit),
+        nextCursor: undefined,
+        hasMore: false,
+      };
+    }
+
     const exclusiveStartKey = cursor ? this.decodeCursor(cursor) : undefined;
 
     const command = new QueryCommand({
@@ -723,6 +1086,26 @@ export class SnsService {
     limit: number = 20,
     cursor?: string
   ): Promise<PaginatedData<FollowData>> {
+    if (!this.client) {
+      // Return mock data for local development
+      const mockFollowing: FollowData[] = [
+        {
+          userId: 'mock-following-1',
+          displayName: 'Mock Following 1',
+          username: 'mockfollowing1',
+          avatarUrl: 'https://example.com/avatar1.jpg',
+          followedAt: new Date().toISOString(),
+          isFollowingBack: false,
+        },
+      ];
+
+      return {
+        items: mockFollowing.slice(0, limit),
+        nextCursor: undefined,
+        hasMore: false,
+      };
+    }
+
     const exclusiveStartKey = cursor ? this.decodeCursor(cursor) : undefined;
 
     const command = new QueryCommand({
@@ -770,6 +1153,12 @@ export class SnsService {
     postId: string,
     delta: number
   ): Promise<void> {
+    if (!this.client) {
+      // For local development, just log the operation
+      console.log('Mock updatePostCommentCount:', { postId, delta });
+      return;
+    }
+
     const command = new UpdateCommand({
       TableName: this.tableName,
       Key: {
@@ -792,6 +1181,12 @@ export class SnsService {
     postId: string,
     delta: number
   ): Promise<void> {
+    if (!this.client) {
+      // For local development, just log the operation
+      console.log('Mock updatePostLikeCount:', { postId, delta });
+      return;
+    }
+
     const command = new UpdateCommand({
       TableName: this.tableName,
       Key: {
@@ -815,6 +1210,16 @@ export class SnsService {
     followingId: string,
     delta: number
   ): Promise<void> {
+    if (!this.client) {
+      // For local development, just log the operation
+      console.log('Mock updateUserFollowCounts:', {
+        followerId,
+        followingId,
+        delta,
+      });
+      return;
+    }
+
     // Update follower's following count
     await this.client.send(
       new UpdateCommand({

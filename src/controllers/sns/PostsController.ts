@@ -32,7 +32,6 @@ import type {
 import type {
   CreatePostRequest,
   UpdatePostRequest,
-  GetPostsQuery,
 } from '../../models/requests/SnsRequests';
 import { SnsService } from '../../services/SnsService';
 
@@ -56,6 +55,102 @@ export class PostsController extends Controller {
   constructor() {
     super();
     this.snsService = new SnsService();
+  }
+
+  /**
+   * Get all posts (global feed)
+   *
+   * @description Retrieves all posts with pagination support for the global feed.
+   * This endpoint returns posts from all users in chronological order.
+   *
+   * @param query - Query parameters for pagination and filtering
+   * @returns Promise resolving to paginated post list
+   */
+  @Get()
+  @SuccessResponse('200', 'Posts retrieved successfully')
+  @Response<ApiResponse>('400', 'Invalid query parameters')
+  @Response<ApiResponse>('500', 'Failed to retrieve posts')
+  @Example<PostListResponse>({
+    success: true,
+    data: {
+      items: [
+        {
+          postId: 'post-123',
+          authorId: 'user-456',
+          authorName: 'John Doe',
+          authorUsername: 'johndoe',
+          content: 'Hello, world!',
+          images: ['https://example.com/image.jpg'],
+          tags: ['hello', 'world'],
+          likeCount: 5,
+          commentCount: 2,
+          isLiked: false,
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-01T00:00:00.000Z',
+        },
+      ],
+      nextCursor:
+        'eyJQSyI6IlVTRVIjdXNlci00NTYiLCJTSyI6IlBPU1QjMjAyNC0wMS0wMVQwMDowMDowMC4wMDBaIiwicG9zdC0xMjMifQ==',
+      hasMore: true,
+      totalCount: 100,
+    },
+    timestamp: '2024-01-01T00:00:00.000Z',
+  })
+  public async getPosts(
+    @Query() limit?: number,
+    @Query() cursor?: string
+  ): Promise<PostListResponse> {
+    try {
+      const limitValue = limit || 20;
+
+      // Validate limit
+      if (limitValue < 1 || limitValue > 50) {
+        this.setStatus(400);
+        return {
+          success: false,
+          error: {
+            code: 'INVALID_LIMIT',
+            message: 'Limit must be between 1 and 50',
+            details: `Received limit: ${limitValue}`,
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      // Get posts from service
+      const result = await this.snsService.getAllPosts(limitValue, cursor);
+
+      if (!result.success) {
+        this.setStatus(500);
+        return {
+          success: false,
+          error: {
+            code: 'SERVICE_ERROR',
+            message: 'Failed to retrieve posts',
+            details: result.error || 'Unknown error occurred',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      return {
+        success: true,
+        data: result.data!,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      this.setStatus(500);
+      return {
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to retrieve posts',
+          details:
+            error instanceof Error ? error.message : 'Unknown error occurred',
+        },
+        timestamp: new Date().toISOString(),
+      };
+    }
   }
 
   /**
@@ -117,29 +212,31 @@ export class PostsController extends Controller {
       // Generate post ID
       const postId = `post-${uuidv4()}`;
 
-      // Create post in database
-      await this.snsService.createPost(
-        postId,
-        userId,
-        request.content,
-        request.images,
-        request.tags
-      );
-
       // Get user profile for author info
       const userProfile = await this.snsService.getUserProfile(userId);
       if (!userProfile) {
-        this.setStatus(500);
+        this.setStatus(404);
         return {
           success: false,
           error: {
             code: 'USER_NOT_FOUND',
             message: 'User profile not found',
-            details: 'Unable to retrieve author information',
+            details: 'User must have a profile to create posts',
           },
           timestamp: new Date().toISOString(),
         };
       }
+
+      // Create post in database
+      await this.snsService.createPost(
+        postId,
+        userId,
+        userProfile.displayName,
+        userProfile.username,
+        request.content,
+        request.images,
+        request.tags
+      );
 
       // Get created post
       const post = await this.snsService.getPost(postId);

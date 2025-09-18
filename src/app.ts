@@ -17,11 +17,13 @@ import {
   createErrorResponse,
   API_ERROR_CODES,
 } from './models/responses/ApiResponse';
+import { initializePassport } from './middleware/passport';
 
 // Import controllers to ensure they are loaded for tsoa
 import './controllers/queries/BalanceController';
 import './controllers/queries/TokenInfoController';
 import './controllers/queries/AdminController';
+import './controllers/auth/AuthController';
 
 /**
  * Create Express application
@@ -36,6 +38,9 @@ export const createApp = (): express.Application => {
 
   // Initialize Flow configuration
   initializeFlowConfig();
+
+  // Initialize Passport.js for authentication
+  initializePassport();
 
   // Display network configuration at startup
   console.log('=== FLOW NETWORK CONFIGURATION ===');
