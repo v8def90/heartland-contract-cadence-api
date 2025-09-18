@@ -16,6 +16,9 @@ provider:
     # SQS resources
     TRANSACTION_QUEUE_URL:
       Ref: TransactionQueue
+    # DynamoDB resources
+    SNS_TABLE_NAME:
+      Ref: SnsTable
   # logs:
   #   httpApi: true
   tracing:
@@ -38,6 +41,19 @@ provider:
         - logs:DescribeLogStreams
         - logs:FilterLogEvents
       Resource: '*'
+    - Effect: Allow
+      Action:
+        - dynamodb:PutItem
+        - dynamodb:GetItem
+        - dynamodb:Query
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+        - dynamodb:BatchWriteItem
+        - dynamodb:BatchGetItem
+        - dynamodb:Scan
+      Resource:
+        - !GetAtt SnsTable.Arn
+        - !Sub '${SnsTable.Arn}/index/*'
 
 plugins:
   - serverless-offline
@@ -152,6 +168,92 @@ resources:
       Properties:
         QueueName: ${self:service}-transaction-dlq-${self:provider.stage}
         MessageRetentionPeriod: 1209600 # 14 days
+
+    # SNS DynamoDB Table
+    SnsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:service}-sns-${self:provider.stage}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: PK
+            AttributeType: S
+          - AttributeName: SK
+            AttributeType: S
+          - AttributeName: GSI1PK
+            AttributeType: S
+          - AttributeName: GSI1SK
+            AttributeType: S
+          - AttributeName: GSI2PK
+            AttributeType: S
+          - AttributeName: GSI2SK
+            AttributeType: S
+          - AttributeName: GSI3PK
+            AttributeType: S
+          - AttributeName: GSI3SK
+            AttributeType: S
+          - AttributeName: GSI4PK
+            AttributeType: S
+          - AttributeName: GSI4SK
+            AttributeType: S
+          - AttributeName: GSI5PK
+            AttributeType: S
+          - AttributeName: GSI5SK
+            AttributeType: S
+        KeySchema:
+          - AttributeName: PK
+            KeyType: HASH
+          - AttributeName: SK
+            KeyType: RANGE
+        GlobalSecondaryIndexes:
+          # GSI1: User posts (USER#{userId}#POSTS, createdAt)
+          - IndexName: GSI1
+            KeySchema:
+              - AttributeName: GSI1PK
+                KeyType: HASH
+              - AttributeName: GSI1SK
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+          # GSI2: Post comments (POST#{postId}#COMMENTS, createdAt)
+          - IndexName: GSI2
+            KeySchema:
+              - AttributeName: GSI2PK
+                KeyType: HASH
+              - AttributeName: GSI2SK
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+          # GSI3: User likes (USER#{userId}#LIKES, likedAt)
+          - IndexName: GSI3
+            KeySchema:
+              - AttributeName: GSI3PK
+                KeyType: HASH
+              - AttributeName: GSI3SK
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+          # GSI4: User following (USER#{userId}#FOLLOWING, targetUserId)
+          - IndexName: GSI4
+            KeySchema:
+              - AttributeName: GSI4PK
+                KeyType: HASH
+              - AttributeName: GSI4SK
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+          # GSI5: User followers (USER#{userId}#FOLLOWERS, followerId)
+          - IndexName: GSI5
+            KeySchema:
+              - AttributeName: GSI5PK
+                KeyType: HASH
+              - AttributeName: GSI5SK
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+        TimeToLiveSpecification:
+          AttributeName: ttl
+          Enabled: true
 
 custom:
   serverless-offline:

@@ -54,6 +54,26 @@
       {
         "name": "Setup",
         "description": "Account setup operations for HEART token vaults"
+      },
+      {
+        "name": "SNS Posts",
+        "description": "Social network post operations (create, read, delete)"
+      },
+      {
+        "name": "SNS Comments",
+        "description": "Comment operations on posts"
+      },
+      {
+        "name": "SNS Likes",
+        "description": "Like operations on posts"
+      },
+      {
+        "name": "SNS Follows",
+        "description": "Follow/unfollow user operations"
+      },
+      {
+        "name": "SNS Feed",
+        "description": "Personalized and global feed operations"
       }
     ]
   },
