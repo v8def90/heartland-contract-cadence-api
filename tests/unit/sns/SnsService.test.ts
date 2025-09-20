@@ -118,6 +118,8 @@ describe('SnsService', () => {
       await snsService.createPost(
         'post-123',
         'user-456',
+        'John Doe',
+        'johndoe',
         'Hello, world!',
         ['https://example.com/image.jpg'],
         ['hello', 'world']

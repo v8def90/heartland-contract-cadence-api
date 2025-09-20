@@ -77,6 +77,8 @@ describe('PostsController', () => {
       expect(mockSnsService.createPost).toHaveBeenCalledWith(
         expect.stringMatching(/^post-/),
         'temp-user-id',
+        'John Doe',
+        'johndoe',
         'Hello, world!',
         ['https://example.com/image.jpg'],
         ['hello', 'world']

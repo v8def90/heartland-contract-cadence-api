@@ -31,7 +31,7 @@ export const expressAuthenticationRecasted = async (
   request: Request,
   securityName: string,
   scopes: string[] | undefined,
-  response: Response
+  response: Response,
 ): Promise<PassportUser> => {
   return new Promise((resolve, reject) => {
     // Handle JWT authentication
@@ -72,7 +72,7 @@ export const expressAuthenticationRecasted = async (
  */
 export const createAuthMiddleware = (
   securityName: string,
-  scopes: string[] = []
+  scopes: string[] = [],
 ) => {
   return async (request: Request, response: Response, next: any) => {
     try {
@@ -80,7 +80,7 @@ export const createAuthMiddleware = (
         request,
         securityName,
         scopes,
-        response
+        response,
       );
       next();
     } catch (error) {

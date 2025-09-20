@@ -15,14 +15,6 @@ import {
   UpdateCommand,
   DeleteCommand,
   BatchWriteCommand,
-  type PutCommandInput,
-  type GetCommandInput,
-  type QueryCommandInput,
-  type UpdateCommandInput,
-  type DeleteCommandInput,
-  type BatchWriteCommandInput,
-  type QueryCommandOutput,
-  type GetCommandOutput,
 } from '@aws-sdk/lib-dynamodb';
 import type {
   UserProfile,

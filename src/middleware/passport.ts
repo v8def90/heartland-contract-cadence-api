@@ -182,7 +182,7 @@ export const verifyJwtToken = (token: string): JwtPayload | null => {
       algorithms: ['HS256'],
     }) as JwtPayload;
     return payload;
-  } catch (error) {
+  } catch {
     return null;
   }
 };
