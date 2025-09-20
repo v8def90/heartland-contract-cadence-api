@@ -149,3 +149,11 @@ export const requireMinter = () => {
 export const requirePauser = () => {
   return requireRole(['pauser', 'admin']);
 };
+
+/**
+ * tsoa Authentication function (alternative name)
+ *
+ * @description This is an alias for expressAuthenticationRecasted to support
+ * different tsoa configuration approaches.
+ */
+export const expressAuthentication = expressAuthenticationRecasted;

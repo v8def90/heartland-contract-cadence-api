@@ -80,7 +80,8 @@
   "routes": {
     "routesDir": "src",
     "routesFileName": "routes.ts",
-    "middleware": "express"
+    "middleware": "express",
+    "authenticationModule": "src/middleware/auth"
   },
   "ignore": ["**/node_modules/**", "**/build/**", "**/dist/**", "**/tests/**"]
 }
