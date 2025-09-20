@@ -4,8 +4,9 @@ frameworkVersion: '4'
 provider:
   name: aws
   runtime: nodejs22.x
-  region: ap-northeast-1
+  region: ${env:AWS_REGION, 'ap-northeast-1'}
   stage: ${opt:stage, 'dev'}
+  profile: ${env:AWS_PROFILE, 'default'}
   timeout: 30
   memorySize: 512
   environment:
