@@ -1,0 +1,14 @@
+{
+  "name": "heartland-blockchain-layer",
+  "version": "1.0.0",
+  "description": "Unified blockchain layer - Flow SDK, viem, WalletConnect",
+  "private": true,
+  "dependencies": {
+    "@onflow/fcl": "^1.19.0",
+    "@onflow/types": "^1.4.1",
+    "@onflow/util-encode-key": "^1.2.4",
+    "elliptic": "^6.6.1",
+    "sha3": "^2.1.4"
+  },
+  "comment": "viemとWalletConnectは@onflow/fclに含まれるため明示的な追加不要"
+}

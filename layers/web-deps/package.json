@@ -1,0 +1,13 @@
+{
+  "name": "heartland-web-deps-layer",
+  "version": "1.0.0",
+  "description": "Web dependencies layer - Express, Swagger",
+  "private": true,
+  "dependencies": {
+    "express": "^5.1.0",
+    "swagger-ui-express": "^5.0.1",
+    "@codegenie/serverless-express": "^4.17.0",
+    "passport": "^0.7.0",
+    "passport-jwt": "^4.0.1"
+  }
+}

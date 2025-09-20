@@ -299,6 +299,6 @@ package:
     - '!flow.json'
     - '!setup-minter-role.js'
     - '!test-keys.js'
-    - '!sample.env'
+    - '!.env.sample'
     - '!package-*.json'
     - '!pnpm-lock.yaml'
