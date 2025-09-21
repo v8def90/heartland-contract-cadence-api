@@ -274,21 +274,25 @@ export class FeedController extends Controller {
         };
       }
 
-      // TODO: Implement global feed logic
-      // This would typically involve:
-      // 1. Querying all posts across all users
-      // 2. Sorting by creation time
-      // 3. Applying pagination
-      // 4. Caching for performance
+      // Get all posts from service (reuse existing getAllPosts method)
+      const result = await this.snsService.getAllPosts(limit, cursor);
 
-      // For now, return empty feed as placeholder
+      if (!result.success) {
+        this.setStatus(500);
+        return {
+          success: false,
+          error: {
+            code: 'GLOBAL_FEED_RETRIEVAL_ERROR',
+            message: 'Failed to retrieve global feed',
+            details: result.error || 'Unknown error occurred',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
       return {
         success: true,
-        data: {
-          items: [],
-          nextCursor: undefined,
-          hasMore: false,
-        },
+        data: result.data!,
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
