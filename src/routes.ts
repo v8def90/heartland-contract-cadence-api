@@ -1381,6 +1381,7 @@ export function RegisterRoutes(app: Router) {
         // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
         const argsPostsController_createPost: Record<string, TsoaRoute.ParameterSchema> = {
                 request: {"in":"body","name":"request","required":true,"ref":"CreatePostRequest"},
+                requestObj: {"in":"request","name":"requestObj","required":true,"dataType":"object"},
         };
         app.post('/sns/posts',
             authenticateMiddleware([{"jwt":[]}]),
@@ -1442,6 +1443,7 @@ export function RegisterRoutes(app: Router) {
         // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
         const argsPostsController_deletePost: Record<string, TsoaRoute.ParameterSchema> = {
                 postId: {"in":"path","name":"postId","required":true,"dataType":"string"},
+                requestObj: {"in":"request","name":"requestObj","required":true,"dataType":"object"},
         };
         app.delete('/sns/posts/:postId',
             authenticateMiddleware([{"jwt":[]}]),

@@ -25,6 +25,7 @@ import './controllers/queries/TokenInfoController';
 import './controllers/queries/AdminController';
 import './controllers/auth/AuthController';
 import './controllers/sns/UsersController';
+import './controllers/sns/PostsController';
 
 /**
  * Create Express application

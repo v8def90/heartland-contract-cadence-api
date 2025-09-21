@@ -137,6 +137,11 @@ export const jwtAuthMiddleware = (req: Request, res: any, next: any): void => {
 
       // Add user to request object
       (req as any).user = user;
+      console.log('Passport middleware - User set to request:', user);
+      console.log(
+        'Passport middleware - Request user property:',
+        (req as any).user
+      );
       next();
     }
   )(req, res, next);

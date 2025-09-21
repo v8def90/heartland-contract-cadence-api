@@ -20,6 +20,7 @@ import {
   Example,
   SuccessResponse,
   Response,
+  Request,
 } from 'tsoa';
 import { v4 as uuidv4 } from 'uuid';
 import type { ApiResponse } from '../../models/responses/ApiResponse';
@@ -189,11 +190,31 @@ export class PostsController extends Controller {
     timestamp: '2024-01-01T00:00:00.000Z',
   })
   public async createPost(
-    @Body() request: CreatePostRequest
+    @Body() request: CreatePostRequest,
+    @Request() requestObj: any
   ): Promise<PostResponse> {
     try {
-      // TODO: Extract user ID from JWT token
-      const userId = 'temp-user-id'; // This should come from JWT middleware
+      // Extract user ID from JWT token
+      const user = requestObj?.user;
+
+      console.log('Create post - Request object:', requestObj);
+      console.log('Create post - User:', user);
+      console.log('Create post - User ID:', user?.id);
+
+      if (!user || !user.id) {
+        this.setStatus(401);
+        return {
+          success: false,
+          error: {
+            code: 'AUTHENTICATION_ERROR',
+            message: 'Authentication required',
+            details: 'Valid JWT token is required to create posts',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      const userId = user.id;
 
       // Validate content length
       if (request.content.length > 1000) {
@@ -393,10 +414,28 @@ export class PostsController extends Controller {
     data: null,
     timestamp: '2024-01-01T00:00:00.000Z',
   })
-  public async deletePost(@Path() postId: string): Promise<EmptyResponse> {
+  public async deletePost(
+    @Path() postId: string,
+    @Request() requestObj: any
+  ): Promise<EmptyResponse> {
     try {
-      // TODO: Extract user ID from JWT token
-      const userId = 'temp-user-id'; // This should come from JWT middleware
+      // Extract user ID from JWT token
+      const user = requestObj?.user;
+
+      if (!user || !user.id) {
+        this.setStatus(401);
+        return {
+          success: false,
+          error: {
+            code: 'AUTHENTICATION_ERROR',
+            message: 'Authentication required',
+            details: 'Valid JWT token is required to delete posts',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      const userId = user.id;
 
       // Get post to check ownership
       const post = await this.snsService.getPost(postId);

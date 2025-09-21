@@ -55,6 +55,12 @@ export const expressAuthenticationRecasted = async (
         }
 
         const user = getAuthenticatedUser(request);
+        console.log('Auth middleware - User from request:', user);
+        console.log(
+          'Auth middleware - Request user property:',
+          (request as any).user
+        );
+
         if (!user) {
           const error = new Error('Authentication failed');
           (error as any).status = 401;

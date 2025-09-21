@@ -12,6 +12,7 @@ import {
   PutCommand,
   GetCommand,
   QueryCommand,
+  ScanCommand,
   UpdateCommand,
   DeleteCommand,
   BatchWriteCommand,
@@ -538,14 +539,13 @@ export class SnsService {
 
       const exclusiveStartKey = cursor ? this.decodeCursor(cursor) : undefined;
 
-      const command = new QueryCommand({
+      // Use Scan to get all posts from the main table
+      const command = new ScanCommand({
         TableName: this.tableName,
-        IndexName: 'GSI2',
-        KeyConditionExpression: 'GSI2PK = :gsi2pk',
+        FilterExpression: 'begins_with(PK, :postPrefix)',
         ExpressionAttributeValues: {
-          ':gsi2pk': 'POST',
+          ':postPrefix': 'POST#',
         },
-        ScanIndexForward: false, // Sort by creation time descending
         Limit: limit,
         ExclusiveStartKey: exclusiveStartKey,
       });
@@ -572,6 +572,12 @@ export class SnsService {
           });
         }
       }
+
+      // Sort posts by creation time descending (newest first)
+      posts.sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
 
       const nextCursor = result.LastEvaluatedKey
         ? this.encodeCursor(result.LastEvaluatedKey)
