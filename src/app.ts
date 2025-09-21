@@ -27,6 +27,7 @@ import './controllers/auth/AuthController';
 import './controllers/sns/UsersController';
 import './controllers/sns/PostsController';
 import './controllers/sns/FeedController';
+import './controllers/sns/CommentsController';
 
 /**
  * Create Express application

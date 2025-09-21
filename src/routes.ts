@@ -1792,6 +1792,7 @@ export function RegisterRoutes(app: Router) {
         const argsCommentsController_createComment: Record<string, TsoaRoute.ParameterSchema> = {
                 postId: {"in":"path","name":"postId","required":true,"dataType":"string"},
                 request: {"in":"body","name":"request","required":true,"ref":"CreateCommentRequest"},
+                requestObj: {"in":"request","name":"requestObj","required":true,"dataType":"object"},
         };
         app.post('/sns/posts/:postId/comments',
             authenticateMiddleware([{"jwt":[]}]),
@@ -1856,6 +1857,7 @@ export function RegisterRoutes(app: Router) {
         const argsCommentsController_deleteComment: Record<string, TsoaRoute.ParameterSchema> = {
                 postId: {"in":"path","name":"postId","required":true,"dataType":"string"},
                 commentId: {"in":"path","name":"commentId","required":true,"dataType":"string"},
+                requestObj: {"in":"request","name":"requestObj","required":true,"dataType":"object"},
         };
         app.delete('/sns/posts/:postId/comments/:commentId',
             authenticateMiddleware([{"jwt":[]}]),

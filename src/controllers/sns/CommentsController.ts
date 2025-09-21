@@ -20,6 +20,7 @@ import {
   Example,
   SuccessResponse,
   Response,
+  Request,
 } from 'tsoa';
 import { v4 as uuidv4 } from 'uuid';
 import type { ApiResponse } from '../../models/responses/ApiResponse';
@@ -94,11 +95,27 @@ export class CommentsController extends Controller {
   })
   public async createComment(
     @Path() postId: string,
-    @Body() request: CreateCommentRequest
+    @Body() request: CreateCommentRequest,
+    @Request() requestObj: any
   ): Promise<CommentResponse> {
     try {
-      // TODO: Extract user ID from JWT token
-      const userId = 'temp-user-id'; // This should come from JWT middleware
+      // Extract user ID from JWT token
+      const user = requestObj?.user;
+
+      if (!user || !user.id) {
+        this.setStatus(401);
+        return {
+          success: false,
+          error: {
+            code: 'AUTHENTICATION_ERROR',
+            message: 'Authentication required',
+            details: 'Valid JWT token is required to create comments',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      const userId = user.id;
 
       // Validate content length
       if (request.content.length > 500) {
@@ -343,11 +360,27 @@ export class CommentsController extends Controller {
   })
   public async deleteComment(
     @Path() postId: string,
-    @Path() commentId: string
+    @Path() commentId: string,
+    @Request() requestObj: any
   ): Promise<EmptyResponse> {
     try {
-      // TODO: Extract user ID from JWT token
-      const userId = 'temp-user-id'; // This should come from JWT middleware
+      // Extract user ID from JWT token
+      const user = requestObj?.user;
+
+      if (!user || !user.id) {
+        this.setStatus(401);
+        return {
+          success: false,
+          error: {
+            code: 'AUTHENTICATION_ERROR',
+            message: 'Authentication required',
+            details: 'Valid JWT token is required to delete comments',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      const userId = user.id;
 
       // Get comment to check ownership
       const comments = await this.snsService.getPostComments(postId, 1000);
