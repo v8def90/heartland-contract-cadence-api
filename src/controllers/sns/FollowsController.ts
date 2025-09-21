@@ -20,6 +20,7 @@ import {
   Example,
   SuccessResponse,
   Response,
+  Request,
 } from 'tsoa';
 import type { ApiResponse } from '../../models/responses/ApiResponse';
 import type {
@@ -80,11 +81,27 @@ export class FollowsController extends Controller {
     timestamp: '2024-01-01T00:00:00.000Z',
   })
   public async followUser(
-    @Body() request: FollowUserRequest
+    @Body() request: FollowUserRequest,
+    @Request() requestObj: any
   ): Promise<EmptyResponse> {
     try {
-      // TODO: Extract user ID from JWT token
-      const followerId = 'temp-user-id'; // This should come from JWT middleware
+      // Extract user ID from JWT token
+      const user = requestObj?.user;
+
+      if (!user || !user.id) {
+        this.setStatus(401);
+        return {
+          success: false,
+          error: {
+            code: 'AUTHENTICATION_ERROR',
+            message: 'Authentication required',
+            details: 'Valid JWT token is required to follow users',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      const followerId = user.id;
       const followingId = request.targetUserId;
 
       // Prevent self-follow
@@ -176,11 +193,27 @@ export class FollowsController extends Controller {
     timestamp: '2024-01-01T00:00:00.000Z',
   })
   public async unfollowUser(
-    @Body() request: FollowUserRequest
+    @Body() request: FollowUserRequest,
+    @Request() requestObj: any
   ): Promise<EmptyResponse> {
     try {
-      // TODO: Extract user ID from JWT token
-      const followerId = 'temp-user-id'; // This should come from JWT middleware
+      // Extract user ID from JWT token
+      const user = requestObj?.user;
+
+      if (!user || !user.id) {
+        this.setStatus(401);
+        return {
+          success: false,
+          error: {
+            code: 'AUTHENTICATION_ERROR',
+            message: 'Authentication required',
+            details: 'Valid JWT token is required to unfollow users',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      const followerId = user.id;
       const followingId = request.targetUserId;
 
       // Check if target user exists
