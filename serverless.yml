@@ -69,6 +69,13 @@ layers:
     compatibleRuntimes:
       - nodejs22.x
     retain: false
+    package:
+      patterns:
+        - nodejs/**
+        - nodejs/node_modules/.pnpm/**
+        - '!**/README.md'
+        - '!**/test/**'
+        - '!**/*.map'
 
   # 統合ブロックチェーン Layer (~160MB)
   blockchainLayer:
@@ -78,6 +85,12 @@ layers:
     compatibleRuntimes:
       - nodejs22.x
     retain: false
+    package:
+      patterns:
+        - nodejs/**
+        - '!**/README.md'
+        - '!**/test/**'
+        - '!**/*.map'
 
   # AWS SDK Layer (~19MB)
   awsSdkLayer:
@@ -87,6 +100,13 @@ layers:
     compatibleRuntimes:
       - nodejs22.x
     retain: false
+    package:
+      patterns:
+        - nodejs/**
+        - nodejs/node_modules/.pnpm/**
+        - '!**/README.md'
+        - '!**/test/**'
+        - '!**/*.map'
 
   # Web依存関係 Layer (~15MB)
   webDepsLayer:
@@ -96,6 +116,12 @@ layers:
     compatibleRuntimes:
       - nodejs22.x
     retain: false
+    package:
+      patterns:
+        - nodejs/**
+        - '!**/README.md'
+        - '!**/test/**'
+        - '!**/*.map'
 
 functions:
   # Main API application

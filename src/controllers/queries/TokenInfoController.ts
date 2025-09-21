@@ -111,7 +111,7 @@ export interface TreasuryAccountData {
  *
  * @tags Token Info
  */
-@Route('/')
+@Route('/heart-tokens')
 @Tags('Token Info')
 export class TokenInfoController extends Controller {
   private flowService: FlowService;

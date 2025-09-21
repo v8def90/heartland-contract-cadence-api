@@ -64,7 +64,7 @@ export interface AdminCapabilitiesData {
  *
  * @tags Admin
  */
-@Route('/')
+@Route('/heart-tokens')
 @Tags('Admin')
 export class AdminController extends Controller {
   private flowService: FlowService;

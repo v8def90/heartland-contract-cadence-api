@@ -1672,7 +1672,7 @@ export function RegisterRoutes(app: Router) {
         // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
         const argsTokenInfoController_getTaxRate: Record<string, TsoaRoute.ParameterSchema> = {
         };
-        app.get('/tax-rate',
+        app.get('/heart-tokens/tax-rate',
             ...(fetchMiddlewares<RequestHandler>(TokenInfoController)),
             ...(fetchMiddlewares<RequestHandler>(TokenInfoController.prototype.getTaxRate)),
 
@@ -1701,7 +1701,7 @@ export function RegisterRoutes(app: Router) {
         // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
         const argsTokenInfoController_getPauseStatus: Record<string, TsoaRoute.ParameterSchema> = {
         };
-        app.get('/pause-status',
+        app.get('/heart-tokens/pause-status',
             ...(fetchMiddlewares<RequestHandler>(TokenInfoController)),
             ...(fetchMiddlewares<RequestHandler>(TokenInfoController.prototype.getPauseStatus)),
 
@@ -1731,7 +1731,7 @@ export function RegisterRoutes(app: Router) {
         const argsTokenInfoController_calculateTax: Record<string, TsoaRoute.ParameterSchema> = {
                 amount: {"in":"path","name":"amount","required":true,"dataType":"string"},
         };
-        app.get('/tax-calculation/:amount',
+        app.get('/heart-tokens/tax-calculation/:amount',
             ...(fetchMiddlewares<RequestHandler>(TokenInfoController)),
             ...(fetchMiddlewares<RequestHandler>(TokenInfoController.prototype.calculateTax)),
 
@@ -1760,7 +1760,7 @@ export function RegisterRoutes(app: Router) {
         // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
         const argsTokenInfoController_getTotalSupply: Record<string, TsoaRoute.ParameterSchema> = {
         };
-        app.get('/total-supply',
+        app.get('/heart-tokens/total-supply',
             ...(fetchMiddlewares<RequestHandler>(TokenInfoController)),
             ...(fetchMiddlewares<RequestHandler>(TokenInfoController.prototype.getTotalSupply)),
 
@@ -1789,7 +1789,7 @@ export function RegisterRoutes(app: Router) {
         // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
         const argsTokenInfoController_getTreasuryAccount: Record<string, TsoaRoute.ParameterSchema> = {
         };
-        app.get('/treasury-account',
+        app.get('/heart-tokens/treasury-account',
             ...(fetchMiddlewares<RequestHandler>(TokenInfoController)),
             ...(fetchMiddlewares<RequestHandler>(TokenInfoController.prototype.getTreasuryAccount)),
 
@@ -1969,7 +1969,7 @@ export function RegisterRoutes(app: Router) {
         const argsAdminController_getAdminCapabilities: Record<string, TsoaRoute.ParameterSchema> = {
                 address: {"in":"path","name":"address","required":true,"dataType":"string"},
         };
-        app.get('/admin-capabilities/:address',
+        app.get('/heart-tokens/admin-capabilities/:address',
             ...(fetchMiddlewares<RequestHandler>(AdminController)),
             ...(fetchMiddlewares<RequestHandler>(AdminController.prototype.getAdminCapabilities)),
 
