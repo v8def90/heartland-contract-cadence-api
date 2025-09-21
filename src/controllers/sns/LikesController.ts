@@ -20,6 +20,7 @@ import {
   Example,
   SuccessResponse,
   Response,
+  Request,
 } from 'tsoa';
 import type { ApiResponse } from '../../models/responses/ApiResponse';
 import type {
@@ -81,11 +82,27 @@ export class LikesController extends Controller {
   })
   public async likePost(
     @Path() postId: string,
-    @Body() request: LikePostRequest
+    @Body() request: LikePostRequest,
+    @Request() requestObj: any
   ): Promise<EmptyResponse> {
     try {
-      // TODO: Extract user ID from JWT token
-      const userId = 'temp-user-id'; // This should come from JWT middleware
+      // Extract user ID from JWT token
+      const user = requestObj?.user;
+
+      if (!user || !user.id) {
+        this.setStatus(401);
+        return {
+          success: false,
+          error: {
+            code: 'AUTHENTICATION_ERROR',
+            message: 'Authentication required',
+            details: 'Valid JWT token is required to like posts',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      const userId = user.id;
 
       // Validate postId matches
       if (request.postId !== postId) {
@@ -171,10 +188,28 @@ export class LikesController extends Controller {
     data: null,
     timestamp: '2024-01-01T00:00:00.000Z',
   })
-  public async unlikePost(@Path() postId: string): Promise<EmptyResponse> {
+  public async unlikePost(
+    @Path() postId: string,
+    @Request() requestObj: any
+  ): Promise<EmptyResponse> {
     try {
-      // TODO: Extract user ID from JWT token
-      const userId = 'temp-user-id'; // This should come from JWT middleware
+      // Extract user ID from JWT token
+      const user = requestObj?.user;
+
+      if (!user || !user.id) {
+        this.setStatus(401);
+        return {
+          success: false,
+          error: {
+            code: 'AUTHENTICATION_ERROR',
+            message: 'Authentication required',
+            details: 'Valid JWT token is required to unlike posts',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      const userId = user.id;
 
       // Check if post exists
       const post = await this.snsService.getPost(postId);

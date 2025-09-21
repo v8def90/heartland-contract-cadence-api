@@ -17,7 +17,7 @@
       "email": "support@hearttoken.flow.io"
     },
     "license": "MIT",
-    "host": "bdfit4sq1m.execute-api.ap-northeast-1.amazonaws.com",
+    "host": "pijqkvfjpk.execute-api.ap-northeast-1.amazonaws.com",
     "schemes": ["https", "http"],
     "basePath": "/",
     "consumes": ["application/json"],

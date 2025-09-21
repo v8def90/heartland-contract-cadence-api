@@ -1508,6 +1508,7 @@ export function RegisterRoutes(app: Router) {
         const argsLikesController_likePost: Record<string, TsoaRoute.ParameterSchema> = {
                 postId: {"in":"path","name":"postId","required":true,"dataType":"string"},
                 request: {"in":"body","name":"request","required":true,"ref":"LikePostRequest"},
+                requestObj: {"in":"request","name":"requestObj","required":true,"dataType":"object"},
         };
         app.post('/sns/posts/:postId/likes',
             authenticateMiddleware([{"jwt":[]}]),
@@ -1539,6 +1540,7 @@ export function RegisterRoutes(app: Router) {
         // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
         const argsLikesController_unlikePost: Record<string, TsoaRoute.ParameterSchema> = {
                 postId: {"in":"path","name":"postId","required":true,"dataType":"string"},
+                requestObj: {"in":"request","name":"requestObj","required":true,"dataType":"object"},
         };
         app.delete('/sns/posts/:postId/likes',
             authenticateMiddleware([{"jwt":[]}]),
