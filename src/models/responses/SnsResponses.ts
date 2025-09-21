@@ -189,6 +189,39 @@ export type LikeListResponse = ApiResponse<PaginatedData<LikeData>>;
 export type FollowListResponse = ApiResponse<PaginatedData<FollowData>>;
 
 /**
+ * Search User Data
+ */
+export interface SearchUserData {
+  /** User ID */
+  userId: string;
+  /** Display name */
+  displayName: string;
+  /** Username (unique) */
+  username: string;
+  /** Bio description */
+  bio?: string | undefined;
+  /** Avatar URL */
+  avatarUrl?: string | undefined;
+  /** Follower count */
+  followerCount: number;
+  /** Following count */
+  followingCount: number;
+  /** Post count */
+  postCount: number;
+  /** Created timestamp */
+  createdAt: string;
+  /** Updated timestamp */
+  updatedAt: string;
+  /** Is following this user (if authenticated) */
+  isFollowing?: boolean;
+}
+
+/**
+ * Search Users Response
+ */
+export type SearchUsersResponse = ApiResponse<PaginatedData<SearchUserData>>;
+
+/**
  * Single Post Response
  */
 export type PostResponse = ApiResponse<PostData>;

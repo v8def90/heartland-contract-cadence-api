@@ -49,6 +49,18 @@ export interface FollowUserRequest {
 }
 
 /**
+ * Search Users Request
+ */
+export interface SearchUsersRequest {
+  /** Search query (username or display name) */
+  query: string;
+  /** Number of results to return (max 50, default 20) */
+  limit?: number;
+  /** Pagination cursor for next page */
+  cursor?: string;
+}
+
+/**
  * Like Post Request
  */
 export interface LikePostRequest {

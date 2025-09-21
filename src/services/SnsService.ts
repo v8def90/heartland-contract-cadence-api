@@ -23,6 +23,7 @@ import type {
   CommentData,
   LikeData,
   FollowData,
+  SearchUserData,
   PaginatedData,
 } from '../models/responses/SnsResponses';
 
@@ -1347,5 +1348,138 @@ export class SnsService {
         },
       })
     );
+  }
+
+  /**
+   * Search users by username or display name
+   */
+  async searchUsers(
+    query: string,
+    limit: number = 20,
+    cursor?: string,
+    currentUserId?: string
+  ): Promise<{
+    success: boolean;
+    data?: PaginatedData<SearchUserData>;
+    error?: string;
+  }> {
+    try {
+      if (!this.client) {
+        // Return mock data for local development
+        const mockUsers: SearchUserData[] = [
+          {
+            userId: 'user-123',
+            displayName: 'John Doe',
+            username: 'johndoe',
+            bio: 'Software developer',
+            avatarUrl: 'https://example.com/avatar1.jpg',
+            followerCount: 150,
+            followingCount: 200,
+            postCount: 45,
+            createdAt: '2024-01-01T00:00:00.000Z',
+            updatedAt: '2024-01-01T00:00:00.000Z',
+            isFollowing: false,
+          },
+          {
+            userId: 'user-456',
+            displayName: 'Jane Smith',
+            username: 'janesmith',
+            bio: 'Designer',
+            avatarUrl: 'https://example.com/avatar2.jpg',
+            followerCount: 300,
+            followingCount: 150,
+            postCount: 78,
+            createdAt: '2024-01-01T00:00:00.000Z',
+            updatedAt: '2024-01-01T00:00:00.000Z',
+            isFollowing: true,
+          },
+        ];
+
+        // Filter mock data based on query
+        const filteredUsers = mockUsers.filter(
+          user =>
+            user.username.toLowerCase().includes(query.toLowerCase()) ||
+            user.displayName.toLowerCase().includes(query.toLowerCase())
+        );
+
+        return {
+          success: true,
+          data: {
+            items: filteredUsers.slice(0, limit),
+            hasMore: false,
+            nextCursor: undefined,
+          },
+        };
+      }
+
+      // Use Scan to search for users
+      const exclusiveStartKey = cursor ? this.decodeCursor(cursor) : undefined;
+
+      const command = new ScanCommand({
+        TableName: this.tableName,
+        FilterExpression:
+          'begins_with(PK, :userPrefix) AND (contains(username, :query) OR contains(displayName, :query))',
+        ExpressionAttributeValues: {
+          ':userPrefix': 'USER#',
+          ':query': query,
+        },
+        Limit: limit,
+        ExclusiveStartKey: exclusiveStartKey,
+      });
+
+      const result = await this.client.send(command);
+
+      const users: SearchUserData[] = [];
+      if (result.Items) {
+        for (const item of result.Items) {
+          const userItem = item as DynamoDBUserItem;
+
+          // Check if current user is following this user
+          let isFollowing = false;
+          if (currentUserId && currentUserId !== userItem.userId) {
+            // TODO: Implement follow status check
+            // For now, we'll set it to false
+            isFollowing = false;
+          }
+
+          users.push({
+            userId: userItem.userId,
+            displayName: userItem.displayName,
+            username: userItem.username,
+            bio: userItem.bio || undefined,
+            avatarUrl: userItem.avatarUrl || undefined,
+            followerCount: userItem.followerCount,
+            followingCount: userItem.followingCount,
+            postCount: userItem.postCount,
+            createdAt: userItem.createdAt,
+            updatedAt: userItem.updatedAt,
+            isFollowing,
+          });
+        }
+      }
+
+      // Sort by username for consistent results
+      users.sort((a, b) => a.username.localeCompare(b.username));
+
+      const nextCursor = result.LastEvaluatedKey
+        ? this.encodeCursor(result.LastEvaluatedKey)
+        : undefined;
+
+      return {
+        success: true,
+        data: {
+          items: users,
+          nextCursor,
+          hasMore: !!result.LastEvaluatedKey,
+        },
+      };
+    } catch (error) {
+      console.error('Error searching users:', error);
+      return {
+        success: false,
+        error:
+          error instanceof Error ? error.message : 'Failed to search users',
+      };
+    }
   }
 }

@@ -30,6 +30,7 @@ import './controllers/sns/FeedController';
 import './controllers/sns/CommentsController';
 import './controllers/sns/LikesController';
 import './controllers/sns/FollowsController';
+import './controllers/sns/SearchController';
 
 /**
  * Create Express application
