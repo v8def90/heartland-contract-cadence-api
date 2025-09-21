@@ -18,6 +18,7 @@ import {
   SuccessResponse,
   Response,
   Security,
+  Request,
 } from 'tsoa';
 import type { ApiResponse } from '../../models/responses/ApiResponse';
 import type {
@@ -341,10 +342,37 @@ export class AuthController extends Controller {
     },
     timestamp: '2024-01-01T00:00:00.000Z',
   })
-  public async refreshToken(): Promise<ApiResponse<AuthData>> {
+  public async refreshToken(
+    @Request() request: any
+  ): Promise<ApiResponse<AuthData>> {
     try {
       // Get user from request (set by JWT middleware)
-      const user = (this as any).request?.user;
+      console.log('Refresh token - Request object:', request);
+      console.log('Refresh token - Request user:', request?.user);
+      console.log('Refresh token - Request headers:', request?.headers);
+
+      // Try to get user from different possible locations
+      let user = request?.user;
+
+      // If user is not directly on request, try to get from headers
+      if (!user && request?.headers?.authorization) {
+        const authHeader = request.headers.authorization;
+        if (authHeader.startsWith('Bearer ')) {
+          const token = authHeader.substring(7);
+          console.log('Refresh token - Extracted token:', token);
+
+          // Verify the token to get user info
+          const payload = verifyJwtToken(token);
+          if (payload) {
+            user = {
+              id: payload.sub,
+              address: payload.address,
+              role: payload.role,
+            };
+            console.log('Refresh token - User from token:', user);
+          }
+        }
+      }
 
       if (!user) {
         this.setStatus(401);
