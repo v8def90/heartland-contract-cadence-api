@@ -31,13 +31,25 @@ export const expressAuthenticationRecasted = async (
   request: Request,
   securityName: string,
   scopes: string[] | undefined,
-  response: Response,
+  response: Response
 ): Promise<PassportUser> => {
   return new Promise((resolve, reject) => {
     // Handle JWT authentication
     if (securityName === 'jwt') {
+      // Check if Authorization header exists
+      const authHeader = request.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        const error = new Error('Missing or invalid Authorization header');
+        (error as any).status = 401;
+        (error as any).message =
+          'Authorization header with Bearer token is required';
+        reject(error);
+        return;
+      }
+
       jwtAuthMiddleware(request, response, (err: any) => {
         if (err) {
+          console.error('JWT Authentication error:', err);
           reject(err);
           return;
         }
@@ -46,6 +58,7 @@ export const expressAuthenticationRecasted = async (
         if (!user) {
           const error = new Error('Authentication failed');
           (error as any).status = 401;
+          (error as any).message = 'Invalid or expired token';
           reject(error);
           return;
         }
@@ -56,6 +69,8 @@ export const expressAuthenticationRecasted = async (
       // Unsupported security scheme
       const error = new Error(`Unsupported security scheme: ${securityName}`);
       (error as any).status = 401;
+      (error as any).message =
+        `Security scheme '${securityName}' is not supported`;
       reject(error);
     }
   });
@@ -72,7 +87,7 @@ export const expressAuthenticationRecasted = async (
  */
 export const createAuthMiddleware = (
   securityName: string,
-  scopes: string[] = [],
+  scopes: string[] = []
 ) => {
   return async (request: Request, response: Response, next: any) => {
     try {
@@ -80,7 +95,7 @@ export const createAuthMiddleware = (
         request,
         securityName,
         scopes,
-        response,
+        response
       );
       next();
     } catch (error) {

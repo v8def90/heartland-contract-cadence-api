@@ -24,6 +24,7 @@ import './controllers/queries/BalanceController';
 import './controllers/queries/TokenInfoController';
 import './controllers/queries/AdminController';
 import './controllers/auth/AuthController';
+import './controllers/sns/UsersController';
 
 /**
  * Create Express application
@@ -223,6 +224,28 @@ export const createApp = (): express.Application => {
     console.error(`Error message: ${err.message}`);
     console.error(`Error stack: ${err.stack}`);
     console.error('=====================================');
+
+    // Handle authentication errors
+    if (err.status === 401) {
+      const errorResponse = createErrorResponse({
+        code: API_ERROR_CODES.UNAUTHORIZED,
+        message: err.message || 'Authentication required',
+        details: 'Valid JWT token is required for this endpoint',
+      });
+      res.status(401).json(errorResponse);
+      return;
+    }
+
+    // Handle authorization errors
+    if (err.status === 403) {
+      const errorResponse = createErrorResponse({
+        code: API_ERROR_CODES.FORBIDDEN,
+        message: err.message || 'Insufficient permissions',
+        details: 'You do not have permission to access this resource',
+      });
+      res.status(403).json(errorResponse);
+      return;
+    }
 
     // Handle tsoa ValidateError
     if (err.name === 'ValidateError') {
