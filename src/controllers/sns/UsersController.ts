@@ -1,0 +1,638 @@
+/**
+ * SNS Users Controller
+ *
+ * @description Handles user profile management operations for SNS functionality
+ * @author Heart Token API Team
+ * @since 1.0.0
+ */
+
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Route,
+  Security,
+  Body,
+  Path,
+  Query,
+  Tags,
+  Example,
+  SuccessResponse,
+  Response,
+} from 'tsoa';
+import type { ApiResponse } from '../../models/responses';
+import type {
+  UserProfile,
+  CreateUserProfileRequest,
+  UpdateUserProfileRequest,
+  PostListResponse,
+  FollowListResponse,
+} from '../../models/responses/SnsResponses';
+import { SnsService } from '../../services/SnsService';
+
+/**
+ * User Profile Response
+ */
+export interface UserProfileResponse {
+  success: true;
+  data: UserProfile;
+  timestamp: string;
+}
+
+/**
+ * User Posts Response
+ */
+export interface UserPostsResponse {
+  success: true;
+  data: {
+    items: any[];
+    hasMore: boolean;
+    nextCursor?: string;
+    totalCount?: number;
+  };
+  timestamp: string;
+}
+
+/**
+ * SNS Users Controller
+ *
+ * @description Manages user profiles and user-related operations for the SNS system.
+ * Provides CRUD operations for user profiles and user-specific data retrieval.
+ *
+ * @example
+ * ```typescript
+ * const controller = new UsersController();
+ * const profile = await controller.getUserProfile("user-123");
+ * ```
+ */
+@Route('sns/users')
+@Tags('SNS Users')
+export class UsersController extends Controller {
+  private snsService: SnsService;
+
+  constructor() {
+    super();
+    this.snsService = new SnsService();
+  }
+
+  /**
+   * Get user profile by user ID
+   *
+   * @description Retrieves the complete user profile information for the specified user ID.
+   * This includes display name, username, bio, avatar, follower/following counts, and post count.
+   *
+   * @param userId - The unique identifier of the user
+   * @returns Promise resolving to user profile data
+   *
+   * @example userId "user-123"
+   */
+  @Get('{userId}/profile')
+  @SuccessResponse('200', 'User profile retrieved successfully')
+  @Response<ApiResponse>('404', 'User not found')
+  @Response<ApiResponse>('500', 'Failed to retrieve user profile')
+  @Example<UserProfileResponse>({
+    success: true,
+    data: {
+      userId: 'user-123',
+      displayName: 'John Doe',
+      username: 'johndoe',
+      bio: 'Software developer passionate about blockchain technology',
+      avatarUrl: 'https://example.com/avatar.jpg',
+      followerCount: 150,
+      followingCount: 75,
+      postCount: 42,
+      createdAt: '2024-01-01T00:00:00.000Z',
+      updatedAt: '2024-01-15T10:30:00.000Z',
+    },
+    timestamp: '2024-01-15T10:30:00.000Z',
+  })
+  public async getUserProfile(
+    @Path() userId: string
+  ): Promise<ApiResponse<UserProfile>> {
+    try {
+      // Validate userId
+      if (!userId || userId.trim().length === 0) {
+        this.setStatus(400);
+        return {
+          success: false,
+          error: {
+            code: 'INVALID_USER_ID',
+            message: 'User ID is required',
+            details: 'The userId parameter cannot be empty',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      // Get user profile
+      const profile = await this.snsService.getUserProfile(userId);
+
+      if (!profile) {
+        this.setStatus(404);
+        return {
+          success: false,
+          error: {
+            code: 'USER_NOT_FOUND',
+            message: 'User not found',
+            details: `No user found with ID: ${userId}`,
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      return {
+        success: true,
+        data: profile,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      console.error('Error getting user profile:', error);
+      this.setStatus(500);
+      return {
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to retrieve user profile',
+          details: error instanceof Error ? error.message : 'Unknown error',
+        },
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
+
+  /**
+   * Create user profile
+   *
+   * @description Creates a new user profile with the provided information.
+   * This endpoint requires authentication and can only be called by the user themselves.
+   *
+   * @param userId - The unique identifier of the user
+   * @param request - User profile creation data
+   * @returns Promise resolving to created user profile
+   *
+   * @security JWT authentication required
+   */
+  @Post('{userId}/profile')
+  @Security('jwt')
+  @SuccessResponse('201', 'User profile created successfully')
+  @Response<ApiResponse>('400', 'Invalid profile data')
+  @Response<ApiResponse>('401', 'Authentication required')
+  @Response<ApiResponse>('409', 'User profile already exists')
+  @Response<ApiResponse>('500', 'Failed to create user profile')
+  @Example<UserProfileResponse>({
+    success: true,
+    data: {
+      userId: 'user-123',
+      displayName: 'John Doe',
+      username: 'johndoe',
+      bio: 'Software developer passionate about blockchain technology',
+      avatarUrl: 'https://example.com/avatar.jpg',
+      followerCount: 0,
+      followingCount: 0,
+      postCount: 0,
+      createdAt: '2024-01-15T10:30:00.000Z',
+      updatedAt: '2024-01-15T10:30:00.000Z',
+    },
+    timestamp: '2024-01-15T10:30:00.000Z',
+  })
+  public async createUserProfile(
+    @Path() userId: string,
+    @Body() request: CreateUserProfileRequest
+  ): Promise<ApiResponse<UserProfile>> {
+    try {
+      // Validate userId
+      if (!userId || userId.trim().length === 0) {
+        this.setStatus(400);
+        return {
+          success: false,
+          error: {
+            code: 'INVALID_USER_ID',
+            message: 'User ID is required',
+            details: 'The userId parameter cannot be empty',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      // Validate request data
+      if (!request.displayName || !request.username) {
+        this.setStatus(400);
+        return {
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Display name and username are required',
+            details: 'Both displayName and username fields are mandatory',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      // Check if user profile already exists
+      const existingProfile = await this.snsService.getUserProfile(userId);
+      if (existingProfile) {
+        this.setStatus(409);
+        return {
+          success: false,
+          error: {
+            code: 'PROFILE_EXISTS',
+            message: 'User profile already exists',
+            details: `Profile for user ${userId} already exists`,
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      // Create user profile
+      const profileData: Omit<
+        UserProfile,
+        'userId' | 'createdAt' | 'updatedAt'
+      > = {
+        displayName: request.displayName,
+        username: request.username,
+        bio: request.bio,
+        avatarUrl: request.avatarUrl,
+        followerCount: 0,
+        followingCount: 0,
+        postCount: 0,
+      };
+
+      await this.snsService.createUserProfile(userId, profileData);
+
+      // Get the created profile
+      const createdProfile = await this.snsService.getUserProfile(userId);
+      if (!createdProfile) {
+        this.setStatus(500);
+        return {
+          success: false,
+          error: {
+            code: 'CREATION_FAILED',
+            message: 'Failed to retrieve created profile',
+            details: 'Profile was created but could not be retrieved',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      this.setStatus(201);
+      return {
+        success: true,
+        data: createdProfile,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      console.error('Error creating user profile:', error);
+      this.setStatus(500);
+      return {
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to create user profile',
+          details: error instanceof Error ? error.message : 'Unknown error',
+        },
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
+
+  /**
+   * Update user profile
+   *
+   * @description Updates an existing user profile with the provided information.
+   * This endpoint requires authentication and can only be called by the user themselves.
+   *
+   * @param userId - The unique identifier of the user
+   * @param request - User profile update data
+   * @returns Promise resolving to updated user profile
+   *
+   * @security JWT authentication required
+   */
+  @Put('{userId}/profile')
+  @Security('jwt')
+  @SuccessResponse('200', 'User profile updated successfully')
+  @Response<ApiResponse>('400', 'Invalid profile data')
+  @Response<ApiResponse>('401', 'Authentication required')
+  @Response<ApiResponse>('404', 'User profile not found')
+  @Response<ApiResponse>('500', 'Failed to update user profile')
+  @Example<UserProfileResponse>({
+    success: true,
+    data: {
+      userId: 'user-123',
+      displayName: 'John Doe Updated',
+      username: 'johndoe',
+      bio: 'Senior Software developer passionate about blockchain technology',
+      avatarUrl: 'https://example.com/new-avatar.jpg',
+      followerCount: 150,
+      followingCount: 75,
+      postCount: 42,
+      createdAt: '2024-01-01T00:00:00.000Z',
+      updatedAt: '2024-01-15T11:00:00.000Z',
+    },
+    timestamp: '2024-01-15T11:00:00.000Z',
+  })
+  public async updateUserProfile(
+    @Path() userId: string,
+    @Body() request: UpdateUserProfileRequest
+  ): Promise<ApiResponse<UserProfile>> {
+    try {
+      // Validate userId
+      if (!userId || userId.trim().length === 0) {
+        this.setStatus(400);
+        return {
+          success: false,
+          error: {
+            code: 'INVALID_USER_ID',
+            message: 'User ID is required',
+            details: 'The userId parameter cannot be empty',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      // Check if user profile exists
+      const existingProfile = await this.snsService.getUserProfile(userId);
+      if (!existingProfile) {
+        this.setStatus(404);
+        return {
+          success: false,
+          error: {
+            code: 'PROFILE_NOT_FOUND',
+            message: 'User profile not found',
+            details: `No profile found for user ${userId}`,
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      // Validate that at least one field is provided for update
+      if (
+        !request.displayName &&
+        !request.username &&
+        !request.bio &&
+        !request.avatarUrl
+      ) {
+        this.setStatus(400);
+        return {
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'At least one field must be provided for update',
+            details:
+              'At least one of displayName, username, bio, or avatarUrl must be provided',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      // Update user profile
+      const updateData: Partial<
+        Omit<UserProfile, 'userId' | 'createdAt' | 'updatedAt'>
+      > = {};
+      if (request.displayName !== undefined)
+        updateData.displayName = request.displayName;
+      if (request.username !== undefined)
+        updateData.username = request.username;
+      if (request.bio !== undefined) updateData.bio = request.bio;
+      if (request.avatarUrl !== undefined)
+        updateData.avatarUrl = request.avatarUrl;
+
+      await this.snsService.updateUserProfile(userId, updateData);
+
+      // Get the updated profile
+      const updatedProfile = await this.snsService.getUserProfile(userId);
+      if (!updatedProfile) {
+        this.setStatus(500);
+        return {
+          success: false,
+          error: {
+            code: 'UPDATE_FAILED',
+            message: 'Failed to retrieve updated profile',
+            details: 'Profile was updated but could not be retrieved',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      return {
+        success: true,
+        data: updatedProfile,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      console.error('Error updating user profile:', error);
+      this.setStatus(500);
+      return {
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to update user profile',
+          details: error instanceof Error ? error.message : 'Unknown error',
+        },
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
+
+  /**
+   * Delete user profile
+   *
+   * @description Deletes the user profile and all associated data.
+   * This endpoint requires authentication and can only be called by the user themselves.
+   * WARNING: This action is irreversible and will delete all user data.
+   *
+   * @param userId - The unique identifier of the user
+   * @returns Promise resolving to deletion confirmation
+   *
+   * @security JWT authentication required
+   */
+  @Delete('{userId}/profile')
+  @Security('jwt')
+  @SuccessResponse('200', 'User profile deleted successfully')
+  @Response<ApiResponse>('401', 'Authentication required')
+  @Response<ApiResponse>('404', 'User profile not found')
+  @Response<ApiResponse>('500', 'Failed to delete user profile')
+  @Example<ApiResponse<null>>({
+    success: true,
+    data: null,
+    timestamp: '2024-01-15T11:30:00.000Z',
+  })
+  public async deleteUserProfile(
+    @Path() userId: string
+  ): Promise<ApiResponse<null>> {
+    try {
+      // Validate userId
+      if (!userId || userId.trim().length === 0) {
+        this.setStatus(400);
+        return {
+          success: false,
+          error: {
+            code: 'INVALID_USER_ID',
+            message: 'User ID is required',
+            details: 'The userId parameter cannot be empty',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      // Check if user profile exists
+      const existingProfile = await this.snsService.getUserProfile(userId);
+      if (!existingProfile) {
+        this.setStatus(404);
+        return {
+          success: false,
+          error: {
+            code: 'PROFILE_NOT_FOUND',
+            message: 'User profile not found',
+            details: `No profile found for user ${userId}`,
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      // Delete user profile
+      await this.snsService.deleteUserProfile(userId);
+
+      return {
+        success: true,
+        data: null,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      console.error('Error deleting user profile:', error);
+      this.setStatus(500);
+      return {
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to delete user profile',
+          details: error instanceof Error ? error.message : 'Unknown error',
+        },
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
+
+  /**
+   * Get user posts
+   *
+   * @description Retrieves posts created by the specified user with pagination.
+   * This endpoint is public and does not require authentication.
+   *
+   * @param userId - The unique identifier of the user
+   * @param limit - Number of posts to return (max 50, default 20)
+   * @param cursor - Pagination cursor for next page
+   * @returns Promise resolving to paginated posts data
+   *
+   * @example userId "user-123"
+   */
+  @Get('{userId}/posts')
+  @SuccessResponse('200', 'User posts retrieved successfully')
+  @Response<ApiResponse>('400', 'Invalid query parameters')
+  @Response<ApiResponse>('404', 'User not found')
+  @Response<ApiResponse>('500', 'Failed to retrieve user posts')
+  @Example<PostListResponse>({
+    success: true,
+    data: {
+      items: [
+        {
+          postId: 'post-123',
+          authorId: 'user-123',
+          authorName: 'John Doe',
+          authorUsername: 'johndoe',
+          content: 'Just finished a great workout! 💪',
+          images: ['https://example.com/workout.jpg'],
+          tags: ['fitness', 'motivation'],
+          likeCount: 15,
+          commentCount: 3,
+          isLiked: false,
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-01T00:00:00.000Z',
+        },
+      ],
+      hasMore: true,
+      nextCursor:
+        'eyJQSyI6IlVTRVIjdXNlci0xMjMiLCJTSyI6IlBPU1QjMjAyNC0wMS0wMVQwMDowMDowMC4wMDBaIiwicG9zdC0xMjMifQ==',
+      totalCount: 42,
+    },
+    timestamp: '2024-01-15T10:30:00.000Z',
+  })
+  public async getUserPosts(
+    @Path() userId: string,
+    @Query() limit: number = 20,
+    @Query() cursor?: string
+  ): Promise<PostListResponse> {
+    try {
+      // Validate limit
+      if (limit > 50) {
+        this.setStatus(400);
+        return {
+          success: false,
+          error: {
+            code: 'INVALID_LIMIT',
+            message: 'Limit must be 50 or less',
+            details: `Received limit: ${limit}`,
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      // Check if user exists
+      const user = await this.snsService.getUserProfile(userId);
+      if (!user) {
+        this.setStatus(404);
+        return {
+          success: false,
+          error: {
+            code: 'USER_NOT_FOUND',
+            message: 'User not found',
+            details: `No user found with ID: ${userId}`,
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      // Get user posts
+      const result = await this.snsService.getUserPosts(userId, limit, cursor);
+
+      // Get author profiles for all posts
+      const postsWithAuthorInfo: any[] = [];
+      for (const post of result.items) {
+        const userProfile = await this.snsService.getUserProfile(post.authorId);
+        if (userProfile) {
+          postsWithAuthorInfo.push({
+            ...post,
+            authorName: userProfile.displayName,
+            authorUsername: userProfile.username,
+            // TODO: Check if current user liked this post
+            isLiked: false, // This should come from JWT middleware
+          });
+        }
+      }
+
+      return {
+        success: true,
+        data: {
+          items: postsWithAuthorInfo,
+          hasMore: result.hasMore,
+          nextCursor: result.nextCursor,
+          totalCount: result.totalCount || 0,
+        },
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      console.error('Error getting user posts:', error);
+      this.setStatus(500);
+      return {
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to retrieve user posts',
+          details: error instanceof Error ? error.message : 'Unknown error',
+        },
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
+}

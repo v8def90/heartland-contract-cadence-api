@@ -65,6 +65,34 @@ export interface PostData {
 }
 
 /**
+ * Create User Profile Request
+ */
+export interface CreateUserProfileRequest {
+  /** Display name */
+  displayName: string;
+  /** Username (unique) */
+  username: string;
+  /** Bio description */
+  bio?: string;
+  /** Avatar URL */
+  avatarUrl?: string;
+}
+
+/**
+ * Update User Profile Request
+ */
+export interface UpdateUserProfileRequest {
+  /** Display name */
+  displayName?: string;
+  /** Username (unique) */
+  username?: string;
+  /** Bio description */
+  bio?: string;
+  /** Avatar URL */
+  avatarUrl?: string;
+}
+
+/**
  * Comment Data
  */
 export interface CommentData {

@@ -258,6 +258,106 @@ export class SnsService {
     };
   }
 
+  /**
+   * Update user profile
+   */
+  async updateUserProfile(
+    userId: string,
+    updates: Partial<Omit<UserProfile, 'userId' | 'createdAt' | 'updatedAt'>>
+  ): Promise<void> {
+    if (!this.client) {
+      // For local development, just log the operation
+      console.log('Mock updateUserProfile:', { userId, updates });
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const updateExpression: string[] = [];
+    const expressionAttributeNames: Record<string, string> = {};
+    const expressionAttributeValues: Record<string, any> = {};
+
+    // Build update expression dynamically
+    if (updates.displayName !== undefined) {
+      updateExpression.push('#displayName = :displayName');
+      expressionAttributeNames['#displayName'] = 'displayName';
+      expressionAttributeValues[':displayName'] = updates.displayName;
+    }
+    if (updates.username !== undefined) {
+      updateExpression.push('#username = :username');
+      expressionAttributeNames['#username'] = 'username';
+      expressionAttributeValues[':username'] = updates.username;
+    }
+    if (updates.bio !== undefined) {
+      updateExpression.push('#bio = :bio');
+      expressionAttributeNames['#bio'] = 'bio';
+      expressionAttributeValues[':bio'] = updates.bio;
+    }
+    if (updates.avatarUrl !== undefined) {
+      updateExpression.push('#avatarUrl = :avatarUrl');
+      expressionAttributeNames['#avatarUrl'] = 'avatarUrl';
+      expressionAttributeValues[':avatarUrl'] = updates.avatarUrl;
+    }
+    if (updates.followerCount !== undefined) {
+      updateExpression.push('#followerCount = :followerCount');
+      expressionAttributeNames['#followerCount'] = 'followerCount';
+      expressionAttributeValues[':followerCount'] = updates.followerCount;
+    }
+    if (updates.followingCount !== undefined) {
+      updateExpression.push('#followingCount = :followingCount');
+      expressionAttributeNames['#followingCount'] = 'followingCount';
+      expressionAttributeValues[':followingCount'] = updates.followingCount;
+    }
+    if (updates.postCount !== undefined) {
+      updateExpression.push('#postCount = :postCount');
+      expressionAttributeNames['#postCount'] = 'postCount';
+      expressionAttributeValues[':postCount'] = updates.postCount;
+    }
+
+    // Always update the updatedAt timestamp
+    updateExpression.push('#updatedAt = :updatedAt');
+    expressionAttributeNames['#updatedAt'] = 'updatedAt';
+    expressionAttributeValues[':updatedAt'] = now;
+
+    if (updateExpression.length === 0) {
+      return; // No updates to perform
+    }
+
+    const command = new UpdateCommand({
+      TableName: this.tableName,
+      Key: {
+        PK: `USER#${userId}`,
+        SK: 'PROFILE',
+      },
+      UpdateExpression: `SET ${updateExpression.join(', ')}`,
+      ExpressionAttributeNames: expressionAttributeNames,
+      ExpressionAttributeValues: expressionAttributeValues,
+    });
+
+    await this.client.send(command);
+  }
+
+  /**
+   * Delete user profile
+   */
+  async deleteUserProfile(userId: string): Promise<void> {
+    if (!this.client) {
+      // For local development, just log the operation
+      console.log('Mock deleteUserProfile:', { userId });
+      return;
+    }
+
+    // Delete the user profile
+    const command = new DeleteCommand({
+      TableName: this.tableName,
+      Key: {
+        PK: `USER#${userId}`,
+        SK: 'PROFILE',
+      },
+    });
+
+    await this.client.send(command);
+  }
+
   // ===== POST OPERATIONS =====
 
   /**

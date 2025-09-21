@@ -105,7 +105,10 @@ export interface SuccessResponse<T = unknown> {
  * }
  * ```
  */
-export type ApiResponse<T = unknown> = SuccessResponse<T> | ErrorResponse;
+// ApiResponse is defined in ApiResponse.ts to avoid duplication
+
+// Re-export ApiResponse from ApiResponse.ts
+export type { ApiResponse } from './ApiResponse';
 
 /**
  * Response Models for Heart Token API
