@@ -127,6 +127,7 @@ functions:
   # Main API application
   app:
     handler: dist/lambda.handler
+    timeout: 25
     layers:
       - { Ref: RuntimeLayerLambdaLayer } # 基本ランタイム
       - { Ref: AwsSdkLayerLambdaLayer }
@@ -165,6 +166,7 @@ functions:
   # Swagger UI hosting
   swaggerUI:
     handler: dist/swagger.handler
+    timeout: 25
     layers:
       - { Ref: RuntimeLayerLambdaLayer } # 基本ランタイム
       - { Ref: WebDepsLayerLambdaLayer } # Swagger UI用
