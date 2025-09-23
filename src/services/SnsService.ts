@@ -543,9 +543,10 @@ export class SnsService {
       // Use Scan to get all posts from the main table
       const command = new ScanCommand({
         TableName: this.tableName,
-        FilterExpression: 'begins_with(PK, :postPrefix)',
+        FilterExpression: 'begins_with(PK, :postPrefix) AND SK = :metaSuffix',
         ExpressionAttributeValues: {
           ':postPrefix': 'POST#',
+          ':metaSuffix': 'META',
         },
         Limit: limit,
         ExclusiveStartKey: exclusiveStartKey,
