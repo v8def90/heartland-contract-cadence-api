@@ -21,6 +21,7 @@ import {
   Example,
   SuccessResponse,
   Response,
+  Request,
 } from 'tsoa';
 import type { ApiResponse } from '../../models/responses';
 import type {
@@ -199,9 +200,28 @@ export class UsersController extends Controller {
   })
   public async createUserProfile(
     @Path() userId: string,
-    @Body() request: CreateUserProfileRequest
+    @Body() request: CreateUserProfileRequest,
+    @Request() requestObj: any
   ): Promise<ApiResponse<UserProfile>> {
     try {
+      // Extract user ID from JWT token
+      const user = requestObj?.user;
+
+      if (!user || !user.id) {
+        this.setStatus(401);
+        return {
+          success: false,
+          error: {
+            code: 'AUTHENTICATION_ERROR',
+            message: 'Authentication required',
+            details: 'Valid JWT token is required to create user profile',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      const authenticatedUserId = user.id;
+
       // Validate userId
       if (!userId || userId.trim().length === 0) {
         this.setStatus(400);
@@ -211,6 +231,20 @@ export class UsersController extends Controller {
             code: 'INVALID_USER_ID',
             message: 'User ID is required',
             details: 'The userId parameter cannot be empty',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      // Validate that authenticated user can only create their own profile
+      if (authenticatedUserId !== userId) {
+        this.setStatus(403);
+        return {
+          success: false,
+          error: {
+            code: 'FORBIDDEN',
+            message: 'Cannot create profile for another user',
+            details: `You can only create your own profile. Authenticated user: ${authenticatedUserId}, Requested user: ${userId}`,
           },
           timestamp: new Date().toISOString(),
         };
@@ -334,9 +368,28 @@ export class UsersController extends Controller {
   })
   public async updateUserProfile(
     @Path() userId: string,
-    @Body() request: UpdateUserProfileRequest
+    @Body() request: UpdateUserProfileRequest,
+    @Request() requestObj: any
   ): Promise<ApiResponse<UserProfile>> {
     try {
+      // Extract user ID from JWT token
+      const user = requestObj?.user;
+
+      if (!user || !user.id) {
+        this.setStatus(401);
+        return {
+          success: false,
+          error: {
+            code: 'AUTHENTICATION_ERROR',
+            message: 'Authentication required',
+            details: 'Valid JWT token is required to update user profile',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      const authenticatedUserId = user.id;
+
       // Validate userId
       if (!userId || userId.trim().length === 0) {
         this.setStatus(400);
@@ -346,6 +399,20 @@ export class UsersController extends Controller {
             code: 'INVALID_USER_ID',
             message: 'User ID is required',
             details: 'The userId parameter cannot be empty',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      // Validate that authenticated user can only update their own profile
+      if (authenticatedUserId !== userId) {
+        this.setStatus(403);
+        return {
+          success: false,
+          error: {
+            code: 'FORBIDDEN',
+            message: 'Cannot update profile for another user',
+            details: `You can only update your own profile. Authenticated user: ${authenticatedUserId}, Requested user: ${userId}`,
           },
           timestamp: new Date().toISOString(),
         };
@@ -459,9 +526,28 @@ export class UsersController extends Controller {
     timestamp: '2024-01-15T11:30:00.000Z',
   })
   public async deleteUserProfile(
-    @Path() userId: string
+    @Path() userId: string,
+    @Request() requestObj: any
   ): Promise<ApiResponse<null>> {
     try {
+      // Extract user ID from JWT token
+      const user = requestObj?.user;
+
+      if (!user || !user.id) {
+        this.setStatus(401);
+        return {
+          success: false,
+          error: {
+            code: 'AUTHENTICATION_ERROR',
+            message: 'Authentication required',
+            details: 'Valid JWT token is required to delete user profile',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      const authenticatedUserId = user.id;
+
       // Validate userId
       if (!userId || userId.trim().length === 0) {
         this.setStatus(400);
@@ -471,6 +557,20 @@ export class UsersController extends Controller {
             code: 'INVALID_USER_ID',
             message: 'User ID is required',
             details: 'The userId parameter cannot be empty',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      // Validate that authenticated user can only delete their own profile
+      if (authenticatedUserId !== userId) {
+        this.setStatus(403);
+        return {
+          success: false,
+          error: {
+            code: 'FORBIDDEN',
+            message: 'Cannot delete profile for another user',
+            details: `You can only delete your own profile. Authenticated user: ${authenticatedUserId}, Requested user: ${userId}`,
           },
           timestamp: new Date().toISOString(),
         };

@@ -1285,6 +1285,7 @@ export function RegisterRoutes(app: Router) {
         const argsUsersController_createUserProfile: Record<string, TsoaRoute.ParameterSchema> = {
                 userId: {"in":"path","name":"userId","required":true,"dataType":"string"},
                 request: {"in":"body","name":"request","required":true,"ref":"CreateUserProfileRequest"},
+                requestObj: {"in":"request","name":"requestObj","required":true,"dataType":"object"},
         };
         app.post('/sns/users/:userId/profile',
             authenticateMiddleware([{"jwt":[]}]),
@@ -1317,6 +1318,7 @@ export function RegisterRoutes(app: Router) {
         const argsUsersController_updateUserProfile: Record<string, TsoaRoute.ParameterSchema> = {
                 userId: {"in":"path","name":"userId","required":true,"dataType":"string"},
                 request: {"in":"body","name":"request","required":true,"ref":"UpdateUserProfileRequest"},
+                requestObj: {"in":"request","name":"requestObj","required":true,"dataType":"object"},
         };
         app.put('/sns/users/:userId/profile',
             authenticateMiddleware([{"jwt":[]}]),
@@ -1348,6 +1350,7 @@ export function RegisterRoutes(app: Router) {
         // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
         const argsUsersController_deleteUserProfile: Record<string, TsoaRoute.ParameterSchema> = {
                 userId: {"in":"path","name":"userId","required":true,"dataType":"string"},
+                requestObj: {"in":"request","name":"requestObj","required":true,"dataType":"object"},
         };
         app.delete('/sns/users/:userId/profile',
             authenticateMiddleware([{"jwt":[]}]),
