@@ -118,8 +118,12 @@ export interface DynamoDBFollowItem {
 export class SnsService {
   private client: DynamoDBDocumentClient | null;
   private tableName: string;
+  private mockFollows: Set<string>; // For development environment
 
   constructor() {
+    // Initialize mock data storage for development
+    this.mockFollows = new Set();
+
     // For local development, skip DynamoDB client initialization
     if (process.env.NODE_ENV === 'development' || !process.env.AWS_REGION) {
       console.log(
@@ -1037,7 +1041,18 @@ export class SnsService {
    */
   async followUser(followerId: string, followingId: string): Promise<void> {
     if (!this.client) {
-      // For local development, just log the operation
+      // For local development, check if already following
+      const followKey = `${followerId}:${followingId}`;
+      if (this.mockFollows.has(followKey)) {
+        console.log('Mock followUser: Already following, skipping', {
+          followerId,
+          followingId,
+        });
+        return;
+      }
+
+      // Add to mock data
+      this.mockFollows.add(followKey);
       console.log('Mock followUser:', { followerId, followingId });
       return;
     }
@@ -1056,15 +1071,29 @@ export class SnsService {
       ttl: this.getTTL(),
     };
 
+    // Use ConditionalWrite to prevent duplicates
     const command = new PutCommand({
       TableName: this.tableName,
       Item: item,
+      ConditionExpression:
+        'attribute_not_exists(PK) AND attribute_not_exists(SK)',
     });
 
-    await this.client.send(command);
-
-    // Update follower/following counts
-    await this.updateUserFollowCounts(followerId, followingId, 1);
+    try {
+      await this.client.send(command);
+      // Only update counts if the follow was successful (not a duplicate)
+      await this.updateUserFollowCounts(followerId, followingId, 1);
+    } catch (error: any) {
+      // If it's a conditional check failure, the follow already exists
+      if (error.name === 'ConditionalCheckFailedException') {
+        console.log(
+          'Follow relationship already exists, skipping count update'
+        );
+        return;
+      }
+      // Re-throw other errors
+      throw error;
+    }
   }
 
   /**
@@ -1072,7 +1101,18 @@ export class SnsService {
    */
   async unfollowUser(followerId: string, followingId: string): Promise<void> {
     if (!this.client) {
-      // For local development, just log the operation
+      // For local development, check if following exists
+      const followKey = `${followerId}:${followingId}`;
+      if (!this.mockFollows.has(followKey)) {
+        console.log('Mock unfollowUser: Not following, skipping', {
+          followerId,
+          followingId,
+        });
+        return;
+      }
+
+      // Remove from mock data
+      this.mockFollows.delete(followKey);
       console.log('Mock unfollowUser:', { followerId, followingId });
       return;
     }
@@ -1096,8 +1136,9 @@ export class SnsService {
    */
   async isFollowing(followerId: string, followingId: string): Promise<boolean> {
     if (!this.client) {
-      // For local development, return false
-      return false;
+      // For local development, check mock data
+      const followKey = `${followerId}:${followingId}`;
+      return this.mockFollows.has(followKey);
     }
 
     const command = new GetCommand({
