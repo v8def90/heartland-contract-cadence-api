@@ -22,6 +22,12 @@ export interface UserProfile {
   bio?: string | undefined;
   /** Avatar URL */
   avatarUrl?: string | undefined;
+  /** Background image URL */
+  backgroundImageUrl?: string | undefined;
+  /** Email address */
+  email?: string | undefined;
+  /** Wallet address (Blocto address) */
+  walletAddress?: string | undefined;
   /** Follower count */
   followerCount: number;
   /** Following count */
@@ -76,6 +82,12 @@ export interface CreateUserProfileRequest {
   bio?: string;
   /** Avatar URL */
   avatarUrl?: string;
+  /** Background image URL */
+  backgroundImageUrl?: string;
+  /** Email address (required) */
+  email: string;
+  /** Wallet address (Blocto address, required) */
+  walletAddress: string;
 }
 
 /**
@@ -90,6 +102,12 @@ export interface UpdateUserProfileRequest {
   bio?: string;
   /** Avatar URL */
   avatarUrl?: string;
+  /** Background image URL */
+  backgroundImageUrl?: string;
+  /** Email address */
+  email?: string;
+  /** Wallet address (Blocto address) */
+  walletAddress?: string;
 }
 
 /**
@@ -202,6 +220,12 @@ export interface SearchUserData {
   bio?: string | undefined;
   /** Avatar URL */
   avatarUrl?: string | undefined;
+  /** Background image URL */
+  backgroundImageUrl?: string | undefined;
+  /** Email address */
+  email?: string | undefined;
+  /** Wallet address (Blocto address) */
+  walletAddress?: string | undefined;
   /** Follower count */
   followerCount: number;
   /** Following count */

@@ -40,6 +40,9 @@ export interface DynamoDBUserItem {
   username: string;
   bio?: string | undefined;
   avatarUrl?: string | undefined;
+  backgroundImageUrl?: string | undefined;
+  email?: string | undefined;
+  walletAddress?: string | undefined;
   followerCount: number;
   followingCount: number;
   postCount: number;
@@ -230,6 +233,9 @@ export class SnsService {
         username: 'mockuser',
         bio: 'This is a mock user for local development',
         avatarUrl: 'https://example.com/avatar.jpg',
+        backgroundImageUrl: 'https://example.com/background.jpg',
+        email: 'mock@example.com',
+        walletAddress: '0x1234567890abcdef',
         followerCount: 0,
         followingCount: 0,
         postCount: 0,
@@ -256,6 +262,9 @@ export class SnsService {
       username: item.username,
       bio: item.bio,
       avatarUrl: item.avatarUrl,
+      backgroundImageUrl: item.backgroundImageUrl,
+      email: item.email,
+      walletAddress: item.walletAddress,
       followerCount: item.followerCount,
       followingCount: item.followingCount,
       postCount: item.postCount,
@@ -302,6 +311,22 @@ export class SnsService {
       updateExpression.push('#avatarUrl = :avatarUrl');
       expressionAttributeNames['#avatarUrl'] = 'avatarUrl';
       expressionAttributeValues[':avatarUrl'] = updates.avatarUrl;
+    }
+    if (updates.backgroundImageUrl !== undefined) {
+      updateExpression.push('#backgroundImageUrl = :backgroundImageUrl');
+      expressionAttributeNames['#backgroundImageUrl'] = 'backgroundImageUrl';
+      expressionAttributeValues[':backgroundImageUrl'] =
+        updates.backgroundImageUrl;
+    }
+    if (updates.email !== undefined) {
+      updateExpression.push('#email = :email');
+      expressionAttributeNames['#email'] = 'email';
+      expressionAttributeValues[':email'] = updates.email;
+    }
+    if (updates.walletAddress !== undefined) {
+      updateExpression.push('#walletAddress = :walletAddress');
+      expressionAttributeNames['#walletAddress'] = 'walletAddress';
+      expressionAttributeValues[':walletAddress'] = updates.walletAddress;
     }
     if (updates.followerCount !== undefined) {
       updateExpression.push('#followerCount = :followerCount');
@@ -1415,6 +1440,9 @@ export class SnsService {
             username: 'johndoe',
             bio: 'Software developer',
             avatarUrl: 'https://example.com/avatar1.jpg',
+            backgroundImageUrl: 'https://example.com/background1.jpg',
+            email: 'john.doe@example.com',
+            walletAddress: '0x1234567890abcdef',
             followerCount: 150,
             followingCount: 200,
             postCount: 45,
@@ -1428,6 +1456,9 @@ export class SnsService {
             username: 'janesmith',
             bio: 'Designer',
             avatarUrl: 'https://example.com/avatar2.jpg',
+            backgroundImageUrl: 'https://example.com/background2.jpg',
+            email: 'jane.smith@example.com',
+            walletAddress: '0xabcdef1234567890',
             followerCount: 300,
             followingCount: 150,
             postCount: 78,
@@ -1490,6 +1521,9 @@ export class SnsService {
             username: userItem.username,
             bio: userItem.bio || undefined,
             avatarUrl: userItem.avatarUrl || undefined,
+            backgroundImageUrl: userItem.backgroundImageUrl || undefined,
+            email: userItem.email || undefined,
+            walletAddress: userItem.walletAddress || undefined,
             followerCount: userItem.followerCount,
             followingCount: userItem.followingCount,
             postCount: userItem.postCount,

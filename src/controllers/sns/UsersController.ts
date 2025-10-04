@@ -190,11 +190,24 @@ export class UsersController extends Controller {
       username: 'johndoe',
       bio: 'Software developer passionate about blockchain technology',
       avatarUrl: 'https://example.com/avatar.jpg',
+      backgroundImageUrl: 'https://example.com/background.jpg',
+      email: 'john.doe@example.com',
+      walletAddress: '0x1234567890abcdef',
       followerCount: 0,
       followingCount: 0,
       postCount: 0,
       createdAt: '2024-01-15T10:30:00.000Z',
       updatedAt: '2024-01-15T10:30:00.000Z',
+    },
+    timestamp: '2024-01-15T10:30:00.000Z',
+  })
+  @Example<ApiResponse>({
+    success: false,
+    error: {
+      code: 'VALIDATION_ERROR',
+      message: 'Display name, username, email, and wallet address are required',
+      details:
+        'displayName, username, email, and walletAddress fields are mandatory',
     },
     timestamp: '2024-01-15T10:30:00.000Z',
   })
@@ -251,14 +264,21 @@ export class UsersController extends Controller {
       }
 
       // Validate request data
-      if (!request.displayName || !request.username) {
+      if (
+        !request.displayName ||
+        !request.username ||
+        !request.email ||
+        !request.walletAddress
+      ) {
         this.setStatus(400);
         return {
           success: false,
           error: {
             code: 'VALIDATION_ERROR',
-            message: 'Display name and username are required',
-            details: 'Both displayName and username fields are mandatory',
+            message:
+              'Display name, username, email, and wallet address are required',
+            details:
+              'displayName, username, email, and walletAddress fields are mandatory',
           },
           timestamp: new Date().toISOString(),
         };
@@ -288,6 +308,9 @@ export class UsersController extends Controller {
         username: request.username,
         bio: request.bio,
         avatarUrl: request.avatarUrl,
+        backgroundImageUrl: request.backgroundImageUrl,
+        email: request.email,
+        walletAddress: request.walletAddress,
         followerCount: 0,
         followingCount: 0,
         postCount: 0,
@@ -358,6 +381,9 @@ export class UsersController extends Controller {
       username: 'johndoe',
       bio: 'Senior Software developer passionate about blockchain technology',
       avatarUrl: 'https://example.com/new-avatar.jpg',
+      backgroundImageUrl: 'https://example.com/new-background.jpg',
+      email: 'john.doe.updated@example.com',
+      walletAddress: '0x1234567890abcdef',
       followerCount: 150,
       followingCount: 75,
       postCount: 42,
@@ -438,7 +464,10 @@ export class UsersController extends Controller {
         !request.displayName &&
         !request.username &&
         !request.bio &&
-        !request.avatarUrl
+        !request.avatarUrl &&
+        !request.backgroundImageUrl &&
+        !request.email &&
+        !request.walletAddress
       ) {
         this.setStatus(400);
         return {
@@ -447,7 +476,7 @@ export class UsersController extends Controller {
             code: 'VALIDATION_ERROR',
             message: 'At least one field must be provided for update',
             details:
-              'At least one of displayName, username, bio, or avatarUrl must be provided',
+              'At least one of displayName, username, bio, avatarUrl, backgroundImageUrl, email, or walletAddress must be provided',
           },
           timestamp: new Date().toISOString(),
         };
@@ -464,6 +493,11 @@ export class UsersController extends Controller {
       if (request.bio !== undefined) updateData.bio = request.bio;
       if (request.avatarUrl !== undefined)
         updateData.avatarUrl = request.avatarUrl;
+      if (request.backgroundImageUrl !== undefined)
+        updateData.backgroundImageUrl = request.backgroundImageUrl;
+      if (request.email !== undefined) updateData.email = request.email;
+      if (request.walletAddress !== undefined)
+        updateData.walletAddress = request.walletAddress;
 
       await this.snsService.updateUserProfile(userId, updateData);
 
