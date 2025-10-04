@@ -24,10 +24,10 @@ export interface UserProfile {
   avatarUrl?: string | undefined;
   /** Background image URL */
   backgroundImageUrl?: string | undefined;
-  /** Email address */
-  email?: string | undefined;
-  /** Wallet address (Blocto address) */
-  walletAddress?: string | undefined;
+  /** Email address (required) */
+  email: string;
+  /** Wallet address (Blocto address, required) */
+  walletAddress: string;
   /** Follower count */
   followerCount: number;
   /** Following count */
@@ -222,10 +222,10 @@ export interface SearchUserData {
   avatarUrl?: string | undefined;
   /** Background image URL */
   backgroundImageUrl?: string | undefined;
-  /** Email address */
-  email?: string | undefined;
-  /** Wallet address (Blocto address) */
-  walletAddress?: string | undefined;
+  /** Email address (required) */
+  email: string;
+  /** Wallet address (Blocto address, required) */
+  walletAddress: string;
   /** Follower count */
   followerCount: number;
   /** Following count */
