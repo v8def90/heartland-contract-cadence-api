@@ -1,0 +1,12 @@
+{
+  "name": "sharp-layer",
+  "version": "1.0.0",
+  "description": "Sharp library for image processing in Lambda",
+  "main": "index.js",
+  "dependencies": {
+    "sharp": "^0.33.0"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}

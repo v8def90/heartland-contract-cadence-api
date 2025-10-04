@@ -20,6 +20,10 @@ provider:
     # DynamoDB resources
     SNS_TABLE_NAME:
       Ref: SnsTable
+    # S3 resources
+    S3_BUCKET_NAME:
+      Ref: AppAssetsBucket
+    # CLOUDFRONT_DOMAIN: 後で追加
   # logs:
   #   httpApi: true
   tracing:
@@ -34,6 +38,7 @@ provider:
         - sqs:GetQueueUrl
       Resource:
         - !GetAtt TransactionQueue.Arn
+        - !GetAtt ImageProcessingDLQ.Arn
     - Effect: Allow
       Action:
         - logs:CreateLogGroup
@@ -55,6 +60,21 @@ provider:
       Resource:
         - !GetAtt SnsTable.Arn
         - !Sub '${SnsTable.Arn}/index/*'
+    - Effect: Allow
+      Action:
+        - s3:GetObject
+        - s3:PutObject
+        - s3:DeleteObject
+        - s3:ListBucket
+        - s3:GetObjectVersion
+        - s3:DeleteObjectVersion
+      Resource:
+        - !GetAtt AppAssetsBucket.Arn
+        - !Sub '${AppAssetsBucket.Arn}/*'
+    - Effect: Allow
+      Action:
+        - cloudfront:CreateInvalidation
+      Resource: '*'
 
 plugins:
   - serverless-offline
@@ -123,6 +143,21 @@ layers:
         - '!**/test/**'
         - '!**/*.map'
 
+  # Sharp画像処理 Layer - 一時的に無効化（サイズ制限のため）
+  # sharpLayer:
+  #   path: layers/sharp
+  #   name: ${self:service}-sharp-${self:provider.stage}
+  #   description: Sharp library for image processing
+  #   compatibleRuntimes:
+  #     - nodejs22.x
+  #   retain: false
+  #   package:
+  #     patterns:
+  #       - nodejs/**
+  #       - '!**/README.md'
+  #       - '!**/test/**'
+  #       - '!**/*.map'
+
 functions:
   # Main API application
   app:
@@ -177,6 +212,65 @@ functions:
       - httpApi:
           path: /docs/{proxy+}
           method: get
+
+  # 画像アップロード用プリサインURL発行
+  uploadPresign:
+    handler: dist/handlers/uploadPresign.handler
+    timeout: 30
+    memorySize: 512
+    layers:
+      - { Ref: RuntimeLayerLambdaLayer }
+      - { Ref: AwsSdkLayerLambdaLayer }
+    events:
+      - httpApi:
+          path: /sns/users/{userId}/upload/{imageType}
+          method: post
+    environment:
+      S3_BUCKET_NAME:
+        Ref: AppAssetsBucket
+
+  # 画像処理Lambda
+  imageProcessor:
+    handler: dist/workers/imageProcessor.handler
+    timeout: 60
+    memorySize: 2048
+    layers:
+      - { Ref: RuntimeLayerLambdaLayer }
+      - { Ref: AwsSdkLayerLambdaLayer }
+      # - { Ref: SharpLayerLambdaLayer } # 一時的に無効化
+    events:
+      - s3:
+          bucket: !Ref AppAssetsBucket
+          event: s3:ObjectCreated:*
+          rules:
+            - prefix: uploads/
+            - suffix: .orig
+          existing: true
+    onError: !GetAtt ImageProcessingDLQ.Arn
+    environment:
+      S3_BUCKET_NAME:
+        Ref: AppAssetsBucket
+      SNS_TABLE_NAME:
+        Ref: SnsTable
+
+  # 画像削除Lambda
+  imageCleanup:
+    handler: dist/workers/imageCleanup.handler
+    timeout: 30
+    memorySize: 512
+    layers:
+      - { Ref: RuntimeLayerLambdaLayer }
+      - { Ref: AwsSdkLayerLambdaLayer }
+    events:
+      - stream:
+          type: dynamodb
+          arn: !GetAtt SnsTable.StreamArn
+          filterPatterns:
+            - eventName: [REMOVE]
+            - dynamodb:
+                Keys:
+                  SK:
+                    S: [PROFILE]
 
 resources:
   Resources:
@@ -283,6 +377,53 @@ resources:
         TimeToLiveSpecification:
           AttributeName: ttl
           Enabled: true
+        StreamSpecification:
+          StreamViewType: NEW_AND_OLD_IMAGES
+
+    # S3 Bucket for App Assets (簡素化版)
+    AppAssetsBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:service}-app-assets-${self:provider.stage}-v5
+        CorsConfiguration:
+          CorsRules:
+            - AllowedOrigins: ['*']
+              AllowedMethods: [GET, PUT, POST, DELETE]
+              AllowedHeaders: ['*']
+              MaxAge: 3600
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: false
+          BlockPublicPolicy: false
+          IgnorePublicAcls: false
+          RestrictPublicBuckets: false
+      DeletionPolicy: Retain
+
+    # CloudFront設定は後で追加（IAM権限が必要）
+
+    # DLQ for image processing
+    ImageProcessingDLQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:service}-image-processing-dlq-${self:provider.stage}
+        MessageRetentionPeriod: 1209600 # 14 days
+
+    # CloudWatch Alarm for image processing failures - 一時的に無効化（権限不足）
+    # ImageProcessingFailureAlarm:
+    #   Type: AWS::CloudWatch::Alarm
+    #   Properties:
+    #     AlarmName: ${self:service}-image-processing-failures-${self:provider.stage}
+    #     AlarmDescription: Alert when image processing fails
+    #     MetricName: ApproximateNumberOfMessagesVisible
+    #     Namespace: AWS/SQS
+    #     Statistic: Average
+    #     Period: 300
+    #     EvaluationPeriods: 1
+    #     Threshold: 1
+    #     ComparisonOperator: GreaterThanThreshold
+    #     Dimensions:
+    #       - Name: QueueName
+    #         Value: !Ref ImageProcessingDLQ
+    #     TreatMissingData: notBreaching
 
 custom:
   serverless-offline:
