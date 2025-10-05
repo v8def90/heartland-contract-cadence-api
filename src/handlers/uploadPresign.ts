@@ -7,6 +7,7 @@
 
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { UploadController } from '../controllers/sns/UploadController';
+import jwt from 'jsonwebtoken';
 
 /**
  * Lambda handler for presigned URL generation
@@ -70,12 +71,74 @@ export const handler = async (
       };
     }
 
+    // Authenticate JWT token
+    const authHeader =
+      event.headers.authorization || event.headers.Authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return {
+        statusCode: 401,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+          'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
+        },
+        body: JSON.stringify({
+          success: false,
+          error: {
+            code: 'AUTHENTICATION_ERROR',
+            message: 'Authentication required',
+            details: 'Authorization header with Bearer token is required',
+          },
+          timestamp: new Date().toISOString(),
+        }),
+      };
+    }
+
+    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+
+    // Verify JWT token directly
+    const JWT_SECRET =
+      process.env.JWT_SECRET ||
+      'your-super-secret-jwt-key-change-this-in-production';
+    let payload;
+    try {
+      payload = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] }) as any;
+    } catch (error) {
+      payload = null;
+    }
+
+    if (!payload) {
+      return {
+        statusCode: 401,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+          'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
+        },
+        body: JSON.stringify({
+          success: false,
+          error: {
+            code: 'AUTHENTICATION_ERROR',
+            message: 'Invalid or expired token',
+            details: 'JWT token verification failed',
+          },
+          timestamp: new Date().toISOString(),
+        }),
+      };
+    }
+
     // Create controller instance
     const controller = new UploadController();
 
-    // Mock the request object for the controller
-    const mockRequest = {
-      user: { id: 'mock-user-id' }, // Mock user for now
+    // Create authenticated request object for the controller
+    const authenticatedRequest = {
+      user: {
+        id: payload.sub,
+        address: payload.address,
+        role: payload.role,
+      },
       headers: event.headers,
       body: requestBody,
     };
@@ -85,7 +148,7 @@ export const handler = async (
       userId,
       imageType as 'avatar' | 'background',
       requestBody,
-      mockRequest
+      authenticatedRequest
     );
 
     // Determine status code from controller response

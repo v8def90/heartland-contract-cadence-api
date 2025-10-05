@@ -144,6 +144,7 @@ layers:
         - '!**/*.map'
 
   # Sharp画像処理 Layer - 一時的に無効化（サイズ制限のため）
+  # Sharp画像処理 Layer - サイズ制限のため無効化
   # sharpLayer:
   #   path: layers/sharp
   #   name: ${self:service}-sharp-${self:provider.stage}
@@ -237,7 +238,7 @@ functions:
     layers:
       - { Ref: RuntimeLayerLambdaLayer }
       - { Ref: AwsSdkLayerLambdaLayer }
-      # - { Ref: SharpLayerLambdaLayer } # 一時的に無効化
+      # - { Ref: SharpLayerLambdaLayer } # サイズ制限のため無効化
     events:
       - s3:
           bucket: !Ref AppAssetsBucket
