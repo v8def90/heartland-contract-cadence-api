@@ -24,6 +24,8 @@ import { BatchTransferController } from './controllers/transactions/BatchTransfe
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { UsersController } from './controllers/sns/UsersController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { UploadController } from './controllers/sns/UploadController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { SearchController } from './controllers/sns/SearchController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { PostsController } from './controllers/sns/PostsController';
@@ -316,6 +318,94 @@ const models: TsoaRoute.Models = {
     "PostListResponse": {
         "dataType": "refAlias",
         "type": {"ref":"ApiResponse_PaginatedData_PostData__","validators":{}},
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "Record_string.string_": {
+        "dataType": "refAlias",
+        "type": {"dataType":"nestedObjectLiteral","nestedProperties":{},"additionalProperties":{"dataType":"string"},"validators":{}},
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "PresignedUrlData": {
+        "dataType": "refObject",
+        "properties": {
+            "uploadId": {"dataType":"string","required":true},
+            "presignedUrl": {"dataType":"string","required":true},
+            "bucketName": {"dataType":"string","required":true},
+            "objectKey": {"dataType":"string","required":true},
+            "expiresAt": {"dataType":"string","required":true},
+            "fields": {"ref":"Record_string.string_","required":true},
+        },
+        "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "SuccessResponse_PresignedUrlData_": {
+        "dataType": "refObject",
+        "properties": {
+            "success": {"dataType":"enum","enums":[true],"required":true},
+            "data": {"ref":"PresignedUrlData","required":true},
+            "timestamp": {"dataType":"string","required":true},
+        },
+        "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "ApiResponse_PresignedUrlData_": {
+        "dataType": "refAlias",
+        "type": {"dataType":"union","subSchemas":[{"ref":"SuccessResponse_PresignedUrlData_"},{"ref":"ErrorResponse"}],"validators":{}},
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "PresignedUrlResponse": {
+        "dataType": "refAlias",
+        "type": {"ref":"ApiResponse_PresignedUrlData_","validators":{}},
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "ImageType": {
+        "dataType": "refAlias",
+        "type": {"dataType":"union","subSchemas":[{"dataType":"enum","enums":["avatar"]},{"dataType":"enum","enums":["background"]}],"validators":{}},
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "PresignedUrlRequest": {
+        "dataType": "refObject",
+        "properties": {
+            "fileType": {"dataType":"string","required":true},
+            "fileSize": {"dataType":"double","required":true},
+            "contentType": {"dataType":"string","required":true},
+        },
+        "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "UploadStatusData": {
+        "dataType": "refObject",
+        "properties": {
+            "uploadId": {"dataType":"string","required":true},
+            "status": {"dataType":"union","subSchemas":[{"dataType":"enum","enums":["pending"]},{"dataType":"enum","enums":["uploading"]},{"dataType":"enum","enums":["processing"]},{"dataType":"enum","enums":["completed"]},{"dataType":"enum","enums":["failed"]}],"required":true},
+            "imageType": {"dataType":"union","subSchemas":[{"dataType":"enum","enums":["avatar"]},{"dataType":"enum","enums":["background"]}],"required":true},
+            "userId": {"dataType":"string","required":true},
+            "createdAt": {"dataType":"string","required":true},
+            "updatedAt": {"dataType":"string","required":true},
+            "error": {"dataType":"string"},
+            "processedUrls": {"dataType":"nestedObjectLiteral","nestedProperties":{"large":{"dataType":"string"},"medium":{"dataType":"string"},"small":{"dataType":"string"}}},
+        },
+        "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "SuccessResponse_UploadStatusData_": {
+        "dataType": "refObject",
+        "properties": {
+            "success": {"dataType":"enum","enums":[true],"required":true},
+            "data": {"ref":"UploadStatusData","required":true},
+            "timestamp": {"dataType":"string","required":true},
+        },
+        "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "ApiResponse_UploadStatusData_": {
+        "dataType": "refAlias",
+        "type": {"dataType":"union","subSchemas":[{"ref":"SuccessResponse_UploadStatusData_"},{"ref":"ErrorResponse"}],"validators":{}},
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "UploadStatusResponse": {
+        "dataType": "refAlias",
+        "type": {"ref":"ApiResponse_UploadStatusData_","validators":{}},
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     "SearchUserData": {
@@ -1413,6 +1503,73 @@ export function RegisterRoutes(app: Router) {
 
               await templateService.apiHandler({
                 methodName: 'getUserPosts',
+                controller,
+                response,
+                next,
+                validatedArgs,
+                successStatus: 200,
+              });
+            } catch (err) {
+                return next(err);
+            }
+        });
+        // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+        const argsUploadController_generatePresignedUrl: Record<string, TsoaRoute.ParameterSchema> = {
+                userId: {"in":"path","name":"userId","required":true,"dataType":"string"},
+                imageType: {"in":"path","name":"imageType","required":true,"ref":"ImageType"},
+                request: {"in":"body","name":"request","required":true,"ref":"PresignedUrlRequest"},
+                requestObj: {"in":"request","name":"requestObj","required":true,"dataType":"object"},
+        };
+        app.post('/sns/users/:userId/upload/:imageType',
+            authenticateMiddleware([{"jwt":[]}]),
+            ...(fetchMiddlewares<RequestHandler>(UploadController)),
+            ...(fetchMiddlewares<RequestHandler>(UploadController.prototype.generatePresignedUrl)),
+
+            async function UploadController_generatePresignedUrl(request: ExRequest, response: ExResponse, next: any) {
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({ args: argsUploadController_generatePresignedUrl, request, response });
+
+                const controller = new UploadController();
+
+              await templateService.apiHandler({
+                methodName: 'generatePresignedUrl',
+                controller,
+                response,
+                next,
+                validatedArgs,
+                successStatus: 200,
+              });
+            } catch (err) {
+                return next(err);
+            }
+        });
+        // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+        const argsUploadController_getUploadStatus: Record<string, TsoaRoute.ParameterSchema> = {
+                userId: {"in":"path","name":"userId","required":true,"dataType":"string"},
+                uploadId: {"in":"path","name":"uploadId","required":true,"dataType":"string"},
+                requestObj: {"in":"request","name":"requestObj","required":true,"dataType":"object"},
+        };
+        app.get('/sns/users/:userId/upload/status/:uploadId',
+            authenticateMiddleware([{"jwt":[]}]),
+            ...(fetchMiddlewares<RequestHandler>(UploadController)),
+            ...(fetchMiddlewares<RequestHandler>(UploadController.prototype.getUploadStatus)),
+
+            async function UploadController_getUploadStatus(request: ExRequest, response: ExResponse, next: any) {
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({ args: argsUploadController_getUploadStatus, request, response });
+
+                const controller = new UploadController();
+
+              await templateService.apiHandler({
+                methodName: 'getUploadStatus',
                 controller,
                 response,
                 next,
