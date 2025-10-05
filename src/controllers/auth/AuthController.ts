@@ -24,10 +24,12 @@ import type { ApiResponse } from '../../models/responses/ApiResponse';
 import type {
   AuthData,
   TokenVerificationData,
+  BloctoAuthData,
 } from '../../models/responses/index';
 import type {
   LoginRequest,
   VerifyTokenRequest,
+  BloctoAuthRequest,
 } from '../../models/requests/index';
 import {
   generateJwtToken,
@@ -35,6 +37,7 @@ import {
   type JwtPayload,
 } from '../../middleware/passport';
 import { v4 as uuidv4 } from 'uuid';
+import { BloctoAuthService } from '../../services/BloctoAuthService';
 
 /**
  * Authentication Controller
@@ -51,6 +54,12 @@ import { v4 as uuidv4 } from 'uuid';
 @Route('auth')
 @Tags('Authentication')
 export class AuthController extends Controller {
+  private bloctoAuthService: BloctoAuthService;
+
+  constructor() {
+    super();
+    this.bloctoAuthService = BloctoAuthService.getInstance();
+  }
   /**
    * User login and token generation
    *
@@ -431,6 +440,164 @@ export class AuthController extends Controller {
         error: {
           code: 'INTERNAL_SERVER_ERROR',
           message: 'Token refresh failed',
+          details:
+            error instanceof Error ? error.message : 'Unknown error occurred',
+        },
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
+
+  /**
+   * Blocto wallet authentication
+   *
+   * @description Authenticates a user using Blocto wallet signature verification.
+   * This endpoint provides enhanced security with signature verification, timestamp validation,
+   * and nonce-based replay attack protection.
+   *
+   * @param request - Blocto authentication request with signature and metadata
+   * @returns Promise resolving to Blocto authentication data with JWT token
+   *
+   * @example
+   * ```typescript
+   * const bloctoRequest: BloctoAuthRequest = {
+   *   address: "0x58f9e6153690c852",
+   *   signature: "abc123...",
+   *   message: "Login to Heart Token API\nNonce: unique-nonce-123\nTimestamp: 1640995200000",
+   *   timestamp: 1640995200000,
+   *   nonce: "unique-nonce-123"
+   * };
+   * const result = await authController.bloctoLogin(bloctoRequest);
+   * ```
+   */
+  @Post('blocto-login')
+  @SuccessResponse('200', 'Blocto authentication successful')
+  @Response<ApiResponse>('400', 'Invalid request')
+  @Response<ApiResponse>('401', 'Authentication failed')
+  @Example<ApiResponse<BloctoAuthData>>({
+    success: true,
+    data: {
+      token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+      expiresIn: 86400,
+      address: '0x58f9e6153690c852',
+      role: 'user',
+      issuedAt: '2024-01-01T00:00:00.000Z',
+      walletType: 'blocto',
+      bloctoMetadata: {
+        appId: 'heart-token-api',
+        walletVersion: '1.0.0',
+        deviceType: 'web',
+      },
+    },
+    timestamp: '2024-01-01T00:00:00.000Z',
+  })
+  @Example<ApiResponse>({
+    success: false,
+    error: {
+      code: 'AUTHENTICATION_ERROR',
+      message: 'Invalid signature',
+      details: 'The provided signature could not be verified',
+    },
+    timestamp: '2024-01-01T00:00:00.000Z',
+  })
+  public async bloctoLogin(
+    @Body() request: BloctoAuthRequest
+  ): Promise<ApiResponse<BloctoAuthData>> {
+    try {
+      // Verify Blocto signature and authenticate user
+      const result = await this.bloctoAuthService.verifySignature(request);
+
+      if (!result.success) {
+        this.setStatus(401);
+        return {
+          success: false,
+          error: {
+            code: 'AUTHENTICATION_ERROR',
+            message: result.error,
+            details: 'Blocto wallet signature verification failed',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      this.setStatus(200);
+      return {
+        success: true,
+        data: result.data,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      console.error('Blocto login error:', error);
+      this.setStatus(500);
+      return {
+        success: false,
+        error: {
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Blocto authentication failed',
+          details:
+            error instanceof Error ? error.message : 'Unknown error occurred',
+        },
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
+
+  /**
+   * Generate nonce for Blocto authentication
+   *
+   * @description Generates a unique nonce for secure Blocto wallet authentication.
+   * The nonce should be included in the message that gets signed by the user's wallet.
+   *
+   * @returns Promise resolving to nonce data
+   *
+   * @example
+   * ```typescript
+   * const nonceResult = await authController.generateNonce();
+   * // Use nonceResult.data.nonce in the authentication message
+   * ```
+   */
+  @Post('generate-nonce')
+  @SuccessResponse('200', 'Nonce generated successfully')
+  @Response<ApiResponse>('500', 'Nonce generation failed')
+  @Example<ApiResponse<{ nonce: string; message: string; timestamp: number }>>({
+    success: true,
+    data: {
+      nonce: '550e8400-e29b-41d4-a716-446655440000',
+      message:
+        'Login to Heart Token API\nNonce: 550e8400-e29b-41d4-a716-446655440000\nTimestamp: 1640995200000',
+      timestamp: 1640995200000,
+    },
+    timestamp: '2024-01-01T00:00:00.000Z',
+  })
+  public async generateNonce(): Promise<
+    ApiResponse<{ nonce: string; message: string; timestamp: number }>
+  > {
+    try {
+      const nonce = this.bloctoAuthService.generateNonce();
+      const timestamp = Date.now();
+      const message = this.bloctoAuthService.generateAuthMessage(
+        nonce,
+        timestamp
+      );
+
+      this.setStatus(200);
+      return {
+        success: true,
+        data: {
+          nonce,
+          message,
+          timestamp,
+        },
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      console.error('Nonce generation error:', error);
+      this.setStatus(500);
+      return {
+        success: false,
+        error: {
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Nonce generation failed',
           details:
             error instanceof Error ? error.message : 'Unknown error occurred',
         },

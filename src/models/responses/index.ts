@@ -596,8 +596,8 @@ export interface BloctoAuthData extends AuthData {
   walletType: 'blocto';
   /** Blocto-specific metadata */
   bloctoMetadata?: {
-    appId?: string;
-    walletVersion?: string;
-    deviceType?: string;
+    appId?: string | undefined;
+    walletVersion?: string | undefined;
+    deviceType?: string | undefined;
   };
 }
