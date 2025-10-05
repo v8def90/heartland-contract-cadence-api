@@ -273,6 +273,28 @@ functions:
                   SK:
                     S: [PROFILE]
 
+  # ジョブ追跡API
+  jobTracking:
+    handler: dist/handlers/jobTracking.handler
+    timeout: 30
+    memorySize: 512
+    layers:
+      - { Ref: RuntimeLayerLambdaLayer }
+      - { Ref: AwsSdkLayerLambdaLayer }
+    events:
+      - httpApi:
+          path: /sns/jobs
+          method: post
+      - httpApi:
+          path: /sns/jobs/{jobId}
+          method: get
+      - httpApi:
+          path: /sns/jobs/{jobId}
+          method: put
+      - httpApi:
+          path: /sns/jobs/user/{userId}
+          method: get
+
 resources:
   Resources:
     # SQS Queue for Transaction Processing

@@ -20,6 +20,7 @@ import {
 } from '@aws-sdk/lib-dynamodb';
 import sharp from 'sharp';
 import { v4 as uuidv4 } from 'uuid';
+import { JobService } from '../services/JobService';
 
 interface ImageMetadata {
   userId: string;
@@ -47,15 +48,66 @@ export const handler = async (event: S3Event): Promise<void> => {
       region: process.env.AWS_REGION || 'ap-northeast-1',
     })
   );
+  const jobService = new JobService();
 
   const bucketName = process.env.S3_BUCKET_NAME || '';
   const tableName = process.env.SNS_TABLE_NAME || '';
 
   for (const record of event.Records) {
+    let jobId: string | null = null;
     try {
-      await processImage(record, s3Client, dynamoClient, bucketName, tableName);
+      // Create job for tracking
+      const metadata = await getImageMetadata(
+        s3Client,
+        bucketName,
+        record.s3.object.key
+      );
+      if (metadata) {
+        const job = await jobService.createJob({
+          userId: metadata.userId,
+          jobType: 'image_processing',
+          metadata: {
+            imageType: metadata.imageType,
+            uploadId: metadata.uploadId,
+            originalFileName: metadata.originalFileType,
+          },
+        });
+        jobId = job.jobId;
+
+        // Update job status to processing
+        await jobService.updateJob(jobId, {
+          status: 'processing',
+          progress: 10,
+          message: 'Starting image processing',
+        });
+      }
+
+      await processImage(
+        record,
+        s3Client,
+        dynamoClient,
+        bucketName,
+        tableName,
+        jobService,
+        jobId
+      );
     } catch (error) {
       console.error('Error processing image:', error);
+
+      // Update job status to failed if job exists
+      if (jobId) {
+        try {
+          await jobService.updateJob(jobId, {
+            status: 'failed',
+            progress: 0,
+            error:
+              error instanceof Error ? error.message : 'Unknown error occurred',
+          });
+        } catch (jobError) {
+          console.error('Error updating job status:', jobError);
+        }
+      }
+
       // Continue processing other images even if one fails
     }
   }
@@ -66,7 +118,9 @@ async function processImage(
   s3Client: S3Client,
   dynamoClient: DynamoDBDocumentClient,
   bucketName: string,
-  tableName: string
+  tableName: string,
+  jobService: JobService,
+  jobId: string | null
 ): Promise<void> {
   const objectKey = record.s3.object.key;
   console.log('Processing image:', objectKey);
@@ -87,8 +141,26 @@ async function processImage(
     return;
   }
 
+  // Update job progress
+  if (jobId) {
+    await jobService.updateJob(jobId, {
+      status: 'processing',
+      progress: 30,
+      message: 'Processing image with Sharp',
+    });
+  }
+
   // Process image with Sharp
   const processedImages = await processImageWithSharp(originalImage, metadata);
+
+  // Update job progress
+  if (jobId) {
+    await jobService.updateJob(jobId, {
+      status: 'processing',
+      progress: 60,
+      message: 'Uploading processed images',
+    });
+  }
 
   // Upload processed images to S3
   const version = generateVersion();
@@ -100,17 +172,43 @@ async function processImage(
     version
   );
 
+  // Update job progress
+  if (jobId) {
+    await jobService.updateJob(jobId, {
+      status: 'processing',
+      progress: 80,
+      message: 'Updating user profile',
+    });
+  }
+
   // Update user profile with new image URLs
   await updateUserProfile(dynamoClient, tableName, metadata, uploadedUrls);
 
   // Delete original uploaded file
   await deleteOriginalFile(s3Client, bucketName, objectKey);
 
+  // Update job to completed
+  if (jobId) {
+    await jobService.updateJob(jobId, {
+      status: 'completed',
+      progress: 100,
+      message: 'Image processing completed successfully',
+      metadata: {
+        imageType: metadata.imageType,
+        uploadId: metadata.uploadId,
+        originalFileName: metadata.originalFileType,
+        processedSizes: Object.keys(uploadedUrls),
+        imageUrls: uploadedUrls,
+      },
+    });
+  }
+
   console.log('Image processing completed:', {
     uploadId: metadata.uploadId,
     userId: metadata.userId,
     imageType: metadata.imageType,
     uploadedUrls,
+    jobId,
   });
 }
 
