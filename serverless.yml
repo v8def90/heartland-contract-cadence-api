@@ -430,22 +430,56 @@ resources:
         QueueName: ${self:service}-image-processing-dlq-${self:provider.stage}
         MessageRetentionPeriod: 1209600 # 14 days
 
-    # CloudWatch Alarm for image processing failures - 一時的に無効化（権限不足）
+    # CloudWatch Alarms for image processing monitoring - 一時的に無効化（権限不足）
     # ImageProcessingFailureAlarm:
     #   Type: AWS::CloudWatch::Alarm
     #   Properties:
     #     AlarmName: ${self:service}-image-processing-failures-${self:provider.stage}
-    #     AlarmDescription: Alert when image processing fails
-    #     MetricName: ApproximateNumberOfMessagesVisible
+    #     AlarmDescription: Alert when image processing failures occur
+    #     MetricName: Errors
+    #     Namespace: AWS/Lambda
+    #     Statistic: Sum
+    #     Period: 300
+    #     EvaluationPeriods: 1
+    #     Threshold: 5
+    #     ComparisonOperator: GreaterThanThreshold
+    #     Dimensions:
+    #       - Name: FunctionName
+    #         Value: !Ref ImageProcessorLambdaFunction
+    #     TreatMissingData: notBreaching
+
+    # ImageProcessingDurationAlarm:
+    #   Type: AWS::CloudWatch::Alarm
+    #   Properties:
+    #     AlarmName: ${self:service}-image-processing-duration-${self:provider.stage}
+    #     AlarmDescription: Alert when image processing takes too long
+    #     MetricName: Duration
+    #     Namespace: AWS/Lambda
+    #     Statistic: Average
+    #     Period: 300
+    #     EvaluationPeriods: 2
+    #     Threshold: 45000  # 45 seconds
+    #     ComparisonOperator: GreaterThanThreshold
+    #     Dimensions:
+    #       - Name: FunctionName
+    #         Value: !Ref ImageProcessorLambdaFunction
+    #     TreatMissingData: notBreaching
+
+    # DLQMessageAlarm:
+    #   Type: AWS::CloudWatch::Alarm
+    #   Properties:
+    #     AlarmName: ${self:service}-dlq-messages-${self:provider.stage}
+    #     AlarmDescription: Alert when messages are sent to DLQ
+    #     MetricName: ApproximateNumberOfVisibleMessages
     #     Namespace: AWS/SQS
     #     Statistic: Average
     #     Period: 300
     #     EvaluationPeriods: 1
     #     Threshold: 1
-    #     ComparisonOperator: GreaterThanThreshold
+    #     ComparisonOperator: GreaterThanOrEqualToThreshold
     #     Dimensions:
     #       - Name: QueueName
-    #         Value: !Ref ImageProcessingDLQ
+    #         Value: !GetAtt ImageProcessingDLQ.QueueName
     #     TreatMissingData: notBreaching
 
 custom:
