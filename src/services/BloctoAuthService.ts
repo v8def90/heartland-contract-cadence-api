@@ -13,6 +13,8 @@ import { createHash, createHmac } from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import type { BloctoAuthRequest } from '../models/requests/index';
 import type { BloctoAuthData } from '../models/responses/index';
+import { NonceService } from './NonceService';
+import type { NonceStats } from '../models/flow/NonceItem';
 
 /**
  * Blocto Authentication Service
@@ -29,16 +31,11 @@ import type { BloctoAuthData } from '../models/responses/index';
  */
 export class BloctoAuthService {
   private static instance: BloctoAuthService;
-  private readonly nonceStore: Map<
-    string,
-    { timestamp: number; used: boolean }
-  >;
-  private readonly nonceExpiry: number;
+  private readonly nonceService: NonceService;
   private readonly timestampTolerance: number;
 
   private constructor() {
-    this.nonceStore = new Map();
-    this.nonceExpiry = 5 * 60 * 1000; // 5 minutes
+    this.nonceService = new NonceService();
     this.timestampTolerance = 2 * 60 * 1000; // 2 minutes
   }
 
@@ -109,13 +106,16 @@ export class BloctoAuthService {
       }
 
       // 3. Validate and manage nonce (prevent replay attacks)
-      const nonceError = this.validateNonce(request.nonce);
-      if (nonceError) {
+      const nonceValid = await this.nonceService.validateNonce({
+        nonce: request.nonce!,
+        currentTimestamp: request.timestamp,
+      });
+      if (!nonceValid) {
         console.log(
-          'BloctoAuthService.verifySignature - Nonce error:',
-          nonceError
+          'BloctoAuthService.verifySignature - Nonce validation failed:',
+          request.nonce
         );
-        return { success: false, error: nonceError };
+        return { success: false, error: 'Invalid or expired nonce' };
       }
 
       // 4. Verify Flow address format
@@ -144,9 +144,18 @@ export class BloctoAuthService {
       }
 
       console.log(
-        'BloctoAuthService.verifySignature - Signature verified, generating auth data...'
+        'BloctoAuthService.verifySignature - Signature verified, marking nonce as used...'
       );
-      // 6. Generate JWT token
+      // 6. Mark nonce as used
+      await this.nonceService.markNonceAsUsed({
+        nonce: request.nonce!,
+        usedAt: Date.now(),
+      });
+
+      console.log(
+        'BloctoAuthService.verifySignature - Nonce marked as used, generating auth data...'
+      );
+      // 7. Generate JWT token
       const authData = await this.generateAuthData(request);
 
       console.log('BloctoAuthService.verifySignature - Success');
@@ -166,25 +175,16 @@ export class BloctoAuthService {
    * @description Creates a unique nonce for replay attack protection.
    * The nonce should be included in the message that gets signed.
    *
-   * @returns Unique nonce string
+   * @returns Promise resolving to unique nonce string
    *
    * @example
    * ```typescript
-   * const nonce = authService.generateNonce();
+   * const nonce = await authService.generateNonce();
    * const message = `Login to Heart Token API\nNonce: ${nonce}\nTimestamp: ${Date.now()}`;
    * ```
    */
-  public generateNonce(): string {
-    const nonce = uuidv4();
-    const timestamp = Date.now();
-
-    // Store nonce with timestamp
-    this.nonceStore.set(nonce, { timestamp, used: false });
-
-    // Clean up expired nonces
-    this.cleanupExpiredNonces();
-
-    return nonce;
+  public async generateNonce(): Promise<string> {
+    return this.nonceService.generateNonce();
   }
 
   /**
@@ -210,32 +210,10 @@ export class BloctoAuthService {
   /**
    * Get nonce statistics for monitoring and debugging
    *
-   * @returns Nonce statistics including total, used, unused, and expired counts
+   * @returns Promise resolving to nonce statistics including total, active, used, and expired counts
    */
-  public getNonceStats(): {
-    total: number;
-    used: number;
-    unused: number;
-    expired: number;
-  } {
-    const now = Date.now();
-    let total = 0;
-    let used = 0;
-    let unused = 0;
-    let expired = 0;
-
-    for (const [nonce, data] of this.nonceStore.entries()) {
-      total++;
-      if (data.used) {
-        used++;
-      } else if (now - data.timestamp > this.nonceExpiry) {
-        expired++;
-      } else {
-        unused++;
-      }
-    }
-
-    return { total, used, unused, expired };
+  public async getNonceStats(): Promise<NonceStats> {
+    return this.nonceService.getNonceStats();
   }
 
   /**
@@ -275,33 +253,6 @@ export class BloctoAuthService {
     if (timeDiff > this.timestampTolerance) {
       return `Timestamp is too old or too far in the future. Tolerance: ${this.timestampTolerance}ms`;
     }
-
-    return null;
-  }
-
-  /**
-   * Validate and manage nonce to prevent replay attacks
-   *
-   * @private
-   */
-  private validateNonce(nonce?: string): string | null {
-    if (!nonce) {
-      return 'Nonce is required for security';
-    }
-
-    const nonceData = this.nonceStore.get(nonce);
-
-    if (!nonceData) {
-      return 'Invalid or expired nonce';
-    }
-
-    if (nonceData.used) {
-      return 'Nonce has already been used';
-    }
-
-    // Mark nonce as used
-    nonceData.used = true;
-    this.nonceStore.set(nonce, nonceData);
 
     return null;
   }
@@ -446,12 +397,7 @@ export class BloctoAuthService {
    *
    * @private
    */
-  private cleanupExpiredNonces(): void {
-    const now = Date.now();
-    for (const [nonce, data] of this.nonceStore.entries()) {
-      if (now - data.timestamp > this.nonceExpiry) {
-        this.nonceStore.delete(nonce);
-      }
-    }
+  private async cleanupExpiredNonces(): Promise<void> {
+    await this.nonceService.cleanupExpiredNonces();
   }
 }

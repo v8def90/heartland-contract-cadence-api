@@ -573,7 +573,7 @@ export class AuthController extends Controller {
     ApiResponse<{ nonce: string; message: string; timestamp: number }>
   > {
     try {
-      const nonce = this.bloctoAuthService.generateNonce();
+      const nonce = await this.bloctoAuthService.generateNonce();
       const timestamp = Date.now();
       const message = this.bloctoAuthService.generateAuthMessage(
         nonce,

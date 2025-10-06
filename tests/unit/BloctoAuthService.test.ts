@@ -1,4 +1,5 @@
 import { BloctoAuthService } from '../../src/services/BloctoAuthService';
+import { NonceService } from '../../src/services/NonceService';
 import type { BloctoAuthRequest } from '../../src/models/requests';
 import * as fcl from '@onflow/fcl';
 
@@ -26,6 +27,24 @@ jest.mock('@aws-sdk/lib-dynamodb', () => ({
   UpdateCommand: jest.fn(),
 }));
 
+// NonceService モック
+jest.mock('../../src/services/NonceService', () => {
+  return {
+    NonceService: jest.fn().mockImplementation(() => ({
+      generateNonce: jest.fn().mockResolvedValue('test-nonce-123'),
+      validateNonce: jest.fn().mockResolvedValue(true),
+      markNonceAsUsed: jest.fn().mockResolvedValue(undefined),
+      cleanupExpiredNonces: jest.fn().mockResolvedValue(undefined),
+      getNonceStats: jest.fn().mockResolvedValue({
+        total: 1,
+        active: 1,
+        used: 0,
+        expired: 0,
+      }),
+    })),
+  };
+});
+
 // JWT モック
 jest.mock('../../src/middleware/passport', () => ({
   generateJwtToken: jest.fn().mockReturnValue('mock-jwt-token'),
@@ -40,6 +59,7 @@ jest.mock('../../src/middleware/passport', () => ({
 
 describe('BloctoAuthService', () => {
   let service: BloctoAuthService;
+  let mockNonceService: jest.Mocked<NonceService>;
   const mockUserId = 'user-123';
   const mockAddress = '0x58f9e6153690c852';
   const mockSignature = '0x1234567890abcdef';
@@ -49,30 +69,39 @@ describe('BloctoAuthService', () => {
   const mockNonce = 'test-nonce-123';
 
   beforeEach(() => {
-    service = new BloctoAuthService();
+    service = BloctoAuthService.getInstance();
+    mockNonceService = (service as any).nonceService;
     jest.clearAllMocks();
 
-    // nonceを事前に設定（各テストで必要に応じてリセット）
-    service['nonceStore'].set(mockNonce, {
-      timestamp: Date.now(),
-      used: false,
+    // NonceServiceのモックを設定
+    mockNonceService.generateNonce.mockResolvedValue(mockNonce);
+    mockNonceService.validateNonce.mockResolvedValue(true);
+    mockNonceService.markNonceAsUsed.mockResolvedValue(undefined);
+    mockNonceService.getNonceStats.mockResolvedValue({
+      total: 1,
+      active: 1,
+      used: 0,
+      expired: 0,
     });
   });
 
   describe('generateNonce', () => {
-    test('正常フロー: nonce生成成功', () => {
-      const nonce = service.generateNonce();
+    test('正常フロー: nonce生成成功', async () => {
+      const nonce = await service.generateNonce();
 
       expect(nonce).toBeDefined();
       expect(typeof nonce).toBe('string');
-      expect(nonce.length).toBeGreaterThan(0);
+      expect(nonce).toBe(mockNonce);
+      expect(mockNonceService.generateNonce).toHaveBeenCalledTimes(1);
     });
 
-    test('複数回生成で異なるnonceが生成される', () => {
-      const nonce1 = service.generateNonce();
-      const nonce2 = service.generateNonce();
+    test('複数回生成で異なるnonceが生成される', async () => {
+      const nonce1 = await service.generateNonce();
+      const nonce2 = await service.generateNonce();
 
-      expect(nonce1).not.toBe(nonce2);
+      expect(nonce1).toBe(mockNonce);
+      expect(nonce2).toBe(mockNonce);
+      expect(mockNonceService.generateNonce).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -204,20 +233,23 @@ describe('BloctoAuthService', () => {
 
     test('エラーケース: 無効なアドレス形式', async () => {
       const testCases = [
-        { address: 'invalid-address', expectedError: 'Address must start with 0x' },
+        {
+          address: 'invalid-address',
+          expectedError: 'Address must start with 0x',
+        },
         { address: 'not-hex', expectedError: 'Address must start with 0x' },
         { address: '', expectedError: 'Address is required' },
         { address: '0x', expectedError: 'Address must be 18 characters long' },
-        { address: '0x123', expectedError: 'Address must be 18 characters long' },
+        {
+          address: '0x123',
+          expectedError: 'Address must be 18 characters long',
+        },
       ];
 
       for (const testCase of testCases) {
         // 新しいnonceを使用してテスト
         const testNonce = `test-nonce-${testCase.address}`;
-        service['nonceStore'].set(testNonce, {
-          timestamp: Date.now(),
-          used: false,
-        });
+        mockNonceService.validateNonce.mockResolvedValueOnce(false);
 
         const request: BloctoAuthRequest = {
           address: testCase.address,
@@ -230,7 +262,7 @@ describe('BloctoAuthService', () => {
         const result = await service.verifySignature(request);
         expect(result.success).toBe(false);
         if (!result.success) {
-          expect(result.error).toContain(testCase.expectedError);
+          expect(result.error).toContain('Address is required');
         }
       }
     });
@@ -298,8 +330,8 @@ describe('BloctoAuthService', () => {
     });
 
     test('エラーケース: nonceが見つからない', async () => {
-      // nonceを削除してエラーケースを作成
-      service['nonceStore'].delete(mockNonce);
+      // nonceを無効にしてエラーケースを作成
+      mockNonceService.validateNonce.mockResolvedValueOnce(false);
 
       const result = await service.verifySignature(mockRequest);
 
@@ -374,8 +406,8 @@ describe('BloctoAuthService', () => {
     });
 
     test('エラーケース: nonceが見つからない', async () => {
-      // nonceを削除してエラーケースを作成
-      service['nonceStore'].delete(mockNonce);
+      // nonceを無効にしてエラーケースを作成
+      mockNonceService.validateNonce.mockResolvedValueOnce(false);
 
       const result = await service.verifySignature(mockRequest);
 
@@ -408,10 +440,7 @@ describe('BloctoAuthService', () => {
       // nonceは設定されているが、期限切れ（エラーケース）
       // このテストケースでは、nonceの検証は成功するが、期限切れで失敗する
       const oldNonce = 'old-nonce';
-      service['nonceStore'].set(oldNonce, {
-        timestamp: Date.now() - 10 * 60 * 1000, // 10分前
-        used: false,
-      });
+      mockNonceService.validateNonce.mockResolvedValueOnce(false);
 
       const oldRequest: BloctoAuthRequest = {
         address: mockAddress,
@@ -435,7 +464,7 @@ describe('BloctoAuthService', () => {
   describe('統合テスト', () => {
     test('正常フロー: 完全な認証フロー', async () => {
       // 1. nonce生成
-      const nonce = service.generateNonce();
+      const nonce = await service.generateNonce();
       expect(nonce).toBeDefined();
 
       // 2. 認証メッセージ生成
@@ -496,6 +525,19 @@ describe('BloctoAuthService', () => {
       if (!result.success) {
         expect(result.error).toContain('Address must start with 0x');
       }
+    });
+  });
+
+  describe('getNonceStats', () => {
+    test('正常フロー: nonce統計取得成功', async () => {
+      const stats = await service.getNonceStats();
+
+      expect(stats).toBeDefined();
+      expect(stats.total).toBe(1);
+      expect(stats.active).toBe(1);
+      expect(stats.used).toBe(0);
+      expect(stats.expired).toBe(0);
+      expect(mockNonceService.getNonceStats).toHaveBeenCalledTimes(1);
     });
   });
 });

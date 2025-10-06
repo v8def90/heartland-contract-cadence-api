@@ -36,7 +36,7 @@ describe('Blocto Authentication Integration Tests', () => {
 
   beforeEach(() => {
     authController = new AuthController();
-    bloctoAuthService = new BloctoAuthService();
+    bloctoAuthService = BloctoAuthService.getInstance();
     jest.clearAllMocks();
   });
 
@@ -329,13 +329,13 @@ describe('Blocto Authentication Integration Tests', () => {
 
     test('nonce統計の確認', async () => {
       // 複数のnonceを生成
-      bloctoAuthService.generateNonce();
-      bloctoAuthService.generateNonce();
-      bloctoAuthService.generateNonce();
+      await bloctoAuthService.generateNonce();
+      await bloctoAuthService.generateNonce();
+      await bloctoAuthService.generateNonce();
 
-      const stats = bloctoAuthService.getNonceStats();
+      const stats = await bloctoAuthService.getNonceStats();
       expect(stats.total).toBe(3);
-      expect(stats.unused).toBe(3);
+      expect(stats.active).toBe(3);
       expect(stats.used).toBe(0);
       expect(stats.expired).toBe(0);
     });
