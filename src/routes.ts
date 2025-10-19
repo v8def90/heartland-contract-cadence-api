@@ -1118,7 +1118,7 @@ const models: TsoaRoute.Models = {
             "signature": {"dataType":"string","required":true},
             "message": {"dataType":"string","required":true},
             "timestamp": {"dataType":"double","required":true},
-            "nonce": {"dataType":"string"},
+            "nonce": {"dataType":"string","required":true},
         },
         "additionalProperties": false,
     },

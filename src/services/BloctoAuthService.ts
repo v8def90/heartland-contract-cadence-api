@@ -107,7 +107,7 @@ export class BloctoAuthService {
 
       // 3. Validate and manage nonce (prevent replay attacks)
       const nonceValid = await this.nonceService.validateNonce({
-        nonce: request.nonce!,
+        nonce: request.nonce,
         currentTimestamp: request.timestamp,
       });
       if (!nonceValid) {
@@ -152,7 +152,7 @@ export class BloctoAuthService {
       );
       // 6. Mark nonce as used
       await this.nonceService.markNonceAsUsed({
-        nonce: request.nonce!,
+        nonce: request.nonce,
         usedAt: Date.now(),
       });
 
@@ -240,6 +240,10 @@ export class BloctoAuthService {
 
     if (!request.timestamp || typeof request.timestamp !== 'number') {
       return 'Valid timestamp is required';
+    }
+
+    if (!request.nonce || typeof request.nonce !== 'string') {
+      return 'Valid nonce is required';
     }
 
     return null;

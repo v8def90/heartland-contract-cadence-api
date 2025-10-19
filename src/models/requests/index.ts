@@ -283,7 +283,8 @@ export interface TaxCalculationRequest {
  *   address: "0x58f9e6153690c852",
  *   signature: "abc123...",
  *   message: "Login to Heart Token API",
- *   timestamp: 1640995200000
+ *   timestamp: 1640995200000,
+ *   nonce: "unique-nonce-123"
  * };
  * ```
  */
@@ -296,8 +297,8 @@ export interface BloctoAuthRequest {
   message: string;
   /** Timestamp when signature was created */
   timestamp: number;
-  /** Optional nonce for replay protection */
-  nonce?: string;
+  /** Nonce for replay protection (required) */
+  nonce: string;
 }
 
 /**
