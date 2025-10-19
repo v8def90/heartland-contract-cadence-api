@@ -6,7 +6,13 @@ import * as fcl from '@onflow/fcl';
 // FCL モック
 jest.mock('@onflow/fcl', () => ({
   verifyUserSignatures: jest.fn(),
+  AppUtils: {
+    verifyUserSignatures: jest.fn(),
+  },
   config: jest.fn(),
+  send: jest.fn(),
+  decode: jest.fn(),
+  getAccount: jest.fn(),
 }));
 
 // DynamoDB モック
@@ -278,16 +284,54 @@ describe('BloctoAuthService', () => {
     };
 
     beforeEach(() => {
+      // テスト環境でのFCL署名検証を有効にする
+      process.env.NODE_ENV = 'production';
+      process.env.STAGE = 'prod';
+      process.env.DISABLE_SIGNATURE_VERIFICATION = 'false';
+
       // nonceは既に設定済み
 
-      // FCL モック設定
-      (fcl.verifyUserSignatures as jest.Mock).mockResolvedValue([
-        {
-          addr: mockAddress,
-          keyId: 0,
-          signature: mockSignature,
+      // FCL モック設定 - getAccount
+      (fcl.getAccount as jest.Mock).mockReturnValue('mock-account-query');
+
+      // FCL モック設定 - send
+      (fcl.send as jest.Mock).mockResolvedValue({
+        account: {
+          address: mockAddress,
+          keys: [
+            {
+              index: 0,
+              publicKey: 'mock-public-key-0',
+              revoked: false,
+            },
+            {
+              index: 1,
+              publicKey: 'mock-public-key-1',
+              revoked: false,
+            },
+          ],
         },
-      ]);
+      });
+
+      // FCL デコードモック
+      (fcl.decode as jest.Mock).mockResolvedValue({
+        address: mockAddress,
+        keys: [
+          {
+            index: 0,
+            publicKey: 'mock-public-key-0',
+            revoked: false,
+          },
+          {
+            index: 1,
+            publicKey: 'mock-public-key-1',
+            revoked: false,
+          },
+        ],
+      });
+
+      // FCL 署名検証モック - AppUtils.verifyUserSignatures
+      (fcl.AppUtils.verifyUserSignatures as jest.Mock).mockResolvedValue(true);
 
       // JWT モック設定は既に設定済み
     });
@@ -538,6 +582,170 @@ describe('BloctoAuthService', () => {
       expect(stats.used).toBe(0);
       expect(stats.expired).toBe(0);
       expect(mockNonceService.getNonceStats).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('key ID fallback functionality', () => {
+    const mockRequest: BloctoAuthRequest = {
+      address: mockAddress,
+      signature: mockSignature,
+      message: mockMessage,
+      timestamp: mockTimestamp,
+      nonce: mockNonce,
+    };
+
+    test('フォールバック機能: key ID取得失敗時にkey ID 0で試行', async () => {
+      // アカウント情報取得を失敗させる
+      (fcl.send as jest.Mock).mockRejectedValueOnce(
+        new Error('Account not found')
+      );
+
+      // key ID 0での署名検証を成功させる
+      (fcl.AppUtils.verifyUserSignatures as jest.Mock).mockResolvedValueOnce(
+        true
+      );
+
+      const result = await service.verifySignature(mockRequest);
+
+      expect(result.success).toBe(true);
+      expect(fcl.AppUtils.verifyUserSignatures).toHaveBeenCalledWith(
+        mockMessage,
+        [
+          {
+            addr: mockAddress,
+            keyId: 0,
+            signature: mockSignature,
+          },
+        ]
+      );
+    });
+
+    test('フォールバック機能: 複数key IDでの試行', async () => {
+      // アカウント情報取得を失敗させる
+      (fcl.send as jest.Mock).mockRejectedValueOnce(
+        new Error('Account not found')
+      );
+
+      // key ID 0での署名検証を失敗させ、key ID 1で成功させる
+      (fcl.AppUtils.verifyUserSignatures as jest.Mock)
+        .mockResolvedValueOnce(false) // key ID 0で失敗
+        .mockResolvedValueOnce(true); // key ID 1で成功
+
+      // getAllKeyIdsForAddressのモック（2回目の呼び出しで成功）
+      (fcl.send as jest.Mock)
+        .mockRejectedValueOnce(new Error('Account not found')) // 1回目失敗
+        .mockResolvedValueOnce({
+          account: {
+            address: mockAddress,
+            keys: [
+              { index: 0, publicKey: 'key0', revoked: false },
+              { index: 1, publicKey: 'key1', revoked: false },
+            ],
+          },
+        });
+
+      (fcl.decode as jest.Mock).mockResolvedValueOnce({
+        address: mockAddress,
+        keys: [
+          { index: 0, publicKey: 'key0', revoked: false },
+          { index: 1, publicKey: 'key1', revoked: false },
+        ],
+      });
+
+      const result = await service.verifySignature(mockRequest);
+
+      expect(result.success).toBe(true);
+      expect(fcl.AppUtils.verifyUserSignatures).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('signature format normalization', () => {
+    const mockRequest: BloctoAuthRequest = {
+      address: mockAddress,
+      signature: 'test-signature',
+      message: mockMessage,
+      timestamp: mockTimestamp,
+      nonce: mockNonce,
+    };
+
+    test('16進数署名の正規化', async () => {
+      const hexRequest = { ...mockRequest, signature: '0x1234567890abcdef' };
+
+      // FCL モック設定
+      (fcl.AppUtils.verifyUserSignatures as jest.Mock).mockResolvedValue(true);
+
+      const result = await service.verifySignature(hexRequest);
+
+      expect(result.success).toBe(true);
+      expect(fcl.AppUtils.verifyUserSignatures).toHaveBeenCalledWith(
+        mockMessage,
+        [
+          {
+            addr: mockAddress,
+            keyId: 0,
+            signature: '0x1234567890abcdef',
+          },
+        ]
+      );
+    });
+
+    test('0xプレフィックスなし16進数署名の正規化', async () => {
+      const hexRequest = { ...mockRequest, signature: '1234567890abcdef' };
+
+      // FCL モック設定
+      (fcl.AppUtils.verifyUserSignatures as jest.Mock).mockResolvedValue(true);
+
+      const result = await service.verifySignature(hexRequest);
+
+      expect(result.success).toBe(true);
+      expect(fcl.AppUtils.verifyUserSignatures).toHaveBeenCalledWith(
+        mockMessage,
+        [
+          {
+            addr: mockAddress,
+            keyId: 0,
+            signature: '0x1234567890abcdef',
+          },
+        ]
+      );
+    });
+
+    test('Base64署名の正規化', async () => {
+      const base64Signature = Buffer.from('1234567890abcdef', 'hex').toString(
+        'base64'
+      );
+      const base64Request = { ...mockRequest, signature: base64Signature };
+
+      // FCL モック設定
+      (fcl.AppUtils.verifyUserSignatures as jest.Mock).mockResolvedValue(true);
+
+      const result = await service.verifySignature(base64Request);
+
+      expect(result.success).toBe(true);
+      expect(fcl.AppUtils.verifyUserSignatures).toHaveBeenCalledWith(
+        mockMessage,
+        [
+          {
+            addr: mockAddress,
+            keyId: 0,
+            signature: '0x1234567890abcdef',
+          },
+        ]
+      );
+    });
+
+    test('無効な署名形式の処理', async () => {
+      const invalidRequest = {
+        ...mockRequest,
+        signature: 'invalid-signature-format',
+      };
+
+      const result = await service.verifySignature(invalidRequest);
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toContain('Signature verification failed');
+      }
     });
   });
 });

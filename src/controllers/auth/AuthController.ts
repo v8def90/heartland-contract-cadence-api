@@ -605,4 +605,109 @@ export class AuthController extends Controller {
       };
     }
   }
+
+  /**
+   * Generate test signature for development/staging environments
+   *
+   * @description Generates a test signature for development and staging environments
+   * where actual FCL signature verification is not available.
+   * This endpoint is only available in non-production environments.
+   *
+   * @param request - Test signature generation request
+   * @returns Promise resolving to test signature data
+   *
+   * @example
+   * ```typescript
+   * const testRequest: TestSignatureRequest = {
+   *   address: "0x58f9e6153690c852",
+   *   message: "Login to Heart Token API\nNonce: 123\nTimestamp: 1640995200000"
+   * };
+   * const result = await authController.generateTestSignature(testRequest);
+   * ```
+   */
+  @Post('generate-test-signature')
+  @SuccessResponse('200', 'Test signature generated successfully')
+  @Response<ApiResponse>('400', 'Invalid request')
+  @Response<ApiResponse>('403', 'Not available in production')
+  @Example<
+    ApiResponse<{ signature: string; address: string; message: string }>
+  >({
+    success: true,
+    data: {
+      signature: 'test-sig-a1b2c3d4e5f6g7h8',
+      address: '0x58f9e6153690c852',
+      message: 'Login to Heart Token API\nNonce: 123\nTimestamp: 1640995200000',
+    },
+    timestamp: '2024-01-01T00:00:00.000Z',
+  })
+  public async generateTestSignature(
+    @Body() request: { address: string; message: string }
+  ): Promise<
+    ApiResponse<{ signature: string; address: string; message: string }>
+  > {
+    try {
+      // Only allow in non-production environments
+      if (
+        process.env.NODE_ENV === 'production' &&
+        process.env.STAGE === 'prod'
+      ) {
+        this.setStatus(403);
+        return {
+          success: false,
+          error: {
+            code: 'FORBIDDEN',
+            message: 'Test signature generation not available in production',
+            details:
+              'This endpoint is only available in development and staging environments',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      // Validate request
+      if (!request.address || !request.message) {
+        this.setStatus(400);
+        return {
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Address and message are required',
+            details:
+              'Both address and message fields are mandatory for test signature generation',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      // Generate test signature using the service method
+      const signature = (this.bloctoAuthService as any).generateTestSignature(
+        request.address,
+        request.message
+      );
+
+      this.setStatus(200);
+      return {
+        success: true,
+        data: {
+          signature,
+          address: request.address,
+          message: request.message,
+        },
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      console.error('Test signature generation error:', error);
+      this.setStatus(500);
+      return {
+        success: false,
+        error: {
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Test signature generation failed',
+          details:
+            error instanceof Error ? error.message : 'Unknown error occurred',
+        },
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
 }

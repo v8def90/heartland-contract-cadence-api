@@ -17,6 +17,9 @@ importers:
       '@aws-sdk/util-dynamodb':
         specifier: ^3.902.0
         version: 3.902.0(@aws-sdk/client-dynamodb@3.891.0)
+      '@onflow/sdk':
+        specifier: ^1.10.2
+        version: 1.10.2
       '@tsoa/runtime':
         specifier: ^6.6.0
         version: 6.6.0
@@ -1487,6 +1490,9 @@ packages:
   '@onflow/config@1.6.0':
     resolution: {integrity: sha512-AEANGEr6EVjb86LZHdaSd8iOnYAyGeM16SKJAoE/hbkhh3Dneb0NPPrj6cD5ZN1A8onsQx+J6HDd29N6iXYPGw==}
 
+  '@onflow/config@1.6.1':
+    resolution: {integrity: sha512-5mhvVtQCVuG1ppLw3bOG4nfAWNTtXLRtw60h10DhZ/lOOwEs6Fm4tIHRQV0TTCGZTrU7kV/voRFIOk7PgiiGPg==}
+
   '@onflow/fcl-core@1.21.0':
     resolution: {integrity: sha512-3QReQLeJc5v/Sfq2MM82CQ63XAZzkm0JRBv8ojwH0n5kvfNue3PllQxGfoXe5OF8F30pqwkxNEfjv/6ndEh00w==}
 
@@ -1504,23 +1510,44 @@ packages:
   '@onflow/rlp@1.2.3':
     resolution: {integrity: sha512-Mm1jSzDhdTofMGhg3NtUD8uKntj7u1dSMr+Q4VwOw2YQhwGTGJrzsHc7qgkJxwDnjU0Ra8VQfqd54bZzX0R2aQ==}
 
+  '@onflow/rlp@1.2.4':
+    resolution: {integrity: sha512-FUpiUg+RieyNJqIC5s2jbrbiNKHYo2eJnZyp5DujxHyH0aLwYuiumfG5jC1twYcACB6pX/G7KDfaySch8BrvWg==}
+
   '@onflow/sdk@1.10.0':
     resolution: {integrity: sha512-SZvH3U1DQ8aD5SqGTN6jpdltwMlheouBgstepbgRFeaQC44gMVMOEZuw/untWdvoKeypQDVnZTCamQ9pB+0j+w==}
+
+  '@onflow/sdk@1.10.2':
+    resolution: {integrity: sha512-JlGBGiqLB9qndGaawTowpNq6n6FC0kRrNuzO5tlgR/8/ialkVZNKIE6kctHNuEVJzD7tjOwiEVcv++6yKr/9QQ==}
 
   '@onflow/transport-http@1.13.0':
     resolution: {integrity: sha512-Gw8o3r9Dcneiz64rRtxQZB4nzewpXVdi6OxTyuSG5QSA/WpxDUPu9JjAbxtDBGm9Ul//LW9g4KRUmSX+a+3FeA==}
 
+  '@onflow/transport-http@1.13.2':
+    resolution: {integrity: sha512-zJ4gq+z2hVhN/ExYiUel+6DHxkgW8O6dYzbZzA4FGqvVPz72E1zRl4ZH2T+rHKNyzMjhPFdegAqejHw7hUYg+Q==}
+
   '@onflow/typedefs@1.7.0':
     resolution: {integrity: sha512-y/YcwEvA5db96+2ZTRRBkwkfd4RwJ1Ks09AYBeM1v4sW1KQBr0UdmlhRKDFmzt3Hnd+d5gRk2FNXAW2q2iX/dw==}
+
+  '@onflow/typedefs@1.7.1':
+    resolution: {integrity: sha512-yH/JO4A1yHz894mHAJmtPg791gTe+TwiV/97T3hnrw0POBrQjiv56hIUsyycBB+J32RKjXMlv4YV/rUErXPdDQ==}
 
   '@onflow/types@1.4.1':
     resolution: {integrity: sha512-oKKaNTPfb9OJos4C6RoK3sql9Bx8mi+8ytTc7wLJbjv+n6YUov2zRGkGsPzj2QxL2Xf48CLYtPNn7cBNr3v39w==}
 
+  '@onflow/types@1.4.2':
+    resolution: {integrity: sha512-pxXIex6DnOm3zRz0rSX/CaNTmmCQXXosAXiq97CzCDRTOBch558KTyEwaQToMa1z4VH3e6G1/An8Ipi+qXNC5Q==}
+
   '@onflow/util-actor@1.3.4':
     resolution: {integrity: sha512-BQeFdy0obs2x+XTEkss7MjuasS7gCfIStwGsgpH0aG3siBu+IsMYPiDdrHOeYS2Jn/pSFXF5R85NYrnMvlDhlA==}
 
+  '@onflow/util-actor@1.3.5':
+    resolution: {integrity: sha512-PHzV9MS22dzODegcDsq9nSo9rg2XdEfTs7yXSRK3NCVbfspuqHi/Ay58a7bI6GYUpC3smtnhn4/Nv30FHG0OCw==}
+
   '@onflow/util-address@1.2.3':
     resolution: {integrity: sha512-5u1pLQT6MmTlRQLv8zVJP/iOkgytvpzK+32nXcJ29XE0y7YI6GLrFfgKGBIRsiqiSLp7SU6XI5RukEJEblmwOw==}
+
+  '@onflow/util-address@1.2.4':
+    resolution: {integrity: sha512-4FHPYWHrizptjxenMakDUcx+LOpNKayyTOA7ELPsRTOnIo9tGYXTqeIGBz1+5JjDHEPK5K0ueOMmYuV5jhpFgw==}
 
   '@onflow/util-encode-key@1.2.4':
     resolution: {integrity: sha512-ZBXcDa9+eu3fECI+TUWq2dC9Lakfg1StUkqTDlcZMyCp7Fuk6uvO4cTJwpuHPLLIMH3Nkzrlb4dMc16cwIj5Uw==}
@@ -1528,8 +1555,19 @@ packages:
   '@onflow/util-invariant@1.2.4':
     resolution: {integrity: sha512-U4D30lrAxSgqTPQsIvC3gPDoXVxuhLS9TZk4WxEvNfcQrI6VYKvWRe4m/5mUrc4kpE+ntXZmnbs+DUM7oLlkcg==}
 
+  '@onflow/util-invariant@1.2.5':
+    resolution: {integrity: sha512-mws9MF0rbUbIsqUrNHMYXx9LGOomRM2skWtN9BLmO7okvforOrrqRL43BV5ADzBXDigMkPsTQtl28Z62cUi8wQ==}
+
   '@onflow/util-logger@1.3.3':
     resolution: {integrity: sha512-eivdbF7cKNjTL2nuvI3pjDavDDfTXRq4pJtJpkI8hJMz0XJb84o7D5CLPcDRId//1Kc/qoqM/driHz5A4J52Qw==}
+    peerDependencies:
+      '@onflow/util-config': '>1.1.1'
+    peerDependenciesMeta:
+      '@onflow/util-config':
+        optional: true
+
+  '@onflow/util-logger@1.3.4':
+    resolution: {integrity: sha512-mcrRx2Mh1BToERVTPooIyDYn0dsGTF2NumIPTeaWAHmBAVR2RPCEAwWXobOSCQmPrIli/8+heK/T0yv2mtngQA==}
     peerDependencies:
       '@onflow/util-config': '>1.1.1'
     peerDependenciesMeta:
@@ -1544,6 +1582,9 @@ packages:
 
   '@onflow/util-template@1.2.3':
     resolution: {integrity: sha512-yNF7mI5L1y6yJHL+HxmTgIdd/oF1HD/kzjzZgjOyAvk+mLXzML+sWkqRSoIYcETbQ0w6cdNg3xvzZgTLuLIK3A==}
+
+  '@onflow/util-template@1.2.4':
+    resolution: {integrity: sha512-f+uYlxcPQSu9+tcnIc+9X0CevX7c4SqnF4v6u1cmdcbcLM28EXLT4kijo2W1TUdYzxtrWfqkFNswYH22XpFT7g==}
 
   '@onflow/util-uid@1.2.3':
     resolution: {integrity: sha512-gCTVvBBgDcZFX6SGyHPwoPVbK4e9sp0DC1kaQ0cgAt83YgodqiBiJLlwMBYNKuL03zSI6Ic5/TJVMVsruG7l9w==}
@@ -8329,6 +8370,15 @@ snapshots:
     transitivePeerDependencies:
       - '@onflow/util-config'
 
+  '@onflow/config@1.6.1':
+    dependencies:
+      '@babel/runtime': 7.28.3
+      '@onflow/util-actor': 1.3.5
+      '@onflow/util-invariant': 1.2.5
+      '@onflow/util-logger': 1.3.4
+    transitivePeerDependencies:
+      - '@onflow/util-config'
+
   '@onflow/fcl-core@1.21.0(google-protobuf@3.21.4)':
     dependencies:
       '@babel/runtime': 7.28.3
@@ -8467,6 +8517,11 @@ snapshots:
       '@babel/runtime': 7.28.3
       buffer: 6.0.3
 
+  '@onflow/rlp@1.2.4':
+    dependencies:
+      '@babel/runtime': 7.28.3
+      buffer: 6.0.3
+
   '@onflow/sdk@1.10.0':
     dependencies:
       '@babel/runtime': 7.28.3
@@ -8480,6 +8535,29 @@ snapshots:
       '@onflow/util-invariant': 1.2.4
       '@onflow/util-logger': 1.3.3
       '@onflow/util-template': 1.2.3
+      deepmerge: 4.3.1
+      events: 3.3.0
+      sha3: 2.1.4
+      uuid: 9.0.1
+    transitivePeerDependencies:
+      - '@onflow/util-config'
+      - bufferutil
+      - encoding
+      - utf-8-validate
+
+  '@onflow/sdk@1.10.2':
+    dependencies:
+      '@babel/runtime': 7.28.3
+      '@onflow/config': 1.6.1
+      '@onflow/rlp': 1.2.4
+      '@onflow/transport-http': 1.13.2
+      '@onflow/typedefs': 1.7.1
+      '@onflow/types': 1.4.2
+      '@onflow/util-actor': 1.3.5
+      '@onflow/util-address': 1.2.4
+      '@onflow/util-invariant': 1.2.5
+      '@onflow/util-logger': 1.3.4
+      '@onflow/util-template': 1.2.4
       deepmerge: 4.3.1
       events: 3.3.0
       sha3: 2.1.4
@@ -8509,7 +8587,30 @@ snapshots:
       - encoding
       - utf-8-validate
 
+  '@onflow/transport-http@1.13.2':
+    dependencies:
+      '@babel/runtime': 7.28.3
+      '@onflow/util-address': 1.2.4
+      '@onflow/util-invariant': 1.2.5
+      '@onflow/util-logger': 1.3.4
+      '@onflow/util-template': 1.2.4
+      abort-controller: 3.0.0
+      buffer: 6.0.3
+      cross-fetch: 4.1.0
+      events: 3.3.0
+      isomorphic-ws: 5.0.0(ws@8.18.3)
+      ws: 8.18.3
+    transitivePeerDependencies:
+      - '@onflow/util-config'
+      - bufferutil
+      - encoding
+      - utf-8-validate
+
   '@onflow/typedefs@1.7.0':
+    dependencies:
+      '@babel/runtime': 7.28.3
+
+  '@onflow/typedefs@1.7.1':
     dependencies:
       '@babel/runtime': 7.28.3
 
@@ -8520,12 +8621,28 @@ snapshots:
     transitivePeerDependencies:
       - '@onflow/util-config'
 
+  '@onflow/types@1.4.2':
+    dependencies:
+      '@babel/runtime': 7.28.3
+      '@onflow/util-logger': 1.3.4
+    transitivePeerDependencies:
+      - '@onflow/util-config'
+
   '@onflow/util-actor@1.3.4':
     dependencies:
       '@babel/runtime': 7.28.3
       queue-microtask: 1.2.3
 
+  '@onflow/util-actor@1.3.5':
+    dependencies:
+      '@babel/runtime': 7.28.3
+      queue-microtask: 1.2.3
+
   '@onflow/util-address@1.2.3':
+    dependencies:
+      '@babel/runtime': 7.28.3
+
+  '@onflow/util-address@1.2.4':
     dependencies:
       '@babel/runtime': 7.28.3
 
@@ -8539,7 +8656,15 @@ snapshots:
     dependencies:
       '@babel/runtime': 7.28.3
 
+  '@onflow/util-invariant@1.2.5':
+    dependencies:
+      '@babel/runtime': 7.28.3
+
   '@onflow/util-logger@1.3.3':
+    dependencies:
+      '@babel/runtime': 7.28.3
+
+  '@onflow/util-logger@1.3.4':
     dependencies:
       '@babel/runtime': 7.28.3
 
@@ -8555,6 +8680,13 @@ snapshots:
     dependencies:
       '@babel/runtime': 7.28.3
       '@onflow/util-logger': 1.3.3
+    transitivePeerDependencies:
+      - '@onflow/util-config'
+
+  '@onflow/util-template@1.2.4':
+    dependencies:
+      '@babel/runtime': 7.28.3
+      '@onflow/util-logger': 1.3.4
     transitivePeerDependencies:
       - '@onflow/util-config'
 

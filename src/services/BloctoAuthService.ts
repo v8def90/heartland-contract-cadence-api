@@ -130,17 +130,21 @@ export class BloctoAuthService {
 
       // 5. Verify signature using FCL
       console.log('BloctoAuthService.verifySignature - Verifying signature...');
-      const signatureValid = await this.verifyFlowSignature(
+      const signatureResult = await this.verifyFlowSignature(
         request.address,
         request.message,
         request.signature
       );
 
-      if (!signatureValid) {
+      if (!signatureResult.success) {
         console.log(
-          'BloctoAuthService.verifySignature - Signature verification failed'
+          'BloctoAuthService.verifySignature - Signature verification failed:',
+          signatureResult.error
         );
-        return { success: false, error: 'Invalid signature' };
+        return {
+          success: false,
+          error: `Signature verification failed: ${signatureResult.error}`,
+        };
       }
 
       console.log(
@@ -288,16 +292,21 @@ export class BloctoAuthService {
     address: string,
     message: string,
     signature: string
-  ): Promise<boolean> {
+  ): Promise<{ success: boolean; error?: string }> {
     try {
+      // Check if signature verification is disabled via environment variable
+      if (process.env.DISABLE_SIGNATURE_VERIFICATION === 'true') {
+        console.log('Signature verification disabled via environment variable');
+        return { success: true };
+      }
+
       // In test environment, skip FCL signature verification for testing purposes
       if (
         process.env.NODE_ENV === 'test' ||
-        process.env.NODE_ENV === 'development' ||
-        process.env.STAGE === 'dev'
+        process.env.NODE_ENV === 'development'
       ) {
         console.log('Test environment: Skipping FCL signature verification');
-        return true;
+        return { success: true };
       }
 
       // For testing purposes, also skip if signature is "test-signature"
@@ -305,7 +314,17 @@ export class BloctoAuthService {
         console.log(
           'Test signature detected: Skipping FCL signature verification'
         );
-        return true;
+        return { success: true };
+      }
+
+      // For testing purposes, validate test signatures in development/staging
+      if (process.env.STAGE === 'dev' || process.env.STAGE === 'staging') {
+        const testResult = this.validateTestSignature(
+          address,
+          message,
+          signature
+        );
+        return { success: testResult };
       }
 
       // Configure FCL for signature verification
@@ -315,19 +334,72 @@ export class BloctoAuthService {
         'discovery.wallet': 'https://fcl-discovery.onflow.org/testnet/authn',
       });
 
-      // Verify signature using FCL
-      const isValid = await (fcl.verifyUserSignatures as any)(message, [
-        {
-          addr: address,
-          keyId: 0,
-          signature: signature,
-        },
-      ]);
+      // Get the correct key ID for the address
+      const keyId = await this.getKeyIdForAddress(address);
 
-      return isValid;
+      if (keyId === null) {
+        console.warn(
+          'Could not determine key ID for address, trying fallback methods:',
+          address
+        );
+
+        // Try with key ID 0 as fallback (common default)
+        console.log('Trying fallback with key ID 0');
+        const fallbackResult = await this.trySignatureVerification(
+          address,
+          message,
+          signature,
+          0
+        );
+        if (fallbackResult) {
+          console.log('Fallback verification with key ID 0 succeeded');
+          return { success: true };
+        }
+
+        // Try with multiple key IDs if available
+        const keyIds = await this.getAllKeyIdsForAddress(address);
+        if (keyIds && keyIds.length > 0) {
+          console.log('Trying multiple key IDs:', keyIds);
+          for (const id of keyIds) {
+            const result = await this.trySignatureVerification(
+              address,
+              message,
+              signature,
+              id
+            );
+            if (result) {
+              console.log('Signature verification succeeded with key ID:', id);
+              return { success: true };
+            }
+          }
+        }
+
+        console.error(
+          'All signature verification attempts failed for address:',
+          address
+        );
+        return {
+          success: false,
+          error: 'Could not verify signature with any available key ID',
+        };
+      }
+
+      console.log('Using key ID:', keyId, 'for address:', address);
+
+      // Verify signature using FCL with the correct key ID
+      const isValid = await this.trySignatureVerification(
+        address,
+        message,
+        signature,
+        keyId
+      );
+      return { success: isValid };
     } catch (error) {
       console.error('Flow signature verification error:', error);
-      return false;
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
     }
   }
 
@@ -390,6 +462,309 @@ export class BloctoAuthService {
     // In production, this should be stored in a database
     const hash = createHash('sha256').update(address).digest('hex');
     return `user_${hash.substring(0, 16)}`;
+  }
+
+  /**
+   * Validate test signature for development/staging environments
+   *
+   * @private
+   */
+  private validateTestSignature(
+    address: string,
+    message: string,
+    signature: string
+  ): boolean {
+    try {
+      // Test signature format: "test-sig-{address}-{messageHash}"
+      const expectedSignature = this.generateTestSignature(address, message);
+
+      if (signature === expectedSignature) {
+        console.log('Test signature validation successful');
+        return true;
+      }
+
+      console.log('Test signature validation failed:', {
+        expected: expectedSignature,
+        received: signature,
+      });
+      return false;
+    } catch (error) {
+      console.error('Test signature validation error:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Generate test signature for development/staging
+   *
+   * @public
+   */
+  public generateTestSignature(address: string, message: string): string {
+    // Create a deterministic test signature based on address and message
+    const messageHash = createHash('sha256').update(message).digest('hex');
+    const signatureData = `${address}-${messageHash}`;
+    const testSignature = createHash('sha256')
+      .update(signatureData)
+      .digest('hex');
+    return `test-sig-${testSignature.substring(0, 16)}`;
+  }
+
+  /**
+   * Try signature verification with a specific key ID
+   *
+   * @description Attempts to verify a signature using a specific key ID.
+   * This is used for fallback verification when the correct key ID is unknown.
+   * Includes comprehensive signature format validation and normalization.
+   *
+   * @param address - Flow address
+   * @param message - Message that was signed
+   * @param signature - Signature to verify
+   * @param keyId - Key ID to use for verification
+   * @returns Promise resolving to verification result
+   *
+   * @private
+   */
+  private async trySignatureVerification(
+    address: string,
+    message: string,
+    signature: string,
+    keyId: number
+  ): Promise<boolean> {
+    try {
+      // Validate and normalize signature format
+      const normalizedSignature = this.normalizeSignature(signature);
+      if (!normalizedSignature) {
+        console.log(`Invalid signature format for key ID ${keyId}:`, signature);
+        return false;
+      }
+
+      console.log('Attempting signature verification:', {
+        address,
+        keyId,
+        messageLength: message.length,
+        originalSignature: signature.substring(0, 20) + '...',
+        normalizedSignature: normalizedSignature.substring(0, 20) + '...',
+        signatureLength: normalizedSignature.length,
+      });
+
+      // Use the new FCL AppUtils API instead of deprecated verifyUserSignatures
+      const isValid = await (fcl.AppUtils.verifyUserSignatures as any)(
+        message,
+        [
+          {
+            addr: address,
+            keyId: keyId,
+            signature: normalizedSignature,
+          },
+        ]
+      );
+
+      console.log(
+        `Signature verification result for key ID ${keyId}:`,
+        isValid
+      );
+      return isValid;
+    } catch (error) {
+      console.log(
+        `Signature verification failed with key ID ${keyId}:`,
+        error instanceof Error ? error.message : String(error)
+      );
+      return false;
+    }
+  }
+
+  /**
+   * Get all key IDs for a Flow address
+   *
+   * @description Retrieves all available key IDs for an address.
+   * This is used for fallback verification when the primary key ID fails.
+   *
+   * @param address - Flow address to get key IDs for
+   * @returns Promise resolving to array of key IDs or null if not found
+   *
+   * @private
+   */
+  private async getAllKeyIdsForAddress(
+    address: string
+  ): Promise<number[] | null> {
+    try {
+      console.log('Getting all key IDs for address:', address);
+
+      // Configure FCL for account query
+      fcl.config({
+        'accessNode.api':
+          process.env.FLOW_ACCESS_NODE || 'https://rest-testnet.onflow.org',
+        'discovery.wallet': 'https://fcl-discovery.onflow.org/testnet/authn',
+      });
+
+      // Get account information from Flow network
+      const account = await fcl.send([fcl.getAccount(address)]);
+      const accountData = await fcl.decode(account);
+
+      console.log('Account data retrieved:', {
+        address: accountData.address,
+        keys: accountData.keys?.length || 0,
+      });
+
+      // Check if account has keys
+      if (!accountData.keys || accountData.keys.length === 0) {
+        console.error('Account has no keys:', address);
+        return null;
+      }
+
+      // Get all active key IDs (not revoked)
+      const activeKeyIds = accountData.keys
+        .filter((key: any) => !key.revoked)
+        .map((key: any) => key.index);
+
+      console.log('Found active key IDs:', activeKeyIds);
+      return activeKeyIds;
+    } catch (error) {
+      console.error('Error getting key IDs for address:', address, error);
+      return null;
+    }
+  }
+
+  /**
+   * Get the correct key ID for a Flow address
+   *
+   * @description Retrieves account information from Flow network and determines
+   * the correct key ID to use for signature verification. This is necessary
+   * because different accounts may have different key IDs.
+   *
+   * @param address - Flow address to get key ID for
+   * @returns Promise resolving to key ID or null if not found
+   *
+   * @private
+   */
+  private async getKeyIdForAddress(address: string): Promise<number | null> {
+    try {
+      console.log('Getting key ID for address:', address);
+
+      // Configure FCL for account query
+      fcl.config({
+        'accessNode.api':
+          process.env.FLOW_ACCESS_NODE || 'https://rest-testnet.onflow.org',
+        'discovery.wallet': 'https://fcl-discovery.onflow.org/testnet/authn',
+      });
+
+      // Get account information from Flow network
+      const account = await fcl.send([fcl.getAccount(address)]);
+      const accountData = await fcl.decode(account);
+
+      console.log('Account data retrieved:', {
+        address: accountData.address,
+        keys: accountData.keys?.length || 0,
+      });
+
+      // Check if account has keys
+      if (!accountData.keys || accountData.keys.length === 0) {
+        console.error('Account has no keys:', address);
+        return null;
+      }
+
+      // Find the first active key (not revoked)
+      const activeKey = accountData.keys.find((key: any) => !key.revoked);
+      if (!activeKey) {
+        console.error('No active keys found for address:', address);
+        return null;
+      }
+
+      console.log('Found active key:', {
+        keyId: activeKey.index,
+        publicKey: activeKey.publicKey?.substring(0, 20) + '...',
+        revoked: activeKey.revoked,
+      });
+
+      return activeKey.index;
+    } catch (error) {
+      console.error('Error getting key ID for address:', address, error);
+      return null;
+    }
+  }
+
+  /**
+   * Normalize signature format for FCL compatibility
+   *
+   * @description Converts various signature formats to the hex format required by FCL.
+   * Handles different input formats including base64, hex with/without 0x prefix,
+   * and other common signature formats from different wallets.
+   *
+   * @param signature - Raw signature string
+   * @returns Normalized hex signature with 0x prefix, or null if invalid
+   *
+   * @private
+   */
+  private normalizeSignature(signature: string): string | null {
+    try {
+      if (!signature || typeof signature !== 'string') {
+        return null;
+      }
+
+      let cleanSignature = signature.trim();
+
+      // Handle different input formats
+      if (cleanSignature.startsWith('0x')) {
+        // Already has 0x prefix, validate hex format
+        const hexPart = cleanSignature.substring(2);
+        if (/^[0-9a-fA-F]+$/.test(hexPart)) {
+          return cleanSignature.toLowerCase();
+        }
+      } else if (/^[0-9a-fA-F]+$/.test(cleanSignature)) {
+        // Pure hex without 0x prefix
+        return `0x${cleanSignature.toLowerCase()}`;
+      } else if (this.isBase64(cleanSignature)) {
+        // Base64 encoded signature, convert to hex
+        try {
+          const buffer = Buffer.from(cleanSignature, 'base64');
+          return `0x${buffer.toString('hex')}`;
+        } catch (error) {
+          console.log('Failed to convert base64 signature to hex:', error);
+          return null;
+        }
+      } else {
+        // Try to detect other formats or treat as raw hex
+        const hexPattern = /^[0-9a-fA-F]+$/;
+        if (hexPattern.test(cleanSignature)) {
+          return `0x${cleanSignature.toLowerCase()}`;
+        }
+      }
+
+      console.log('Unrecognized signature format:', {
+        signature: cleanSignature.substring(0, 20) + '...',
+        length: cleanSignature.length,
+        startsWith0x: cleanSignature.startsWith('0x'),
+        isHex: /^[0-9a-fA-F]+$/.test(cleanSignature),
+        isBase64: this.isBase64(cleanSignature),
+      });
+
+      return null;
+    } catch (error) {
+      console.error('Error normalizing signature:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Check if string is valid base64
+   *
+   * @private
+   */
+  private isBase64(str: string): boolean {
+    try {
+      // Check if string matches base64 pattern
+      const base64Pattern = /^[A-Za-z0-9+/]*={0,2}$/;
+      if (!base64Pattern.test(str)) {
+        return false;
+      }
+
+      // Try to decode and re-encode to verify
+      const buffer = Buffer.from(str, 'base64');
+      const reencoded = buffer.toString('base64');
+      return reencoded === str;
+    } catch (error) {
+      return false;
+    }
   }
 
   /**
