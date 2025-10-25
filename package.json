@@ -75,6 +75,7 @@
     "@aws-sdk/client-s3": "^3.901.0",
     "@aws-sdk/s3-request-presigner": "^3.901.0",
     "@aws-sdk/util-dynamodb": "^3.902.0",
+    "@blocto/fcl": "^1.13.1",
     "@onflow/sdk": "^1.10.2",
     "@tsoa/runtime": "^6.6.0",
     "@types/dotenv": "^8.2.3",

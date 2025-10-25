@@ -8,7 +8,7 @@
  * @since 1.0.0
  */
 
-import * as fcl from '@onflow/fcl';
+import * as fcl from '@blocto/fcl';
 import { createHash, createHmac } from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import type { BloctoAuthRequest } from '../models/requests/index';
@@ -128,11 +128,19 @@ export class BloctoAuthService {
         return { success: false, error: addressError };
       }
 
-      // 5. Verify signature using FCL
+      // 5. Decode message if it's in hex format (frontend might send hex)
+      let decodedMessage = request.message;
+      if (this.isHexString(request.message)) {
+        console.log('Message is in hex format, decoding...');
+        decodedMessage = Buffer.from(request.message, 'hex').toString('utf-8');
+        console.log('Decoded message:', decodedMessage);
+      }
+
+      // 6. Verify signature using FCL
       console.log('BloctoAuthService.verifySignature - Verifying signature...');
       const signatureResult = await this.verifyFlowSignature(
         request.address,
-        request.message,
+        decodedMessage,
         request.signature
       );
 
@@ -397,7 +405,53 @@ export class BloctoAuthService {
         signature,
         keyId
       );
-      return { success: isValid };
+
+      if (isValid) {
+        console.log(
+          'Signature verification succeeded with primary key ID:',
+          keyId
+        );
+        return { success: true };
+      }
+
+      // Primary key ID failed, try all available keys as fallback
+      console.log(
+        'Primary key ID failed, trying all available keys as fallback...'
+      );
+      const keyIds = await this.getAllKeyIdsForAddress(address);
+      if (keyIds && keyIds.length > 0) {
+        console.log('Trying multiple key IDs as fallback:', keyIds);
+        for (const id of keyIds) {
+          // Skip the primary key ID we already tried
+          if (id === keyId) {
+            console.log(`Skipping key ID ${id} (already tried as primary)`);
+            continue;
+          }
+
+          const result = await this.trySignatureVerification(
+            address,
+            message,
+            signature,
+            id
+          );
+          if (result) {
+            console.log(
+              'Signature verification succeeded with fallback key ID:',
+              id
+            );
+            return { success: true };
+          }
+        }
+      }
+
+      console.error(
+        'All signature verification attempts failed for address:',
+        address
+      );
+      return {
+        success: false,
+        error: 'Could not verify signature with any available key ID',
+      };
     } catch (error) {
       console.error('Flow signature verification error:', error);
       return {
@@ -542,25 +596,51 @@ export class BloctoAuthService {
         return false;
       }
 
+      // Convert message to hex string (FCL handles UserDomainTag internally)
+      const messageHex = Buffer.from(message, 'utf-8').toString('hex');
+
       console.log('Attempting signature verification:', {
         address,
         keyId,
         messageLength: message.length,
+        message: message,
+        messageHex: messageHex.substring(0, 80) + '...',
+        messageHexFull: messageHex,
         originalSignature: signature.substring(0, 20) + '...',
         normalizedSignature: normalizedSignature.substring(0, 20) + '...',
         signatureLength: normalizedSignature.length,
+        note: 'FCL.AppUtils.verifyUserSignatures handles UserDomainTag internally',
       });
 
       // Use the new FCL AppUtils API instead of deprecated verifyUserSignatures
+      // CompositeSignatures format requires f_type and f_vsn metadata
+      // Flow blockchain expects signature WITHOUT 0x prefix
+      const signatureWithoutPrefix = normalizedSignature.startsWith('0x')
+        ? normalizedSignature.slice(2)
+        : normalizedSignature;
+
+      // Import FLOW_ENV to get Blocto FCLCryptoContract address
+      const { FLOW_ENV } = await import('../config/flow');
+
+      console.log(
+        'Using Blocto FCLCryptoContract:',
+        FLOW_ENV.BLOCTO_FCL_CRYPTO_CONTRACT
+      );
+
       const isValid = await (fcl.AppUtils.verifyUserSignatures as any)(
-        message,
+        messageHex,
         [
           {
+            f_type: 'CompositeSignature',
+            f_vsn: '1.0.0',
             addr: address,
             keyId: keyId,
-            signature: normalizedSignature,
+            signature: signatureWithoutPrefix,
           },
-        ]
+        ],
+        {
+          fclCryptoContract: FLOW_ENV.BLOCTO_FCL_CRYPTO_CONTRACT,
+        }
       );
 
       console.log(
@@ -747,6 +827,21 @@ export class BloctoAuthService {
       console.error('Error normalizing signature:', error);
       return null;
     }
+  }
+
+  /**
+   * Check if string is valid hex string
+   *
+   * @private
+   */
+  private isHexString(str: string): boolean {
+    if (!str || typeof str !== 'string') {
+      return false;
+    }
+    // Remove 0x prefix if present
+    const cleanStr = str.startsWith('0x') ? str.slice(2) : str;
+    // Check if it's a valid hex string (only contains 0-9, a-f, A-F)
+    return /^[0-9a-fA-F]+$/.test(cleanStr) && cleanStr.length % 2 === 0;
   }
 
   /**

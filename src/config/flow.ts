@@ -25,7 +25,8 @@ function getNetworkConfig(): {
   network: string;
   accessNode: string;
   discoveryWallet: string;
-  } {
+  bloctoFclCryptoContract: string;
+} {
   const network = process.env.FLOW_NETWORK || 'testnet';
 
   // Default endpoints based on network
@@ -33,10 +34,12 @@ function getNetworkConfig(): {
     testnet: {
       accessNode: 'https://rest-testnet.onflow.org',
       discoveryWallet: 'https://fcl-discovery.onflow.org/testnet/authn',
+      bloctoFclCryptoContract: '0x5b250a8a85b44a67', // Blocto Testnet
     },
     mainnet: {
       accessNode: 'https://rest-mainnet.onflow.org',
       discoveryWallet: 'https://fcl-discovery.onflow.org/authn',
+      bloctoFclCryptoContract: '0xdb6b70764af4ff68', // Blocto Mainnet
     },
   };
 
@@ -49,6 +52,7 @@ function getNetworkConfig(): {
     accessNode: process.env.FLOW_ACCESS_NODE || defaults.accessNode,
     discoveryWallet:
       process.env.FLOW_DISCOVERY_WALLET || defaults.discoveryWallet,
+    bloctoFclCryptoContract: defaults.bloctoFclCryptoContract,
   };
 }
 
@@ -63,6 +67,7 @@ export const FLOW_ENV = ((): {
   ACCESS_NODE: string;
   HEART_CONTRACT_ADDRESS: string;
   DISCOVERY_WALLET: string;
+  BLOCTO_FCL_CRYPTO_CONTRACT: string;
   DEFAULT_GAS_LIMIT: number;
   REQUEST_TIMEOUT: number;
   ADMIN_ADDRESS: string;
@@ -83,6 +88,9 @@ export const FLOW_ENV = ((): {
 
     /** Flow discovery wallet endpoint for authentication (network-specific) */
     DISCOVERY_WALLET: networkConfig.discoveryWallet,
+
+    /** Blocto FCL Crypto Contract address (network-specific) */
+    BLOCTO_FCL_CRYPTO_CONTRACT: networkConfig.bloctoFclCryptoContract,
 
     /** Default gas limit for transactions */
     DEFAULT_GAS_LIMIT: parseInt(process.env.FLOW_GAS_LIMIT || '1000', 10),
@@ -158,7 +166,7 @@ export function getContractAddresses(): {
   NonFungibleToken: string;
   FlowToken: string;
   MetadataViews: string;
-  } {
+} {
   const network = (process.env.FLOW_NETWORK || 'testnet') as
     | 'testnet'
     | 'mainnet';
@@ -390,7 +398,7 @@ export const isValidTransactionId = (txId: string): boolean => {
  */
 export const formatHeartAmount = (
   amount: string,
-  includeSymbol = false,
+  includeSymbol = false
 ): string => {
   try {
     const numAmount = parseFloat(amount);
