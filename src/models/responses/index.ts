@@ -601,3 +601,36 @@ export interface BloctoAuthData extends AuthData {
     deviceType?: string | undefined;
   };
 }
+
+/**
+ * Flow Wallet authentication response data
+ *
+ * @description Extended authentication data with Flow wallet-specific metadata.
+ * Supports Flow Wallet, Lilico, Dapper, and other Flow-compatible wallets.
+ *
+ * @example
+ * ```typescript
+ * const authData: FlowAuthData = {
+ *   token: "eyJhbGciOiJIUzI1NiIs...",
+ *   expiresIn: 86400,
+ *   address: "0x58f9e6153690c852",
+ *   role: "user",
+ *   issuedAt: "2024-01-01T00:00:00.000Z",
+ *   walletType: "flow",
+ *   flowMetadata: {
+ *     walletName: "Flow Wallet",
+ *     fclVersion: "1.20.0"
+ *   }
+ * };
+ * ```
+ */
+export interface FlowAuthData extends AuthData {
+  /** Wallet type identifier */
+  walletType: 'flow' | 'lilico' | 'dapper' | 'ledger';
+  /** Flow-specific metadata */
+  flowMetadata?: {
+    walletName?: string;
+    walletVersion?: string;
+    fclVersion?: string;
+  };
+}

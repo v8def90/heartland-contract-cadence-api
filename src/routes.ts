@@ -1123,6 +1123,47 @@ const models: TsoaRoute.Models = {
         "additionalProperties": false,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "FlowAuthData": {
+        "dataType": "refObject",
+        "properties": {
+            "token": {"dataType":"string","required":true},
+            "expiresIn": {"dataType":"double","required":true},
+            "address": {"dataType":"string","required":true},
+            "role": {"dataType":"union","subSchemas":[{"dataType":"enum","enums":["user"]},{"dataType":"enum","enums":["admin"]},{"dataType":"enum","enums":["minter"]},{"dataType":"enum","enums":["pauser"]}],"required":true},
+            "issuedAt": {"dataType":"string","required":true},
+            "walletType": {"dataType":"union","subSchemas":[{"dataType":"enum","enums":["flow"]},{"dataType":"enum","enums":["lilico"]},{"dataType":"enum","enums":["dapper"]},{"dataType":"enum","enums":["ledger"]}],"required":true},
+            "flowMetadata": {"dataType":"nestedObjectLiteral","nestedProperties":{"fclVersion":{"dataType":"string"},"walletVersion":{"dataType":"string"},"walletName":{"dataType":"string"}}},
+        },
+        "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "SuccessResponse_FlowAuthData_": {
+        "dataType": "refObject",
+        "properties": {
+            "success": {"dataType":"enum","enums":[true],"required":true},
+            "data": {"ref":"FlowAuthData","required":true},
+            "timestamp": {"dataType":"string","required":true},
+        },
+        "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "ApiResponse_FlowAuthData_": {
+        "dataType": "refAlias",
+        "type": {"dataType":"union","subSchemas":[{"ref":"SuccessResponse_FlowAuthData_"},{"ref":"ErrorResponse"}],"validators":{}},
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "FlowAuthRequest": {
+        "dataType": "refObject",
+        "properties": {
+            "address": {"dataType":"string","required":true},
+            "signature": {"dataType":"string","required":true},
+            "message": {"dataType":"string","required":true},
+            "timestamp": {"dataType":"double","required":true},
+            "nonce": {"dataType":"string","required":true},
+        },
+        "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     "SuccessResponse__nonce-string--message-string--timestamp-number__": {
         "dataType": "refObject",
         "properties": {
@@ -2863,6 +2904,36 @@ export function RegisterRoutes(app: Router) {
 
               await templateService.apiHandler({
                 methodName: 'bloctoLogin',
+                controller,
+                response,
+                next,
+                validatedArgs,
+                successStatus: 200,
+              });
+            } catch (err) {
+                return next(err);
+            }
+        });
+        // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+        const argsAuthController_flowLogin: Record<string, TsoaRoute.ParameterSchema> = {
+                request: {"in":"body","name":"request","required":true,"ref":"FlowAuthRequest"},
+        };
+        app.post('/auth/flow-login',
+            ...(fetchMiddlewares<RequestHandler>(AuthController)),
+            ...(fetchMiddlewares<RequestHandler>(AuthController.prototype.flowLogin)),
+
+            async function AuthController_flowLogin(request: ExRequest, response: ExResponse, next: any) {
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({ args: argsAuthController_flowLogin, request, response });
+
+                const controller = new AuthController();
+
+              await templateService.apiHandler({
+                methodName: 'flowLogin',
                 controller,
                 response,
                 next,

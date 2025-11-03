@@ -302,6 +302,37 @@ export interface BloctoAuthRequest {
 }
 
 /**
+ * Flow Wallet authentication request payload
+ *
+ * @description Request to authenticate using Flow wallet signature
+ * and generate JWT token for API access. Supports Flow Wallet, Lilico,
+ * Dapper, and other Flow-compatible wallets.
+ *
+ * @example
+ * ```typescript
+ * const request: FlowAuthRequest = {
+ *   address: "0x58f9e6153690c852",
+ *   signature: "abc123...",
+ *   message: "Login to Heart Token API\nNonce: xyz\nTimestamp: 1640995200000",
+ *   timestamp: 1640995200000,
+ *   nonce: "xyz"
+ * };
+ * ```
+ */
+export interface FlowAuthRequest {
+  /** User's Flow address (0x prefixed) */
+  address: string;
+  /** Flow wallet signature */
+  signature: string;
+  /** Original message that was signed */
+  message: string;
+  /** Timestamp when signature was created */
+  timestamp: number;
+  /** Nonce for replay protection (required) */
+  nonce: string;
+}
+
+/**
  * Transaction job request payload
  *
  * @description Base interface for all transaction job requests

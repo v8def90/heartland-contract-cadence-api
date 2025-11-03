@@ -25,11 +25,13 @@ import type {
   AuthData,
   TokenVerificationData,
   BloctoAuthData,
+  FlowAuthData,
 } from '../../models/responses/index';
 import type {
   LoginRequest,
   VerifyTokenRequest,
   BloctoAuthRequest,
+  FlowAuthRequest,
 } from '../../models/requests/index';
 import {
   generateJwtToken,
@@ -38,6 +40,7 @@ import {
 } from '../../middleware/passport';
 import { v4 as uuidv4 } from 'uuid';
 import { BloctoAuthService } from '../../services/BloctoAuthService';
+import { FlowAuthService } from '../../services/FlowAuthService';
 
 /**
  * Authentication Controller
@@ -55,10 +58,12 @@ import { BloctoAuthService } from '../../services/BloctoAuthService';
 @Tags('Authentication')
 export class AuthController extends Controller {
   private bloctoAuthService: BloctoAuthService;
+  private flowAuthService: FlowAuthService;
 
   constructor() {
     super();
     this.bloctoAuthService = BloctoAuthService.getInstance();
+    this.flowAuthService = FlowAuthService.getInstance();
   }
   /**
    * User login and token generation
@@ -534,6 +539,99 @@ export class AuthController extends Controller {
         error: {
           code: 'INTERNAL_SERVER_ERROR',
           message: 'Blocto authentication failed',
+          details:
+            error instanceof Error ? error.message : 'Unknown error occurred',
+        },
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
+
+  /**
+   * Flow wallet authentication
+   *
+   * @description Authenticates a user using Flow wallet signature verification.
+   * Supports Flow Wallet, Lilico, Dapper, and other Flow-compatible wallets.
+   * Uses @onflow/fcl for Cadence 1.0 compatible signature verification.
+   *
+   * @param request - Flow authentication request with signature and metadata
+   * @returns Promise resolving to Flow authentication data with JWT token
+   *
+   * @example
+   * ```typescript
+   * const flowRequest: FlowAuthRequest = {
+   *   address: "0x58f9e6153690c852",
+   *   signature: "abc123...",
+   *   message: "Login to Heart Token API\nNonce: xyz\nTimestamp: 1640995200000",
+   *   timestamp: 1640995200000,
+   *   nonce: "xyz"
+   * };
+   * const result = await authController.flowLogin(flowRequest);
+   * ```
+   */
+  @Post('flow-login')
+  @SuccessResponse('200', 'Flow authentication successful')
+  @Response<ApiResponse>('400', 'Invalid request')
+  @Response<ApiResponse>('401', 'Authentication failed')
+  @Example<ApiResponse<FlowAuthData>>({
+    success: true,
+    data: {
+      token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+      expiresIn: 86400,
+      address: '0x58f9e6153690c852',
+      role: 'user',
+      issuedAt: '2024-01-01T00:00:00.000Z',
+      walletType: 'flow',
+      flowMetadata: {
+        walletName: 'Flow Wallet',
+        fclVersion: '1.20.0',
+      },
+    },
+    timestamp: '2024-01-01T00:00:00.000Z',
+  })
+  @Example<ApiResponse>({
+    success: false,
+    error: {
+      code: 'AUTHENTICATION_ERROR',
+      message: 'Invalid signature',
+      details: 'Flow wallet signature verification failed',
+    },
+    timestamp: '2024-01-01T00:00:00.000Z',
+  })
+  public async flowLogin(
+    @Body() request: FlowAuthRequest
+  ): Promise<ApiResponse<FlowAuthData>> {
+    try {
+      // Verify Flow signature and authenticate user
+      const result = await this.flowAuthService.verifySignature(request);
+
+      if (!result.success) {
+        this.setStatus(401);
+        return {
+          success: false,
+          error: {
+            code: 'AUTHENTICATION_ERROR',
+            message: result.error,
+            details: 'Flow wallet signature verification failed',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      this.setStatus(200);
+      return {
+        success: true,
+        data: result.data,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      console.error('Flow login error:', error);
+      this.setStatus(500);
+      return {
+        success: false,
+        error: {
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Flow authentication failed',
           details:
             error instanceof Error ? error.message : 'Unknown error occurred',
         },
