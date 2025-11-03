@@ -9,7 +9,7 @@
  * @since 1.0.0
  */
 
-import * as fcl from '@onflow/fcl';
+import * as fcl from '@blocto/fcl';
 import type { FlowConfig } from '../models/flow';
 
 // Load environment variables using require syntax

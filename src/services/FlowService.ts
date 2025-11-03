@@ -8,7 +8,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
-import * as fcl from '@onflow/fcl';
+import * as fcl from '@blocto/fcl';
 import * as fs from 'fs';
 import * as path from 'path';
 import { ec as EC } from 'elliptic';
@@ -51,7 +51,7 @@ export class FlowService {
    */
   private async executeScript<T = unknown>(
     scriptPath: string,
-    args: string[] = [],
+    args: string[] = []
   ): Promise<T> {
     try {
       // Read the script file
@@ -94,7 +94,7 @@ export class FlowService {
   private async executeTransaction(
     transactionPath: string,
     args: string[] = [],
-    signers: any[] = [],
+    signers: any[] = []
   ): Promise<any> {
     try {
       console.log('Executing Flow transaction:', transactionPath);
@@ -170,13 +170,13 @@ export class FlowService {
             // First argument: recipients as [Address]
             const recipientsArray = JSON.parse(arg);
             transactionArgs.push(
-              fcl.arg(recipientsArray, fcl.t.Array(fcl.t.Address)),
+              fcl.arg(recipientsArray, fcl.t.Array(fcl.t.Address))
             );
           } else if (index === 1) {
             // Second argument: amounts as [UFix64]
             const amountsArray = JSON.parse(arg);
             transactionArgs.push(
-              fcl.arg(amountsArray, fcl.t.Array(fcl.t.UFix64)),
+              fcl.arg(amountsArray, fcl.t.Array(fcl.t.UFix64))
             );
           } else {
             // Default to String for other arguments
@@ -209,7 +209,7 @@ export class FlowService {
         transactionBuilders.push(
           fcl.proposer(authorizationFunction),
           fcl.payer(authorizationFunction),
-          fcl.authorizations([authorizationFunction]),
+          fcl.authorizations([authorizationFunction])
         );
       } else {
         throw new Error('No authorization functions provided');
@@ -230,7 +230,7 @@ export class FlowService {
       // Check transaction status
       if (sealedTransaction.statusCode !== 0) {
         throw new Error(
-          `Transaction failed with error: ${sealedTransaction.errorMessage || 'Unknown error'}`,
+          `Transaction failed with error: ${sealedTransaction.errorMessage || 'Unknown error'}`
         );
       }
 
@@ -243,7 +243,7 @@ export class FlowService {
     } catch (error) {
       console.error(
         'ERROR executeTransaction: Transaction execution failed:',
-        error,
+        error
       );
       console.error('ERROR executeTransaction: Error details:', {
         message: error instanceof Error ? error.message : 'Unknown error',
@@ -257,7 +257,7 @@ export class FlowService {
       ) {
         console.error('ERROR executeTransaction: SIGNATURE VALIDATION FAILED');
         console.error(
-          'ERROR executeTransaction: This indicates an issue with the signing process',
+          'ERROR executeTransaction: This indicates an issue with the signing process'
         );
       }
 
@@ -277,33 +277,33 @@ export class FlowService {
     // Replace contract import statements with actual addresses
     processedScript = processedScript.replace(
       /import\s+"Heart"/g,
-      `import ${CONTRACT_ADDRESSES.Heart}`,
+      `import ${CONTRACT_ADDRESSES.Heart}`
     );
     processedScript = processedScript.replace(
       /import\s+"FungibleToken"/g,
-      `import ${CONTRACT_ADDRESSES.FungibleToken}`,
+      `import ${CONTRACT_ADDRESSES.FungibleToken}`
     );
     processedScript = processedScript.replace(
       /import\s+"NonFungibleToken"/g,
-      `import ${CONTRACT_ADDRESSES.NonFungibleToken}`,
+      `import ${CONTRACT_ADDRESSES.NonFungibleToken}`
     );
     processedScript = processedScript.replace(
       /import\s+"FlowToken"/g,
-      `import ${CONTRACT_ADDRESSES.FlowToken}`,
+      `import ${CONTRACT_ADDRESSES.FlowToken}`
     );
     processedScript = processedScript.replace(
       /import\s+"MetadataViews"/g,
-      `import ${CONTRACT_ADDRESSES.MetadataViews}`,
+      `import ${CONTRACT_ADDRESSES.MetadataViews}`
     );
 
     // Also replace any hardcoded addresses for backwards compatibility
     processedScript = processedScript.replace(
       /0x9a0766d93b6608b7/g,
-      CONTRACT_ADDRESSES.FungibleToken,
+      CONTRACT_ADDRESSES.FungibleToken
     );
     processedScript = processedScript.replace(
       /0x58f9e6153690c852/g,
-      CONTRACT_ADDRESSES.Heart,
+      CONTRACT_ADDRESSES.Heart
     );
 
     return processedScript;
@@ -329,7 +329,7 @@ export class FlowService {
       // Execute the Flow script to get balance
       const balanceResult = await this.executeScript<string>(
         'scripts/getBalance.cdc',
-        [address],
+        [address]
       );
 
       // Convert UFix64 result to string
@@ -369,7 +369,7 @@ export class FlowService {
     try {
       // Execute the Flow script to get total supply
       const totalSupplyResult = await this.executeScript<string>(
-        'scripts/getTotalSupply.cdc',
+        'scripts/getTotalSupply.cdc'
       );
 
       // Convert UFix64 result to string
@@ -384,7 +384,7 @@ export class FlowService {
     } catch (error) {
       console.error(
         'ERROR getTotalSupply: Flow script execution failed:',
-        error,
+        error
       );
       console.error('ERROR getTotalSupply: Error details:', {
         message: error instanceof Error ? error.message : 'Unknown error',
@@ -412,7 +412,7 @@ export class FlowService {
     try {
       // Execute the Flow script to get tax rate
       const taxRateResult = await this.executeScript<string>(
-        'scripts/get-tax-rate.cdc',
+        'scripts/get-tax-rate.cdc'
       );
 
       console.log('DEBUG getTaxRate: Raw Flow script result:', taxRateResult);
@@ -430,20 +430,20 @@ export class FlowService {
         taxRatePercentage = taxRateDecimal * 100;
         console.log(
           'DEBUG getTaxRate: Converted decimal to percentage:',
-          taxRatePercentage,
+          taxRatePercentage
         );
       } else {
         // Assume percentage format (5.0 = 5%)
         taxRatePercentage = taxRateDecimal;
         console.log(
           'DEBUG getTaxRate: Using as percentage directly:',
-          taxRatePercentage,
+          taxRatePercentage
         );
       }
 
       console.log(
         'DEBUG getTaxRate: Final tax rate percentage:',
-        taxRatePercentage,
+        taxRatePercentage
       );
 
       return createSuccessResponse<TaxRateData>({
@@ -479,16 +479,16 @@ export class FlowService {
 
       // Execute the Flow script to get treasury account address
       const treasuryResult = await this.executeScript<string>(
-        'scripts/get-treasury-account.cdc',
+        'scripts/get-treasury-account.cdc'
       );
 
       console.log(
         'DEBUG getTreasuryAccount: Raw Flow script result:',
-        treasuryResult,
+        treasuryResult
       );
       console.log(
         'DEBUG getTreasuryAccount: Result type:',
-        typeof treasuryResult,
+        typeof treasuryResult
       );
 
       // Parse the address result
@@ -496,7 +496,7 @@ export class FlowService {
 
       console.log(
         'DEBUG getTreasuryAccount: Processed treasury address:',
-        treasuryAddress,
+        treasuryAddress
       );
 
       return createSuccessResponse<TreasuryData>({
@@ -506,7 +506,7 @@ export class FlowService {
     } catch (error) {
       console.error(
         'ERROR getTreasuryAccount: Flow script execution failed:',
-        error,
+        error
       );
       console.error('ERROR getTreasuryAccount: Error details:', {
         message: error instanceof Error ? error.message : 'Unknown error',
@@ -535,16 +535,16 @@ export class FlowService {
 
       // Execute the Flow script to get pause status
       const pauseStatusResult = await this.executeScript<boolean>(
-        'scripts/get-pause-status.cdc',
+        'scripts/get-pause-status.cdc'
       );
 
       console.log(
         'DEBUG getPauseStatus: Raw Flow script result:',
-        pauseStatusResult,
+        pauseStatusResult
       );
       console.log(
         'DEBUG getPauseStatus: Result type:',
-        typeof pauseStatusResult,
+        typeof pauseStatusResult
       );
 
       // Parse the boolean result
@@ -560,7 +560,7 @@ export class FlowService {
     } catch (error) {
       console.error(
         'ERROR getPauseStatus: Flow script execution failed:',
-        error,
+        error
       );
       console.error('ERROR getPauseStatus: Error details:', {
         message: error instanceof Error ? error.message : 'Unknown error',
@@ -639,7 +639,7 @@ export class FlowService {
    * @returns Promise resolving to admin capabilities
    */
   async getAdminCapabilities(
-    address: string,
+    address: string
   ): Promise<ApiResponse<AdminCapabilitiesData>> {
     // Validate address format
     if (!isValidFlowAddress(address)) {
@@ -653,7 +653,7 @@ export class FlowService {
     try {
       console.log(
         'DEBUG getAdminCapabilities: Starting Flow script execution for address:',
-        address,
+        address
       );
 
       // Execute the Flow script to get admin capabilities
@@ -663,11 +663,11 @@ export class FlowService {
 
       console.log(
         'DEBUG getAdminCapabilities: Raw Flow script result:',
-        capabilitiesResult,
+        capabilitiesResult
       );
       console.log(
         'DEBUG getAdminCapabilities: Result type:',
-        typeof capabilitiesResult,
+        typeof capabilitiesResult
       );
 
       // Parse the capabilities result based on actual script output
@@ -683,14 +683,14 @@ export class FlowService {
 
       console.log(
         'DEBUG getAdminCapabilities: Processed admin capabilities:',
-        adminCapabilities,
+        adminCapabilities
       );
 
       return createSuccessResponse<AdminCapabilitiesData>(adminCapabilities);
     } catch (error) {
       console.error(
         'ERROR getAdminCapabilities: Flow script execution failed:',
-        error,
+        error
       );
       console.error('ERROR getAdminCapabilities: Error details:', {
         message: error instanceof Error ? error.message : 'Unknown error',
@@ -734,7 +734,7 @@ export class FlowService {
     try {
       console.log(
         'DEBUG setupAccount: Starting setup account transaction for address:',
-        address,
+        address
       );
 
       // Check if we have admin credentials for real transaction
@@ -743,7 +743,7 @@ export class FlowService {
 
       if (!adminPrivateKey) {
         console.log(
-          'DEBUG setupAccount: No admin private key found, using mock implementation',
+          'DEBUG setupAccount: No admin private key found, using mock implementation'
         );
 
         // Mock transaction execution for demonstration
@@ -761,7 +761,7 @@ export class FlowService {
 
         console.log(
           'DEBUG setupAccount: Mock account setup completed:',
-          setupData,
+          setupData
         );
         return createSuccessResponse<AccountSetupData>(setupData);
       }
@@ -774,7 +774,7 @@ export class FlowService {
         console.log('DEBUG setupAccount: Getting admin account info...');
         const adminAccountInfo = await this.getAccountInfo(adminAddress);
         console.log(
-          'DEBUG setupAccount: Admin account info retrieved successfully',
+          'DEBUG setupAccount: Admin account info retrieved successfully'
         );
 
         // Verify private key matches the account's public key
@@ -785,26 +785,26 @@ export class FlowService {
           console.log('DEBUG setupAccount: Verifying private key...');
           const verification = await this.verifyPrivateKey(
             adminPrivateKey,
-            expectedPublicKey,
+            expectedPublicKey
           );
 
           console.log(
             'DEBUG setupAccount: Private key verification result:',
-            verification,
+            verification
           );
 
           if (!verification.isValid) {
             console.error(
               'ERROR setupAccount: Private key verification failed:',
-              verification.details,
+              verification.details
             );
             throw new Error(
-              `Private key verification failed: ${verification.details}`,
+              `Private key verification failed: ${verification.details}`
             );
           }
 
           console.log(
-            'DEBUG setupAccount: Private key verification successful!',
+            'DEBUG setupAccount: Private key verification successful!'
           );
         } else {
           console.warn('WARN setupAccount: No keys found in admin account');
@@ -815,12 +815,12 @@ export class FlowService {
         try {
           await this.getAccountInfo(address);
           console.log(
-            'DEBUG setupAccount: Target account info retrieved successfully',
+            'DEBUG setupAccount: Target account info retrieved successfully'
           );
         } catch (targetError) {
           console.log(
             'DEBUG setupAccount: Target account info failed (expected for new accounts):',
-            targetError instanceof Error ? targetError.message : 'Unknown error',
+            targetError instanceof Error ? targetError.message : 'Unknown error'
           );
         }
         // Flow SDK v1.9.0 compliant authorization function
@@ -843,7 +843,7 @@ export class FlowService {
               // Sign the message with Flow-compatible cryptography
               const signature = await this.signWithPrivateKey(
                 message,
-                adminPrivateKey,
+                adminPrivateKey
               );
 
               const result = {
@@ -875,7 +875,7 @@ export class FlowService {
         const result = await this.executeTransaction(
           'transactions/setup-account.transaction.cdc',
           [], // No arguments needed for setup-account
-          [authorization], // Admin authorization
+          [authorization] // Admin authorization
         );
 
         console.log('DEBUG setupAccount: Real transaction completed:', result);
@@ -891,7 +891,7 @@ export class FlowService {
       } catch (transactionError) {
         console.error(
           'ERROR setupAccount: Real transaction failed:',
-          transactionError,
+          transactionError
         );
 
         // Fall back to mock if real transaction fails
@@ -932,7 +932,7 @@ export class FlowService {
       message: string;
       txId?: string;
     }>
-    > {
+  > {
     try {
       console.log('DEBUG setupAdminWithMinter: Starting admin minter setup...');
 
@@ -951,7 +951,7 @@ export class FlowService {
 
       // Real transaction execution
       console.log(
-        'DEBUG setupAdminWithMinter: Executing real Flow transaction...',
+        'DEBUG setupAdminWithMinter: Executing real Flow transaction...'
       );
 
       // Create authorization function for the admin account
@@ -970,7 +970,7 @@ export class FlowService {
 
             const signature = await this.signWithPrivateKey(
               message,
-              adminPrivateKey,
+              adminPrivateKey
             );
 
             return {
@@ -998,7 +998,7 @@ export class FlowService {
       const result = await this.executeTransaction(
         'transactions/setup-admin-with-minter.transaction.cdc',
         [], // No arguments needed
-        [authorization], // Admin authorization
+        [authorization] // Admin authorization
       );
 
       console.log('DEBUG setupAdminWithMinter: Transaction completed:', result);
@@ -1031,7 +1031,7 @@ export class FlowService {
       txId?: string;
       roles?: string[];
     }>
-    > {
+  > {
     try {
       console.log('DEBUG setupAdminRoles: Starting admin roles setup...');
 
@@ -1049,7 +1049,7 @@ export class FlowService {
       }
 
       console.log(
-        'DEBUG setupAdminRoles: Executing real admin roles setup transaction...',
+        'DEBUG setupAdminRoles: Executing real admin roles setup transaction...'
       );
 
       try {
@@ -1057,12 +1057,12 @@ export class FlowService {
         const transactionResult = await this.executeTransaction(
           'transactions/setup-admin-roles.transaction.cdc',
           [], // No arguments needed
-          [adminAddress], // Admin account as signer
+          [adminAddress] // Admin account as signer
         );
 
         console.log(
           'DEBUG setupAdminRoles: Transaction successful:',
-          transactionResult,
+          transactionResult
         );
 
         const setupResult = {
@@ -1077,7 +1077,7 @@ export class FlowService {
       } catch (error) {
         console.error(
           'ERROR setupAdminRoles: Transaction execution failed:',
-          error,
+          error
         );
 
         // Check for specific error patterns
@@ -1093,7 +1093,7 @@ export class FlowService {
 
           if (error.message.includes('already exists')) {
             console.log(
-              'DEBUG setupAdminRoles: Some roles already exist, this is normal',
+              'DEBUG setupAdminRoles: Some roles already exist, this is normal'
             );
             const setupResult = {
               success: true,
@@ -1131,7 +1131,7 @@ export class FlowService {
    */
   private async verifyPrivateKey(
     privateKey: string,
-    expectedPublicKey: string,
+    expectedPublicKey: string
   ): Promise<{
     isValid: boolean;
     generatedPublicKey: string;
@@ -1141,7 +1141,7 @@ export class FlowService {
       console.log('DEBUG verifyPrivateKey: Verifying private key...');
       console.log(
         'DEBUG verifyPrivateKey: Expected public key:',
-        expectedPublicKey,
+        expectedPublicKey
       );
 
       // Remove 0x prefix if present
@@ -1165,15 +1165,15 @@ export class FlowService {
 
       console.log(
         'DEBUG verifyPrivateKey: Generated public key (uncompressed):',
-        publicKeyHex,
+        publicKeyHex
       );
       console.log(
         'DEBUG verifyPrivateKey: Generated public key (compressed):',
-        compressedPublicKey,
+        compressedPublicKey
       );
       console.log(
         'DEBUG verifyPrivateKey: Expected public key:',
-        cleanExpectedPublicKey,
+        cleanExpectedPublicKey
       );
 
       const isValid =
@@ -1214,14 +1214,14 @@ export class FlowService {
    */
   private async signWithPrivateKey(
     message: string,
-    privateKey: string,
+    privateKey: string
   ): Promise<string> {
     try {
       console.log('DEBUG signWithPrivateKey: Signing message with private key');
       console.log('DEBUG signWithPrivateKey: Message length:', message.length);
       console.log(
         'DEBUG signWithPrivateKey: Message preview:',
-        `${message.substring(0, 100)}...`,
+        `${message.substring(0, 100)}...`
       );
 
       // Initialize elliptic curve (p256 for Flow ECDSA_P256)
@@ -1231,7 +1231,7 @@ export class FlowService {
       const cleanPrivateKey = privateKey.replace(/^0x/, '');
       if (cleanPrivateKey.length !== 64) {
         throw new Error(
-          `Invalid private key length: ${cleanPrivateKey.length}, expected 64 hex characters`,
+          `Invalid private key length: ${cleanPrivateKey.length}, expected 64 hex characters`
         );
       }
 
@@ -1248,7 +1248,7 @@ export class FlowService {
 
       console.log(
         'DEBUG signWithPrivateKey: Message hash:',
-        messageHash.toString('hex'),
+        messageHash.toString('hex')
       );
 
       // Sign the message hash with ECDSA P256
@@ -1263,13 +1263,13 @@ export class FlowService {
 
       console.log(
         'DEBUG signWithPrivateKey: Raw signature generated successfully:',
-        rawSignature.length,
+        rawSignature.length
       );
 
       // Verify signature length
       if (rawSignature.length !== 128) {
         throw new Error(
-          `Invalid signature length: ${rawSignature.length}, expected 128 hex characters`,
+          `Invalid signature length: ${rawSignature.length}, expected 128 hex characters`
         );
       }
 
@@ -1277,7 +1277,7 @@ export class FlowService {
     } catch (error) {
       console.error('ERROR signWithPrivateKey: Signing failed:', error);
       throw new Error(
-        `Failed to sign message: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Failed to sign message: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
     }
   }
@@ -1345,7 +1345,7 @@ export class FlowService {
    */
   async mintTokens(
     recipient: string,
-    amount: string,
+    amount: string
   ): Promise<
     ApiResponse<{
       txId: string;
@@ -1386,7 +1386,7 @@ export class FlowService {
 
       if (!adminPrivateKey) {
         console.log(
-          'DEBUG mintTokens: No admin private key found, using mock implementation',
+          'DEBUG mintTokens: No admin private key found, using mock implementation'
         );
 
         // Mock mint transaction for demonstration
@@ -1430,7 +1430,7 @@ export class FlowService {
 
             const signature = await this.signWithPrivateKey(
               message,
-              adminPrivateKey,
+              adminPrivateKey
             );
 
             return {
@@ -1458,12 +1458,12 @@ export class FlowService {
       const result = await this.executeTransaction(
         'transactions/mint-tokens.transaction.cdc',
         [recipient, amount], // recipient and amount parameters
-        [authorization],
+        [authorization]
       );
 
       console.log(
         'DEBUG mintTokens: Transaction completed successfully:',
-        result,
+        result
       );
 
       return createSuccessResponse({
@@ -1486,7 +1486,7 @@ export class FlowService {
           error.message.includes('invalid proposal key')
         ) {
           console.log(
-            'WARN mintTokens: Signature validation failed, falling back to mock mode',
+            'WARN mintTokens: Signature validation failed, falling back to mock mode'
           );
 
           // Generate mock response for demo purposes
@@ -1548,7 +1548,7 @@ export class FlowService {
   async transferTokens(
     sender: string,
     recipient: string,
-    amount: string,
+    amount: string
   ): Promise<
     ApiResponse<{
       txId: string;
@@ -1592,7 +1592,7 @@ export class FlowService {
 
       if (!adminPrivateKey) {
         console.log(
-          'DEBUG transferTokens: No admin private key found, using mock implementation',
+          'DEBUG transferTokens: No admin private key found, using mock implementation'
         );
 
         // Mock transfer transaction for demonstration
@@ -1628,7 +1628,7 @@ export class FlowService {
 
       // Real transaction execution using Flow SDK
       console.log(
-        'DEBUG transferTokens: Executing real transfer transaction...',
+        'DEBUG transferTokens: Executing real transfer transaction...'
       );
 
       // Create authorization function for the sender account
@@ -1642,7 +1642,7 @@ export class FlowService {
             // Sign the transaction with the admin private key
             const signature = await this.signWithPrivateKey(
               signable.message,
-              adminPrivateKey,
+              adminPrivateKey
             );
             return {
               addr: fcl.sansPrefix(sender),
@@ -1657,12 +1657,12 @@ export class FlowService {
       const result = await this.executeTransaction(
         'transactions/transfer-heart.transaction.cdc',
         [recipient, amount],
-        [authorization],
+        [authorization]
       );
 
       console.log(
         'DEBUG transferTokens: Transfer transaction completed successfully:',
-        result,
+        result
       );
 
       // Calculate tax and net amounts (for response)
@@ -1725,7 +1725,7 @@ export class FlowService {
 
       console.log(
         'DEBUG burnTokens: Starting burn transaction for amount:',
-        amount,
+        amount
       );
 
       // Get admin private key for authorization
@@ -1734,7 +1734,7 @@ export class FlowService {
 
       if (!adminPrivateKey) {
         console.log(
-          'DEBUG burnTokens: No admin private key found, using mock implementation',
+          'DEBUG burnTokens: No admin private key found, using mock implementation'
         );
 
         // Mock implementation for development
@@ -1771,7 +1771,7 @@ export class FlowService {
 
             const signature = await this.signWithPrivateKey(
               message,
-              adminPrivateKey,
+              adminPrivateKey
             );
 
             return {
@@ -1799,12 +1799,12 @@ export class FlowService {
       const result = await this.executeTransaction(
         'transactions/burn-tokens.transaction.cdc',
         [amount], // Only amount parameter required
-        [authorization],
+        [authorization]
       );
 
       console.log(
         'DEBUG burnTokens: Burn transaction completed successfully:',
-        result,
+        result
       );
 
       return createSuccessResponse({
@@ -1866,7 +1866,7 @@ export class FlowService {
       blockHeight?: string;
       events?: any[];
     }>
-    > {
+  > {
     try {
       console.log('DEBUG pauseContract: Starting pause transaction');
 
@@ -1876,7 +1876,7 @@ export class FlowService {
 
       if (!adminPrivateKey) {
         console.log(
-          'DEBUG pauseContract: No admin private key found, using mock implementation',
+          'DEBUG pauseContract: No admin private key found, using mock implementation'
         );
 
         // Mock pause transaction for demonstration
@@ -1913,7 +1913,7 @@ export class FlowService {
           signingFunction: async (signable: any) => {
             const signature = await this.signWithPrivateKey(
               signable.message,
-              adminPrivateKey,
+              adminPrivateKey
             );
             return {
               addr: fcl.sansPrefix(adminAddress),
@@ -1928,12 +1928,12 @@ export class FlowService {
       const result = await this.executeTransaction(
         'transactions/pause-heart.transaction.cdc',
         [], // No parameters needed for pause
-        [authorization],
+        [authorization]
       );
 
       console.log(
         'DEBUG pauseContract: Pause transaction completed successfully:',
-        result,
+        result
       );
 
       return createSuccessResponse({
@@ -1989,7 +1989,7 @@ export class FlowService {
       blockHeight?: string;
       events?: any[];
     }>
-    > {
+  > {
     try {
       console.log('DEBUG unpauseContract: Starting unpause transaction');
 
@@ -1999,7 +1999,7 @@ export class FlowService {
 
       if (!adminPrivateKey) {
         console.log(
-          'DEBUG unpauseContract: No admin private key found, using mock implementation',
+          'DEBUG unpauseContract: No admin private key found, using mock implementation'
         );
 
         // Mock unpause transaction for demonstration
@@ -2022,7 +2022,7 @@ export class FlowService {
 
       // Real transaction execution using Flow SDK
       console.log(
-        'DEBUG unpauseContract: Executing real unpause transaction...',
+        'DEBUG unpauseContract: Executing real unpause transaction...'
       );
 
       // Create authorization function for the admin account
@@ -2038,7 +2038,7 @@ export class FlowService {
           signingFunction: async (signable: any) => {
             const signature = await this.signWithPrivateKey(
               signable.message,
-              adminPrivateKey,
+              adminPrivateKey
             );
             return {
               addr: fcl.sansPrefix(adminAddress),
@@ -2053,12 +2053,12 @@ export class FlowService {
       const result = await this.executeTransaction(
         'transactions/unpause-heart.transaction.cdc',
         [], // No parameters needed for unpause
-        [authorization],
+        [authorization]
       );
 
       console.log(
         'DEBUG unpauseContract: Unpause transaction completed successfully:',
-        result,
+        result
       );
 
       return createSuccessResponse({
@@ -2070,7 +2070,7 @@ export class FlowService {
     } catch (error) {
       console.error(
         'ERROR unpauseContract: Unpause transaction failed:',
-        error,
+        error
       );
 
       // Check for specific error types
@@ -2139,7 +2139,7 @@ export class FlowService {
 
       if (!adminPrivateKey) {
         console.log(
-          'DEBUG setTaxRate: No admin private key found, using mock implementation',
+          'DEBUG setTaxRate: No admin private key found, using mock implementation'
         );
 
         // Mock set tax rate transaction for demonstration
@@ -2163,7 +2163,7 @@ export class FlowService {
 
       // Real transaction execution using Flow SDK
       console.log(
-        'DEBUG setTaxRate: Executing real set tax rate transaction...',
+        'DEBUG setTaxRate: Executing real set tax rate transaction...'
       );
 
       // Create authorization function for the admin account
@@ -2179,7 +2179,7 @@ export class FlowService {
           signingFunction: async (signable: any) => {
             const signature = await this.signWithPrivateKey(
               signable.message,
-              adminPrivateKey,
+              adminPrivateKey
             );
             return {
               addr: fcl.sansPrefix(adminAddress),
@@ -2194,12 +2194,12 @@ export class FlowService {
       const result = await this.executeTransaction(
         'transactions/set-tax-rate.transaction.cdc',
         [newTaxRate], // newTaxRate parameter as UFix64
-        [authorization],
+        [authorization]
       );
 
       console.log(
         'DEBUG setTaxRate: Set tax rate transaction completed successfully:',
-        result,
+        result
       );
 
       return createSuccessResponse({
@@ -2212,7 +2212,7 @@ export class FlowService {
     } catch (error) {
       console.error(
         'ERROR setTaxRate: Set tax rate transaction failed:',
-        error,
+        error
       );
 
       // Check for specific error types
@@ -2267,7 +2267,7 @@ export class FlowService {
   > {
     try {
       console.log(
-        'DEBUG setTreasuryAccount: Starting set treasury account transaction',
+        'DEBUG setTreasuryAccount: Starting set treasury account transaction'
       );
 
       // Validate treasury account address format
@@ -2289,7 +2289,7 @@ export class FlowService {
 
       if (!adminPrivateKey) {
         console.log(
-          'DEBUG setTreasuryAccount: No admin private key found, using mock implementation',
+          'DEBUG setTreasuryAccount: No admin private key found, using mock implementation'
         );
 
         // Mock set treasury account transaction for demonstration
@@ -2302,7 +2302,7 @@ export class FlowService {
             newTreasuryAccount,
             status: 'sealed',
             blockHeight: 12345678,
-          },
+          }
         );
 
         return createSuccessResponse({
@@ -2316,7 +2316,7 @@ export class FlowService {
 
       // Real transaction execution using Flow SDK
       console.log(
-        'DEBUG setTreasuryAccount: Executing real set treasury account transaction...',
+        'DEBUG setTreasuryAccount: Executing real set treasury account transaction...'
       );
 
       // Create authorization function for the admin account
@@ -2334,7 +2334,7 @@ export class FlowService {
           signingFunction: async (signable: any) => {
             const signature = await this.signWithPrivateKey(
               signable.message,
-              adminPrivateKey,
+              adminPrivateKey
             );
             return {
               addr: fcl.sansPrefix(adminAddress),
@@ -2349,7 +2349,7 @@ export class FlowService {
       const result = await this.executeTransaction(
         'transactions/set-treasury-account.transaction.cdc',
         [newTreasuryAccount],
-        [authorization],
+        [authorization]
       );
 
       console.log('DEBUG setTreasuryAccount: Transaction result:', result);
@@ -2404,7 +2404,7 @@ export class FlowService {
    */
   async batchTransferTokens(
     transfers: Array<{ recipient: string; amount: string }>,
-    sender?: string,
+    sender?: string
   ): Promise<
     ApiResponse<{
       txId: string;
@@ -2418,7 +2418,7 @@ export class FlowService {
   > {
     try {
       console.log(
-        'DEBUG batchTransferTokens: Starting batch transfer transaction',
+        'DEBUG batchTransferTokens: Starting batch transfer transaction'
       );
 
       // Validate transfers array
@@ -2484,7 +2484,7 @@ export class FlowService {
       // Calculate totals for response
       const totalAmount = transfers.reduce(
         (sum, transfer) => sum + parseFloat(transfer.amount),
-        0,
+        0
       );
 
       // Use admin address if no sender specified
@@ -2494,7 +2494,7 @@ export class FlowService {
 
       if (!adminPrivateKey) {
         console.log(
-          'DEBUG batchTransferTokens: No admin private key found, using mock implementation',
+          'DEBUG batchTransferTokens: No admin private key found, using mock implementation'
         );
 
         // Mock batch transfer transaction for demonstration
@@ -2508,7 +2508,7 @@ export class FlowService {
             totalAmount: totalAmount.toString(),
             status: 'sealed',
             blockHeight: 12345678,
-          },
+          }
         );
 
         return createSuccessResponse({
@@ -2524,7 +2524,7 @@ export class FlowService {
 
       // Real transaction execution using Flow SDK
       console.log(
-        'DEBUG batchTransferTokens: Executing real batch transfer transaction...',
+        'DEBUG batchTransferTokens: Executing real batch transfer transaction...'
       );
 
       // Create authorization function for the sender account
@@ -2540,7 +2540,7 @@ export class FlowService {
           signingFunction: async (signable: any) => {
             const signature = await this.signWithPrivateKey(
               signable.message,
-              adminPrivateKey,
+              adminPrivateKey
             );
             return {
               addr: fcl.sansPrefix(senderAddress),
@@ -2559,7 +2559,7 @@ export class FlowService {
       const result = await this.executeTransaction(
         'transactions/batch-transfer.transaction.cdc',
         [JSON.stringify(recipients), JSON.stringify(amounts)], // Pass as JSON arrays
-        [authorization],
+        [authorization]
       );
 
       console.log('DEBUG batchTransferTokens: Transaction result:', result);

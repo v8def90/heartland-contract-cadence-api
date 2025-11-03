@@ -619,12 +619,11 @@ export class BloctoAuthService {
         ? normalizedSignature.slice(2)
         : normalizedSignature;
 
-      // Import FLOW_ENV to get Blocto FCLCryptoContract address
-      const { FLOW_ENV } = await import('../config/flow');
-
+      // Note: Not using Blocto-specific fclCryptoContract because the Blocto FCLCrypto
+      // contract (0x5b250a8a85b44a67) has not been migrated to Cadence 1.0 yet.
+      // Using Flow's default FCL verification which should work for Blocto accounts.
       console.log(
-        'Using Blocto FCLCryptoContract:',
-        FLOW_ENV.BLOCTO_FCL_CRYPTO_CONTRACT
+        'Using Flow default FCL verification (Blocto FCLCrypto not Cadence 1.0 compatible)'
       );
 
       const isValid = await (fcl.AppUtils.verifyUserSignatures as any)(
@@ -637,10 +636,8 @@ export class BloctoAuthService {
             keyId: keyId,
             signature: signatureWithoutPrefix,
           },
-        ],
-        {
-          fclCryptoContract: FLOW_ENV.BLOCTO_FCL_CRYPTO_CONTRACT,
-        }
+        ]
+        // Not passing fclCryptoContract option - use Flow default
       );
 
       console.log(
