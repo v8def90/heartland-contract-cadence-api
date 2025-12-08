@@ -24,6 +24,7 @@ import {
   normalizeSignature,
   generateAuthData,
 } from '../utils/authHelpers';
+import { FLOW_ENV } from '../config/flow';
 
 /**
  * Flow Wallet Authentication Service
@@ -42,10 +43,45 @@ export class FlowAuthService {
   private static instance: FlowAuthService;
   private readonly nonceService: NonceService;
   private readonly timestampTolerance: number;
+  private initialized: boolean = false;
 
   private constructor() {
     this.nonceService = new NonceService();
     this.timestampTolerance = 2 * 60 * 1000; // 2 minutes
+    this.initializeFcl();
+  }
+
+  /**
+   * Initialize @onflow/fcl with Flow network configuration
+   *
+   * @private
+   * @description Configures @onflow/fcl with the proper network settings.
+   * This is required for @onflow/fcl to work correctly in Lambda environment.
+   */
+  private initializeFcl(): void {
+    if (this.initialized) {
+      return;
+    }
+
+    try {
+      // Initialize @onflow/fcl with Flow network configuration
+      fcl.config({
+        'accessNode.api': FLOW_ENV.ACCESS_NODE,
+        'discovery.wallet': FLOW_ENV.DISCOVERY_WALLET,
+        '0xHeart': FLOW_ENV.HEART_CONTRACT_ADDRESS,
+        'fcl.limit': '1000',
+      });
+
+      this.initialized = true;
+      console.log('@onflow/fcl initialized successfully for FlowAuthService', {
+        accessNode: FLOW_ENV.ACCESS_NODE,
+        network: FLOW_ENV.NETWORK,
+      });
+    } catch (error) {
+      console.error('Failed to initialize @onflow/fcl:', error);
+      // Don't throw here - allow lazy initialization on first use
+      this.initialized = false;
+    }
   }
 
   /**
@@ -278,6 +314,11 @@ export class FlowAuthService {
     signature: string
   ): Promise<{ success: boolean; error?: string }> {
     try {
+      // Ensure FCL is initialized before use
+      if (!this.initialized) {
+        this.initializeFcl();
+      }
+
       console.log('Getting key ID for address:', address);
 
       // Get the correct key ID for the address
