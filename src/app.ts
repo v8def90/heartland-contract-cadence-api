@@ -8,7 +8,6 @@
 import express from 'express';
 import type { Request, Response, NextFunction } from 'express';
 import swaggerUi from 'swagger-ui-express';
-import * as fcl from '@onflow/fcl';
 import {
   initializeFlowConfig,
   FLOW_ENV,
@@ -47,21 +46,28 @@ export const createApp = (): express.Application => {
   // Initialize Flow configuration for @blocto/fcl
   initializeFlowConfig();
 
-  // Initialize @onflow/fcl for FlowAuthService (must be done before importing AuthController)
-  try {
-    fcl.config({
-      'accessNode.api': FLOW_ENV.ACCESS_NODE,
-      'discovery.wallet': FLOW_ENV.DISCOVERY_WALLET,
-      '0xHeart': FLOW_ENV.HEART_CONTRACT_ADDRESS,
-      'fcl.limit': '1000',
-    });
-    console.log('@onflow/fcl initialized successfully in app.ts', {
-      accessNode: FLOW_ENV.ACCESS_NODE,
-      network: FLOW_ENV.NETWORK,
-    });
-  } catch (error) {
-    console.error('Failed to initialize @onflow/fcl in app.ts:', error);
-  }
+  // Initialize @onflow/fcl for FlowAuthService using dynamic import
+  // This must be done before any modules that use @onflow/fcl are loaded
+  // Using dynamic import to prevent module loading errors
+  (async () => {
+    try {
+      const fcl = await import('@onflow/fcl');
+      fcl.config({
+        'accessNode.api': FLOW_ENV.ACCESS_NODE,
+        'discovery.wallet': FLOW_ENV.DISCOVERY_WALLET,
+        '0xHeart': FLOW_ENV.HEART_CONTRACT_ADDRESS,
+        'fcl.limit': '1000',
+      });
+      console.log('@onflow/fcl initialized successfully in app.ts', {
+        accessNode: FLOW_ENV.ACCESS_NODE,
+        network: FLOW_ENV.NETWORK,
+      });
+    } catch (error) {
+      console.error('Failed to initialize @onflow/fcl in app.ts:', error);
+    }
+  })().catch((error) => {
+    console.error('Error initializing @onflow/fcl:', error);
+  });
 
   // Initialize Passport.js for authentication
   initializePassport();
