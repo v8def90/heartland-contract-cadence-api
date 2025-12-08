@@ -13,7 +13,8 @@
  * @since 1.0.0
  */
 
-import * as fcl from '@onflow/fcl';
+// Dynamic import for @onflow/fcl to allow initialization before module loading
+// This prevents "Cannot read properties of undefined (reading 'BLOCKS')" error
 import type { FlowAuthRequest } from '../models/requests/index';
 import type { FlowAuthData } from '../models/responses/index';
 import { NonceService } from './NonceService';
@@ -48,7 +49,10 @@ export class FlowAuthService {
   private constructor() {
     this.nonceService = new NonceService();
     this.timestampTolerance = 2 * 60 * 1000; // 2 minutes
-    this.initializeFcl();
+    // Initialize FCL asynchronously (don't await in constructor)
+    this.initializeFcl().catch((error) => {
+      console.error('Failed to initialize FCL in constructor:', error);
+    });
   }
 
   /**
@@ -58,12 +62,15 @@ export class FlowAuthService {
    * @description Configures @onflow/fcl with the proper network settings.
    * This is required for @onflow/fcl to work correctly in Lambda environment.
    */
-  private initializeFcl(): void {
+  private async initializeFcl(): Promise<void> {
     if (this.initialized) {
       return;
     }
 
     try {
+      // Dynamically import @onflow/fcl to ensure it's initialized before use
+      const fcl = await import('@onflow/fcl');
+      
       // Initialize @onflow/fcl with Flow network configuration
       fcl.config({
         'accessNode.api': FLOW_ENV.ACCESS_NODE,
@@ -316,7 +323,7 @@ export class FlowAuthService {
     try {
       // Ensure FCL is initialized before use
       if (!this.initialized) {
-        this.initializeFcl();
+        await this.initializeFcl();
       }
 
       console.log('Getting key ID for address:', address);
@@ -451,6 +458,9 @@ export class FlowAuthService {
     keyId: number
   ): Promise<boolean> {
     try {
+      // Dynamically import @onflow/fcl to ensure it's initialized before use
+      const fcl = await import('@onflow/fcl');
+
       // Validate and normalize signature format
       const normalizedSignature = normalizeSignature(signature);
       if (!normalizedSignature) {
@@ -520,6 +530,8 @@ export class FlowAuthService {
    */
   private async getKeyIdForAddress(address: string): Promise<number | null> {
     try {
+      // Dynamically import @onflow/fcl to ensure it's initialized before use
+      const fcl = await import('@onflow/fcl');
       const account = await fcl.account(address);
 
       if (!account || !account.keys || account.keys.length === 0) {
@@ -568,6 +580,8 @@ export class FlowAuthService {
     address: string
   ): Promise<number[] | null> {
     try {
+      // Dynamically import @onflow/fcl to ensure it's initialized before use
+      const fcl = await import('@onflow/fcl');
       console.log('Getting all key IDs for address:', address);
       const account = await fcl.account(address);
 
