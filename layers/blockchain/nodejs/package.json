@@ -5,11 +5,14 @@
   "private": true,
   "dependencies": {
     "@blocto/fcl": "^1.13.1",
-    "@onflow/fcl": "^1.20.0",
-    "@onflow/types": "^1.4.1",
+    "@onflow/fcl": "^1.20.6",
+    "@onflow/fcl-core": "1.22.3",
+    "@onflow/transport-http": "1.15.0",
+    "@onflow/typedefs": "1.8.0",
+    "@onflow/types": "^1.5.0",
     "@onflow/util-encode-key": "^1.2.4",
     "elliptic": "^6.6.1",
     "sha3": "^2.1.4"
   },
-  "comment": "@blocto/fclはBloctoアカウント署名検証用。@onflow/fclはFlow Wallet等の標準ウォレット用（Cadence 1.0対応）"
+  "comment": "@blocto/fclはBloctoアカウント署名検証用。@onflow/fclはFlow Wallet等の標準ウォレット用（Cadence 1.0対応）。1.20.6に更新してtypedefs.SubscriptionTopic.BLOCKSエラーを解決"
 }
