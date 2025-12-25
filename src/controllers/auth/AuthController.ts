@@ -641,9 +641,9 @@ export class AuthController extends Controller {
   }
 
   /**
-   * Generate nonce for Blocto authentication
+   * Generate nonce for Flow wallet authentication
    *
-   * @description Generates a unique nonce for secure Blocto wallet authentication.
+   * @description Generates a unique nonce for secure Flow wallet authentication.
    * The nonce should be included in the message that gets signed by the user's wallet.
    *
    * @returns Promise resolving to nonce data
@@ -671,9 +671,9 @@ export class AuthController extends Controller {
     ApiResponse<{ nonce: string; message: string; timestamp: number }>
   > {
     try {
-      const nonce = await this.bloctoAuthService.generateNonce();
+      const nonce = await this.flowAuthService.generateNonce();
       const timestamp = Date.now();
-      const message = this.bloctoAuthService.generateAuthMessage(
+      const message = this.flowAuthService.generateAuthMessage(
         nonce,
         timestamp
       );
