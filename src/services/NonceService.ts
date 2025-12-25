@@ -60,6 +60,7 @@ export class NonceService {
    * nonceを生成してDynamoDBに保存
    */
   async generateNonce(request?: NonceGenerationRequest): Promise<string> {
+    this.initializeClient();
     const expiryMs = request?.expiryMs || this.nonceExpiry;
     const nonce = this.generateRandomNonce();
     const timestamp = Date.now();
@@ -115,6 +116,7 @@ export class NonceService {
    * nonceの有効性を検証
    */
   async validateNonce(request: NonceValidationRequest): Promise<boolean> {
+    this.initializeClient();
     const { nonce, currentTimestamp } = request;
 
     // テスト環境ではメモリから検証
@@ -179,6 +181,7 @@ export class NonceService {
    * nonceを使用済みとしてマーク
    */
   async markNonceAsUsed(request: NonceUsageRequest): Promise<void> {
+    this.initializeClient();
     const { nonce, usedAt } = request;
 
     // テスト環境ではメモリを更新
@@ -227,6 +230,7 @@ export class NonceService {
    * 期限切れnonceをクリーンアップ
    */
   async cleanupExpiredNonces(): Promise<void> {
+    this.initializeClient();
     const currentTime = Date.now();
 
     // テスト環境ではメモリからクリーンアップ
@@ -300,6 +304,7 @@ export class NonceService {
    * nonce統計情報を取得
    */
   async getNonceStats(): Promise<NonceStats> {
+    this.initializeClient();
     // テスト環境ではメモリから統計を取得
     if (!this.client) {
       return this.getStatsFromMemory();
