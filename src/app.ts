@@ -65,7 +65,7 @@ export const createApp = (): express.Application => {
     } catch (error) {
       console.error('Failed to initialize @onflow/fcl in app.ts:', error);
     }
-  })().catch((error) => {
+  })().catch(error => {
     console.error('Error initializing @onflow/fcl:', error);
   });
 

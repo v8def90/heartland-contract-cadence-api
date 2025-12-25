@@ -50,7 +50,7 @@ export class FlowAuthService {
     this.nonceService = new NonceService();
     this.timestampTolerance = 2 * 60 * 1000; // 2 minutes
     // Initialize FCL asynchronously (don't await in constructor)
-    this.initializeFcl().catch((error) => {
+    this.initializeFcl().catch(error => {
       console.error('Failed to initialize FCL in constructor:', error);
     });
   }
@@ -70,7 +70,7 @@ export class FlowAuthService {
     try {
       // Dynamically import @onflow/fcl to ensure it's initialized before use
       const fcl = await import('@onflow/fcl');
-      
+
       // Initialize @onflow/fcl with Flow network configuration
       fcl.config({
         'accessNode.api': FLOW_ENV.ACCESS_NODE,
