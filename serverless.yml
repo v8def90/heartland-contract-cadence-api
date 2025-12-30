@@ -75,6 +75,11 @@ provider:
       Action:
         - cloudfront:CreateInvalidation
       Resource: '*'
+    - Effect: Allow
+      Action:
+        - ses:SendEmail
+        - ses:SendRawEmail
+      Resource: '*'
 
 plugins:
   - serverless-offline

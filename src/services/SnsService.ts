@@ -116,6 +116,126 @@ export interface DynamoDBFollowItem {
 }
 
 /**
+ * AT Protocol Data Model Types
+ */
+
+/**
+ * Linked ID kind
+ */
+export type LinkedIdKind = 'did' | 'wallet' | 'account';
+
+/**
+ * Link role
+ */
+export type LinkRole = 'asset' | 'login' | 'org' | 'device' | 'other';
+
+/**
+ * Link status
+ */
+export type LinkStatus = 'pending' | 'verified' | 'revoked';
+
+/**
+ * AT Protocol User Profile Item
+ */
+export interface DynamoDBUserProfileItem {
+  PK: string; // USER#{primaryDid}
+  SK: string; // PROFILE
+  primaryDid: string; // did:plc:...
+  handle: string;
+  displayName: string;
+  bio?: string;
+  avatarUrl?: string;
+  bannerUrl?: string;
+  followerCount: number;
+  followingCount: number;
+  postCount: number;
+  createdAt: string;
+  updatedAt: string;
+  ttl?: number;
+  // Email/Password authentication
+  primaryEmail?: string;
+  primaryEmailNormalized?: string;
+  emailLoginEnabled?: boolean;
+  authProviders?: {
+    emailPassword?: boolean;
+    atproto?: boolean;
+    eip155?: boolean;
+    flow?: boolean;
+  };
+  accountStatus?: 'active' | 'suspended' | 'deleted';
+  suspendedAt?: string;
+  deletedAt?: string;
+}
+
+/**
+ * AT Protocol Identity Link Item
+ */
+export interface DynamoDBIdentityLinkItem {
+  PK: string; // USER#{primaryDid}
+  SK: string; // LINK#{linkedId}
+  primaryDid: string; // did:plc:...
+  linkedId: string; // did:ethr:... / flow:... / email:alice@example.com
+  kind: LinkedIdKind;
+  role: LinkRole;
+  status: LinkStatus;
+  proofType?: 'mutual-signature' | 'provider-verified';
+  proof?: {
+    challengeHash: string;
+    sigPrimary?: string;
+    sigLinked?: string;
+    issuedAt: string;
+    expiresAt?: string;
+  };
+  createdAt: string;
+  verifiedAt?: string;
+  revokedAt?: string;
+  // Email/Password authentication
+  email?: string;
+  emailNormalized?: string;
+  emailVerified?: boolean;
+  emailVerifiedAt?: string;
+  passwordHash?: string;
+  passwordKdf?: 'bcrypt' | 'argon2id' | 'scrypt';
+  passwordUpdatedAt?: string;
+  kdfParams?: {
+    cost?: number;
+    timeCost?: number;
+    memoryKb?: number;
+    parallelism?: number;
+    N?: number;
+    r?: number;
+    p?: number;
+  };
+  failedLoginCount?: number;
+  lastFailedLoginAt?: string;
+  lockUntil?: string;
+  emailVerifyTokenHash?: string;
+  emailVerifyTokenExpiresAt?: string;
+  emailVerifySentAt?: string;
+  resetTokenHash?: string;
+  resetTokenExpiresAt?: string;
+  resetRequestedAt?: string;
+  lastLoginAt?: string;
+  lastLoginIpHash?: string;
+}
+
+/**
+ * AT Protocol Identity Lookup Item
+ */
+export interface DynamoDBIdentityLookupItem {
+  PK: string; // LINK#{linkedId}
+  SK: string; // PRIMARY
+  linkedId: string; // "email:alice@example.com" / "did:ethr:..." etc
+  primaryDid: string; // did:plc:...
+  status: 'verified' | 'revoked';
+  createdAt: string;
+  linkType?: 'email' | 'did' | 'wallet' | 'account';
+  emailNormalized?: string;
+  emailVerified?: boolean;
+  revokedAt?: string;
+}
+
+/**
  * SNS Service Class
  */
 export class SnsService {
@@ -1557,5 +1677,298 @@ export class SnsService {
           error instanceof Error ? error.message : 'Failed to search users',
       };
     }
+  }
+
+  // ===== AT PROTOCOL USER PROFILE OPERATIONS =====
+
+  /**
+   * Create or update AT Protocol user profile
+   *
+   * @description Creates or updates a user profile using AT Protocol data model.
+   *
+   * @param primaryDid - User's primary DID
+   * @param profile - Profile data
+   */
+  async createUserProfileItem(
+    primaryDid: string,
+    profile: Omit<
+      DynamoDBUserProfileItem,
+      'PK' | 'SK' | 'primaryDid' | 'createdAt' | 'updatedAt'
+    >
+  ): Promise<void> {
+    if (!this.client) {
+      console.log('Mock createUserProfileItem:', { primaryDid, profile });
+      return;
+    }
+
+    const item: DynamoDBUserProfileItem = {
+      PK: `USER#${primaryDid}`,
+      SK: 'PROFILE',
+      primaryDid,
+      ...profile,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      ttl: this.getTTL(),
+    };
+
+    const command = new PutCommand({
+      TableName: this.tableName,
+      Item: item,
+    });
+
+    await this.client.send(command);
+  }
+
+  /**
+   * Get AT Protocol user profile
+   *
+   * @description Retrieves a user profile by primary DID.
+   *
+   * @param primaryDid - User's primary DID
+   * @returns User profile or null if not found
+   */
+  async getUserProfileItem(
+    primaryDid: string
+  ): Promise<DynamoDBUserProfileItem | null> {
+    if (!this.client) {
+      console.log('Mock getUserProfileItem:', { primaryDid });
+      return null;
+    }
+
+    const command = new GetCommand({
+      TableName: this.tableName,
+      Key: {
+        PK: `USER#${primaryDid}`,
+        SK: 'PROFILE',
+      },
+    });
+
+    const response = await this.client.send(command);
+    return (response.Item as DynamoDBUserProfileItem) || null;
+  }
+
+  // ===== AT PROTOCOL IDENTITY LINK OPERATIONS =====
+
+  /**
+   * Create identity link
+   *
+   * @description Creates an identity link between primary DID and linked ID.
+   *
+   * @param primaryDid - User's primary DID
+   * @param link - Identity link data
+   */
+  async createIdentityLink(
+    primaryDid: string,
+    link: Omit<
+      DynamoDBIdentityLinkItem,
+      'PK' | 'SK' | 'primaryDid' | 'createdAt'
+    >
+  ): Promise<void> {
+    if (!this.client) {
+      console.log('Mock createIdentityLink:', { primaryDid, link });
+      return;
+    }
+
+    const item: DynamoDBIdentityLinkItem = {
+      PK: `USER#${primaryDid}`,
+      SK: `LINK#${link.linkedId}`,
+      primaryDid,
+      ...link,
+      createdAt: new Date().toISOString(),
+    };
+
+    const command = new PutCommand({
+      TableName: this.tableName,
+      Item: item,
+    });
+
+    await this.client.send(command);
+  }
+
+  /**
+   * Get identity link
+   *
+   * @description Retrieves an identity link by primary DID and linked ID.
+   *
+   * @param primaryDid - User's primary DID
+   * @param linkedId - Linked ID
+   * @returns Identity link or null if not found
+   */
+  async getIdentityLink(
+    primaryDid: string,
+    linkedId: string
+  ): Promise<DynamoDBIdentityLinkItem | null> {
+    if (!this.client) {
+      console.log('Mock getIdentityLink:', { primaryDid, linkedId });
+      return null;
+    }
+
+    const command = new GetCommand({
+      TableName: this.tableName,
+      Key: {
+        PK: `USER#${primaryDid}`,
+        SK: `LINK#${linkedId}`,
+      },
+    });
+
+    const response = await this.client.send(command);
+    return (response.Item as DynamoDBIdentityLinkItem) || null;
+  }
+
+  /**
+   * Update identity link
+   *
+   * @description Updates an existing identity link.
+   *
+   * @param primaryDid - User's primary DID
+   * @param linkedId - Linked ID
+   * @param updates - Fields to update
+   */
+  async updateIdentityLink(
+    primaryDid: string,
+    linkedId: string,
+    updates: Partial<DynamoDBIdentityLinkItem>
+  ): Promise<void> {
+    if (!this.client) {
+      console.log('Mock updateIdentityLink:', { primaryDid, linkedId, updates });
+      return;
+    }
+
+    // Build update expression
+    const updateExpressions: string[] = [];
+    const expressionAttributeNames: Record<string, string> = {};
+    const expressionAttributeValues: Record<string, any> = {};
+
+    Object.keys(updates).forEach((key, index) => {
+      if (key !== 'PK' && key !== 'SK' && key !== 'primaryDid') {
+        const attrName = `#attr${index}`;
+        const attrValue = `:val${index}`;
+        updateExpressions.push(`${attrName} = ${attrValue}`);
+        expressionAttributeNames[attrName] = key;
+        expressionAttributeValues[attrValue] = (updates as any)[key];
+      }
+    });
+
+    updateExpressions.push('#updatedAt = :updatedAt');
+    expressionAttributeNames['#updatedAt'] = 'updatedAt';
+    expressionAttributeValues[':updatedAt'] = new Date().toISOString();
+
+    const command = new UpdateCommand({
+      TableName: this.tableName,
+      Key: {
+        PK: `USER#${primaryDid}`,
+        SK: `LINK#${linkedId}`,
+      },
+      UpdateExpression: `SET ${updateExpressions.join(', ')}`,
+      ExpressionAttributeNames: expressionAttributeNames,
+      ExpressionAttributeValues: expressionAttributeValues,
+    });
+
+    await this.client.send(command);
+  }
+
+  // ===== AT PROTOCOL IDENTITY LOOKUP OPERATIONS =====
+
+  /**
+   * Create identity lookup
+   *
+   * @description Creates an identity lookup for reverse lookup from linked ID to primary DID.
+   * Used for email lookup and other identity resolution.
+   *
+   * @param linkedId - Linked ID (e.g., email:alice@example.com)
+   * @param lookup - Lookup data
+   */
+  async createIdentityLookup(
+    linkedId: string,
+    lookup: Omit<
+      DynamoDBIdentityLookupItem,
+      'PK' | 'SK' | 'linkedId' | 'createdAt'
+    >
+  ): Promise<void> {
+    if (!this.client) {
+      console.log('Mock createIdentityLookup:', { linkedId, lookup });
+      return;
+    }
+
+    const item: DynamoDBIdentityLookupItem = {
+      PK: `LINK#${linkedId}`,
+      SK: 'PRIMARY',
+      linkedId,
+      ...lookup,
+      createdAt: new Date().toISOString(),
+    };
+
+    const command = new PutCommand({
+      TableName: this.tableName,
+      Item: item,
+      // Prevent duplicate emails
+      ConditionExpression: 'attribute_not_exists(PK)',
+    });
+
+    try {
+      await this.client.send(command);
+    } catch (error: any) {
+      if (error.name === 'ConditionalCheckFailedException') {
+        throw new Error('Email already registered');
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Get identity lookup
+   *
+   * @description Retrieves primary DID from linked ID.
+   *
+   * @param linkedId - Linked ID (e.g., email:alice@example.com)
+   * @returns Identity lookup or null if not found
+   */
+  async getIdentityLookup(
+    linkedId: string
+  ): Promise<DynamoDBIdentityLookupItem | null> {
+    if (!this.client) {
+      console.log('Mock getIdentityLookup:', { linkedId });
+      return null;
+    }
+
+    const command = new GetCommand({
+      TableName: this.tableName,
+      Key: {
+        PK: `LINK#${linkedId}`,
+        SK: 'PRIMARY',
+      },
+    });
+
+    const response = await this.client.send(command);
+    return (response.Item as DynamoDBIdentityLookupItem) || null;
+  }
+
+  /**
+   * Query identity links by primary DID
+   *
+   * @description Retrieves all identity links for a primary DID.
+   *
+   * @param primaryDid - User's primary DID
+   * @returns Array of identity links
+   */
+  async queryIdentityLinks(
+    primaryDid: string
+  ): Promise<DynamoDBIdentityLinkItem[]> {
+    if (!this.client) {
+      console.log('Mock queryIdentityLinks:', { primaryDid });
+      return [];
+    }
+
+    const command = new QueryCommand({
+      TableName: this.tableName,
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+      ExpressionAttributeValues: {
+        ':pk': `USER#${primaryDid}`,
+        ':sk': 'LINK#',
+      },
+    });
+
+    const response = await this.client.send(command);
+    return (response.Items as DynamoDBIdentityLinkItem[]) || [];
   }
 }

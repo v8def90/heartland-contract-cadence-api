@@ -478,8 +478,8 @@ export class BloctoAuthService {
     // Determine user role (in production, this should come from user database)
     const role: 'user' | 'admin' | 'minter' | 'pauser' = 'user';
 
-    // Generate JWT token
-    const token = generateJwtToken(userId, request.address, role);
+    // Generate JWT token (Flow wallet auth)
+    const token = generateJwtToken(userId, 'flow', role, request.address);
 
     // Parse token to get expiration time
     const { verifyJwtToken } = await import('../middleware/passport');

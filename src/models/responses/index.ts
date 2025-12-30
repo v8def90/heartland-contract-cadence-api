@@ -455,8 +455,10 @@ export interface AuthData {
   token: string;
   /** Token expiration time in seconds */
   expiresIn: number;
-  /** Authenticated user address */
-  address: string;
+  /** Authenticated user address (for Flow wallet auth) */
+  address?: string;
+  /** Authenticated user email (for email/password auth) */
+  email?: string;
   /** User role */
   role: 'user' | 'admin' | 'minter' | 'pauser';
   /** Token issued timestamp */
@@ -482,16 +484,18 @@ export interface AuthData {
 export interface TokenVerificationData {
   /** Whether token is valid */
   valid: boolean;
-  /** Address from token (if valid) */
-  address?: string;
+  /** Address from token (if valid, for Flow wallet auth) */
+  address?: string | undefined;
+  /** Email from token (if valid, for email/password auth) */
+  email?: string | undefined;
   /** Role from token (if valid) */
-  role?: string;
+  role?: string | undefined;
   /** Token expiration timestamp (if valid) */
-  expiresAt?: string;
+  expiresAt?: string | undefined;
   /** Token issued timestamp (if valid) */
-  issuedAt?: string;
+  issuedAt?: string | undefined;
   /** Error message (if invalid) */
-  error?: string;
+  error?: string | undefined;
 }
 
 /**

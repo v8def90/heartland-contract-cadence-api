@@ -186,8 +186,8 @@ export function generateAuthData<T extends Record<string, any>>(
   // Determine role (in production, retrieve from database)
   const role: 'user' | 'admin' | 'minter' | 'pauser' = 'user';
 
-  // Generate JWT token
-  const token = generateJwtToken(userId, address, role);
+  // Generate JWT token (Flow wallet auth)
+  const token = generateJwtToken(userId, 'flow', role, address);
 
   // Parse token to get expiration time
   const payload = verifyJwtToken(token);

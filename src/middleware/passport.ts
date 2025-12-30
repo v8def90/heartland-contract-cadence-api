@@ -22,10 +22,14 @@ import type { Request } from 'express';
  * @description Defines the structure of JWT token payload.
  */
 export interface JwtPayload {
-  /** User ID */
+  /** User ID (primaryDid) */
   sub: string;
-  /** User address */
-  address: string;
+  /** User address (Flow address, optional for email auth) */
+  address?: string;
+  /** User email (optional for Flow wallet auth) */
+  email?: string;
+  /** Authentication method */
+  authMethod: 'flow' | 'email' | 'did';
   /** User role */
   role: 'user' | 'admin' | 'minter' | 'pauser';
   /** Token issued timestamp */
@@ -40,10 +44,14 @@ export interface JwtPayload {
  * @description Defines the user object structure for Passport.js.
  */
 export interface PassportUser {
-  /** User ID */
+  /** User ID (primaryDid) */
   id: string;
-  /** User address */
-  address: string;
+  /** User address (Flow address, optional for email auth) */
+  address?: string;
+  /** User email (optional for Flow wallet auth) */
+  email?: string;
+  /** Authentication method */
+  authMethod: 'flow' | 'email' | 'did';
   /** User role */
   role: 'user' | 'admin' | 'minter' | 'pauser';
 }
@@ -77,8 +85,10 @@ const jwtStrategy = new JwtStrategy(
       // Create user object
       const user: PassportUser = {
         id: payload.sub,
-        address: payload.address,
+        authMethod: payload.authMethod,
         role: payload.role,
+        ...(payload.address && { address: payload.address }),
+        ...(payload.email && { email: payload.email }),
       };
 
       return done(null, user);
@@ -152,20 +162,26 @@ export const jwtAuthMiddleware = (req: Request, res: any, next: any): void => {
  *
  * @description Generates a JWT token for authenticated user.
  *
- * @param userId - User ID
- * @param address - User address
+ * @param userId - User ID (primaryDid)
+ * @param authMethod - Authentication method
  * @param role - User role
+ * @param address - User address (for Flow wallet auth)
+ * @param email - User email (for email/password auth)
  * @returns JWT token string
  */
 export const generateJwtToken = (
   userId: string,
-  address: string,
-  role: 'user' | 'admin' | 'minter' | 'pauser' = 'user'
+  authMethod: 'flow' | 'email' | 'did',
+  role: 'user' | 'admin' | 'minter' | 'pauser' = 'user',
+  address?: string,
+  email?: string
 ): string => {
   const payload: Omit<JwtPayload, 'iat' | 'exp'> = {
     sub: userId,
-    address,
+    authMethod,
     role,
+    ...(address && { address }),
+    ...(email && { email }),
   };
 
   return jwt.sign(payload, JWT_SECRET, {

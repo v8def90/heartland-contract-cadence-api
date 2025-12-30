@@ -363,3 +363,89 @@ export interface TransactionJobRequest {
     retryCount?: number;
   };
 }
+
+/**
+ * Email/Password registration request payload
+ *
+ * @description Request to register a new user with email/password authentication.
+ *
+ * @example
+ * ```typescript
+ * const request: EmailPasswordRegisterRequest = {
+ *   email: "user@example.com",
+ *   password: "password123",
+ *   displayName: "John Doe",
+ *   handle: "username.bsky.social"
+ * };
+ * ```
+ */
+export interface EmailPasswordRegisterRequest {
+  /** User email address */
+  email: string;
+  /** User password */
+  password: string;
+  /** User display name */
+  displayName: string;
+  /** Optional AT Protocol handle (e.g., @username.bsky.social) */
+  handle?: string;
+}
+
+/**
+ * Email/Password login request payload
+ *
+ * @description Request to authenticate with email/password.
+ *
+ * @example
+ * ```typescript
+ * const request: EmailPasswordLoginRequest = {
+ *   email: "user@example.com",
+ *   password: "password123"
+ * };
+ * ```
+ */
+export interface EmailPasswordLoginRequest {
+  /** User email address */
+  email: string;
+  /** User password */
+  password: string;
+}
+
+/**
+ * Email verification request payload
+ *
+ * @description Request to verify email address using verification token.
+ *
+ * @example
+ * ```typescript
+ * const request: VerifyEmailRequest = {
+ *   token: "verification-token-123",
+ *   primaryDid: "did:plc:xxx"
+ * };
+ * ```
+ */
+export interface VerifyEmailRequest {
+  /** Email verification token */
+  token: string;
+  /** User's primary DID */
+  primaryDid: string;
+}
+
+/**
+ * Resend verification email request payload
+ *
+ * @description Request to resend email verification email.
+ *
+ * @example
+ * ```typescript
+ * const request: ResendVerificationEmailRequest = {
+ *   primaryDid: "did:plc:xxx",
+ *   email: "user@example.com"
+ * };
+ * ```
+ */
+export interface ResendVerificationEmailRequest {
+  /** User's primary DID */
+  primaryDid: string;
+  /** User email address */
+  email: string;
+}

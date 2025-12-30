@@ -41,6 +41,13 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 import { BloctoAuthService } from '../../services/BloctoAuthService';
 import { FlowAuthService } from '../../services/FlowAuthService';
+import { UserAuthService } from '../../services/UserAuthService';
+import type {
+  EmailPasswordRegisterRequest,
+  EmailPasswordLoginRequest,
+  VerifyEmailRequest,
+  ResendVerificationEmailRequest,
+} from '../../models/requests';
 
 /**
  * Authentication Controller
@@ -59,11 +66,13 @@ import { FlowAuthService } from '../../services/FlowAuthService';
 export class AuthController extends Controller {
   private bloctoAuthService: BloctoAuthService;
   private flowAuthService: FlowAuthService;
+  private userAuthService: UserAuthService;
 
   constructor() {
     super();
     this.bloctoAuthService = BloctoAuthService.getInstance();
     this.flowAuthService = FlowAuthService.getInstance();
+    this.userAuthService = UserAuthService.getInstance();
   }
   /**
    * User login and token generation
@@ -151,8 +160,8 @@ export class AuthController extends Controller {
       // For now, we'll assign 'user' role to all users
       const role: 'user' | 'admin' | 'minter' | 'pauser' = 'user';
 
-      // Generate JWT token
-      const token = generateJwtToken(userId, address, role);
+      // Generate JWT token (Flow wallet auth)
+      const token = generateJwtToken(userId, 'flow', role, address);
 
       // Parse token to get expiration time
       const payload = verifyJwtToken(token);
@@ -297,6 +306,7 @@ export class AuthController extends Controller {
       const verificationData: TokenVerificationData = {
         valid: true,
         address: payload.address,
+        email: payload.email,
         role: payload.role,
         expiresAt: new Date(payload.exp * 1000).toISOString(),
         issuedAt: new Date(payload.iat * 1000).toISOString(),
@@ -402,7 +412,13 @@ export class AuthController extends Controller {
       }
 
       // Generate new JWT token
-      const newToken = generateJwtToken(user.id, user.address, user.role);
+      const newToken = generateJwtToken(
+        user.id,
+        user.authMethod || 'flow',
+        user.role,
+        user.address,
+        user.email
+      );
 
       // Parse token to get expiration time
       const payload = verifyJwtToken(newToken);
@@ -801,6 +817,543 @@ export class AuthController extends Controller {
         error: {
           code: 'INTERNAL_SERVER_ERROR',
           message: 'Test signature generation failed',
+          details:
+            error instanceof Error ? error.message : 'Unknown error occurred',
+        },
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
+
+  /**
+   * Register new user with email/password
+   *
+   * @description Registers a new user with email/password authentication.
+   * Creates DID via PDS, stores user profile and credentials, and sends verification email.
+   *
+   * @param request - Registration request with email, password, and display name
+   * @returns Promise resolving to registration result with DID and auth data
+   *
+   * @example
+   * ```typescript
+   * const request: EmailPasswordRegisterRequest = {
+   *   email: "user@example.com",
+   *   password: "password123",
+   *   displayName: "John Doe",
+   *   handle: "username.bsky.social"
+   * };
+   * const result = await authController.register(request);
+   * ```
+   */
+  @Post('register')
+  @SuccessResponse('200', 'Registration successful')
+  @Response<ApiResponse>('400', 'Invalid request')
+  @Response<ApiResponse>('409', 'Email already registered')
+  @Response<ApiResponse>('500', 'Registration failed')
+  @Example<ApiResponse<AuthData>>({
+    success: true,
+    data: {
+      token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+      expiresIn: 86400,
+      email: 'user@example.com',
+      role: 'user',
+      issuedAt: '2024-01-01T00:00:00.000Z',
+    },
+    timestamp: '2024-01-01T00:00:00.000Z',
+  })
+  public async register(
+    @Body() request: EmailPasswordRegisterRequest
+  ): Promise<ApiResponse<AuthData>> {
+    try {
+      // Validate request
+      if (!request.email || !request.password || !request.displayName) {
+        this.setStatus(400);
+        return {
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Email, password, and displayName are required',
+            details: 'All fields are mandatory for registration',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      // Register user
+      const result = await this.userAuthService.registerWithEmailPassword(
+        request.email,
+        request.password,
+        request.displayName,
+        request.handle
+      );
+
+      if (!result.success) {
+        this.setStatus(400);
+        return {
+          success: false,
+          error: {
+            code: 'REGISTRATION_ERROR',
+            message: result.error || 'Registration failed',
+            details: result.error || 'Unable to complete registration',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      if (!result.authData) {
+        this.setStatus(500);
+        return {
+          success: false,
+          error: {
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'Registration completed but auth data not generated',
+            details: 'Please try logging in',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      this.setStatus(200);
+      return {
+        success: true,
+        data: result.authData,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      console.error('Registration error:', error);
+      this.setStatus(500);
+      return {
+        success: false,
+        error: {
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Registration failed',
+          details:
+            error instanceof Error ? error.message : 'Unknown error occurred',
+        },
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
+
+  /**
+   * Login with email/password
+   *
+   * @description Authenticates a user with email/password.
+   * Verifies password and email verification status, then generates JWT token.
+   *
+   * @param request - Login request with email and password
+   * @returns Promise resolving to authentication data with JWT token
+   *
+   * @example
+   * ```typescript
+   * const request: EmailPasswordLoginRequest = {
+   *   email: "user@example.com",
+   *   password: "password123"
+   * };
+   * const result = await authController.emailLogin(request);
+   * ```
+   */
+  @Post('email-login')
+  @SuccessResponse('200', 'Login successful')
+  @Response<ApiResponse>('400', 'Invalid request')
+  @Response<ApiResponse>('401', 'Authentication failed')
+  @Response<ApiResponse>('403', 'Email not verified')
+  @Example<ApiResponse<AuthData>>({
+    success: true,
+    data: {
+      token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+      expiresIn: 86400,
+      email: 'user@example.com',
+      role: 'user',
+      issuedAt: '2024-01-01T00:00:00.000Z',
+    },
+    timestamp: '2024-01-01T00:00:00.000Z',
+  })
+  public async emailLogin(
+    @Body() request: EmailPasswordLoginRequest
+  ): Promise<ApiResponse<AuthData>> {
+    try {
+      // Validate request
+      if (!request.email || !request.password) {
+        this.setStatus(400);
+        return {
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Email and password are required',
+            details: 'Both fields are mandatory for login',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      // Login user
+      const result = await this.userAuthService.loginWithEmailPassword(
+        request.email,
+        request.password
+      );
+
+      if (!result.success) {
+        if (result.error === 'EMAIL_NOT_VERIFIED') {
+          this.setStatus(403);
+          return {
+            success: false,
+            error: {
+              code: 'EMAIL_NOT_VERIFIED',
+              message: 'メールアドレスの認証が必要です',
+              details:
+                'メールアドレスの認証を完了してください。認証メールを確認してください。',
+            },
+            timestamp: new Date().toISOString(),
+          };
+        }
+
+        this.setStatus(401);
+        return {
+          success: false,
+          error: {
+            code: 'AUTHENTICATION_ERROR',
+            message: result.error || 'Login failed',
+            details: result.error || 'Invalid email or password',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      if (!result.authData) {
+        this.setStatus(500);
+        return {
+          success: false,
+          error: {
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'Login successful but auth data not generated',
+            details: 'Please try again',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      this.setStatus(200);
+      return {
+        success: true,
+        data: result.authData,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      console.error('Email login error:', error);
+      this.setStatus(500);
+      return {
+        success: false,
+        error: {
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Login failed',
+          details:
+            error instanceof Error ? error.message : 'Unknown error occurred',
+        },
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
+
+  /**
+   * Verify email address
+   *
+   * @description Verifies an email address using a verification token.
+   *
+   * @param request - Verification request with token and DID
+   * @returns Promise resolving to verification result
+   *
+   * @example
+   * ```typescript
+   * const request: VerifyEmailRequest = {
+   *   token: "verification-token-123",
+   *   primaryDid: "did:plc:xxx"
+   * };
+   * const result = await authController.verifyEmail(request);
+   * ```
+   */
+  @Post('verify-email')
+  @SuccessResponse('200', 'Email verified successfully')
+  @Response<ApiResponse>('400', 'Invalid request')
+  @Response<ApiResponse>('401', 'Invalid or expired token')
+  @Example<ApiResponse<{ email: string; verified: boolean }>>({
+    success: true,
+    data: {
+      email: 'user@example.com',
+      verified: true,
+    },
+    timestamp: '2024-01-01T00:00:00.000Z',
+  })
+  public async verifyEmail(
+    @Body() request: VerifyEmailRequest
+  ): Promise<ApiResponse<{ email: string; verified: boolean }>> {
+    try {
+      // Validate request
+      if (!request.token || !request.primaryDid) {
+        this.setStatus(400);
+        return {
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Token and primaryDid are required',
+            details: 'Both fields are mandatory for email verification',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      // Query all identity links for this primaryDid to find email link
+      const identityLinks = await this.userAuthService[
+        'snsService'
+      ].queryIdentityLinks(request.primaryDid);
+
+      // Find email identity link with verification token
+      const identityLink = identityLinks.find(
+        link =>
+          link.linkedId.startsWith('email:') &&
+          link.emailVerifyTokenHash &&
+          link.emailVerifyTokenExpiresAt
+      );
+
+      if (!identityLink) {
+        this.setStatus(404);
+        return {
+          success: false,
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Identity link not found',
+            details: 'Unable to find email verification record',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      // Verify token
+      if (
+        !identityLink.emailVerifyTokenHash ||
+        !identityLink.emailVerifyTokenExpiresAt
+      ) {
+        this.setStatus(400);
+        return {
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Verification token not found',
+            details: 'No verification token exists for this email',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      const emailVerificationService =
+        this.userAuthService['emailVerificationService'];
+      const isValid = await emailVerificationService.verifyToken(
+        request.token,
+        identityLink.emailVerifyTokenHash,
+        identityLink.emailVerifyTokenExpiresAt
+      );
+
+      if (!isValid) {
+        this.setStatus(401);
+        return {
+          success: false,
+          error: {
+            code: 'AUTHENTICATION_ERROR',
+            message: 'Invalid or expired token',
+            details: 'The verification token is invalid or has expired',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      // Update email verification status
+      await this.userAuthService['snsService'].updateIdentityLink(
+        request.primaryDid,
+        identityLink.linkedId,
+        {
+          emailVerified: true,
+          emailVerifiedAt: new Date().toISOString(),
+          status: 'verified',
+          verifiedAt: new Date().toISOString(),
+        }
+      );
+
+      // Update user profile
+      const profile = await this.userAuthService[
+        'snsService'
+      ].getUserProfileItem(request.primaryDid);
+      if (profile) {
+        // Update profile if needed
+      }
+
+      this.setStatus(200);
+      return {
+        success: true,
+        data: {
+          email: identityLink.email || '',
+          verified: true,
+        },
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      console.error('Email verification error:', error);
+      this.setStatus(500);
+      return {
+        success: false,
+        error: {
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Email verification failed',
+          details:
+            error instanceof Error ? error.message : 'Unknown error occurred',
+        },
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
+
+  /**
+   * Resend verification email
+   *
+   * @description Resends email verification email to the user.
+   *
+   * @param request - Resend request with DID and email
+   * @returns Promise resolving to resend result
+   *
+   * @example
+   * ```typescript
+   * const request: ResendVerificationEmailRequest = {
+   *   primaryDid: "did:plc:xxx",
+   *   email: "user@example.com"
+   * };
+   * const result = await authController.resendVerificationEmail(request);
+   * ```
+   */
+  @Post('resend-verification-email')
+  @SuccessResponse('200', 'Verification email sent successfully')
+  @Response<ApiResponse>('400', 'Invalid request')
+  @Response<ApiResponse>('429', 'Too many requests')
+  @Example<ApiResponse<{ sent: boolean }>>({
+    success: true,
+    data: {
+      sent: true,
+    },
+    timestamp: '2024-01-01T00:00:00.000Z',
+  })
+  public async resendVerificationEmail(
+    @Body() request: ResendVerificationEmailRequest
+  ): Promise<ApiResponse<{ sent: boolean }>> {
+    try {
+      // Validate request
+      if (!request.primaryDid || !request.email) {
+        this.setStatus(400);
+        return {
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'primaryDid and email are required',
+            details: 'Both fields are mandatory',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      // Get identity link
+      const identityLink = await this.userAuthService[
+        'snsService'
+      ].getIdentityLink(request.primaryDid, `email:${request.email}`);
+
+      if (!identityLink) {
+        this.setStatus(404);
+        return {
+          success: false,
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Identity link not found',
+            details: 'Unable to find email verification record',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      // Check if already verified
+      if (identityLink.emailVerified) {
+        this.setStatus(400);
+        return {
+          success: false,
+          error: {
+            code: 'ALREADY_VERIFIED',
+            message: 'Email already verified',
+            details: 'This email address has already been verified',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      // Check rate limits
+      const emailVerificationService =
+        this.userAuthService['emailVerificationService'];
+      const resendCheck = emailVerificationService.canResend(
+        identityLink.emailVerifySentAt,
+        0 // TODO: Get actual resend count from database
+      );
+
+      if (!resendCheck.allowed) {
+        this.setStatus(429);
+        return {
+          success: false,
+          error: {
+            code: 'RATE_LIMIT_EXCEEDED',
+            message: 'Too many requests',
+            details: resendCheck.nextResendAt
+              ? `Please wait until ${resendCheck.nextResendAt}`
+              : 'Please try again later',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      // Generate new token
+      const { token, expiresAt } =
+        await emailVerificationService.generateVerificationToken(
+          request.primaryDid,
+          request.email
+        );
+      const tokenHash = emailVerificationService.getTokenHash(token);
+
+      // Update identity link with new token
+      await this.userAuthService['snsService'].updateIdentityLink(
+        request.primaryDid,
+        `email:${request.email}`,
+        {
+          emailVerifyTokenHash: tokenHash,
+          emailVerifyTokenExpiresAt: expiresAt,
+          emailVerifySentAt: new Date().toISOString(),
+        }
+      );
+
+      // Send email
+      await this.userAuthService['emailService'].sendVerificationEmail(
+        request.email,
+        token,
+        request.primaryDid
+      );
+
+      this.setStatus(200);
+      return {
+        success: true,
+        data: {
+          sent: true,
+        },
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      console.error('Resend verification email error:', error);
+      this.setStatus(500);
+      return {
+        success: false,
+        error: {
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to resend verification email',
           details:
             error instanceof Error ? error.message : 'Unknown error occurred',
         },
