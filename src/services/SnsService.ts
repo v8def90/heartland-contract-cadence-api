@@ -1830,7 +1830,11 @@ export class SnsService {
     updates: Partial<DynamoDBIdentityLinkItem>
   ): Promise<void> {
     if (!this.client) {
-      console.log('Mock updateIdentityLink:', { primaryDid, linkedId, updates });
+      console.log('Mock updateIdentityLink:', {
+        primaryDid,
+        linkedId,
+        updates,
+      });
       return;
     }
 

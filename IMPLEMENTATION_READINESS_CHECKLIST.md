@@ -9,14 +9,17 @@
 ## ✅ 決定済み事項
 
 ### 1. Followのsubject形式 ✅
+
 - **決定**: AT Protocol標準の`subject: StrongRef`形式に修正
 - **実装**: `subjectDid`ではなく`subject: StrongRef`を使用
 
 ### 2. Commentの扱い ✅
+
 - **決定**: Reply Postとして扱う
 - **実装**: `app.bsky.feed.post`コレクションとして保存
 
 ### 3. PDS連携 ✅
+
 - **決定**: アカウント作成時にPDSへ連携
 - **実装**: ユーザー登録時にPDS APIを呼び出してDID生成
 
@@ -29,12 +32,14 @@
 **決定事項**: `at://{followedDid}/app.bsky.actor.profile/self`（AT Protocol標準形式）
 
 **決定理由**:
+
 - ✅ AT Protocol標準準拠（BlueSky公式実装と同じ）
 - ✅ 将来の拡張性（プロファイル以外のリソースへの拡張が容易）
 - ✅ 他のAT Protocolクライアントとの互換性
 - ✅ 検証可能性（プロファイルレコードの存在確認が可能）
 
 **実装例**:
+
 ```typescript
 subject: {
   uri: `at://${followedDid}/app.bsky.actor.profile/self`,
@@ -43,6 +48,7 @@ subject: {
 ```
 
 **実装時の注意点**:
+
 - プロファイル存在チェックは任意（エラーにはしない）
 - `cid`はoptional（プロファイルが存在する場合のみ設定）
 - URI生成・解析のユーティリティ関数を作成
@@ -53,11 +59,13 @@ subject: {
 
 ### 2. PDS連携の詳細フロー ✅ **一部決定済み**
 
-**決定事項**: 
+**決定事項**:
+
 - ✅ アカウント作成時にPDSへ連携
 - ✅ 開発環境用PDS API: `https://bsky.social`
 
 **確認事項**:
+
 - [ ] どのPDS APIを呼び出すか？
   - `com.atproto.server.createAccount`?（推奨）
   - `com.atproto.server.createSession`?
@@ -78,6 +86,7 @@ subject: {
   - タイムアウト設定（推奨: 30秒）
 
 **推奨フロー**:
+
 ```
 1. ユーザー登録（メール/パスワード or Flow wallet）
    ↓
@@ -94,6 +103,7 @@ subject: {
 ```
 
 **実装時の注意点**:
+
 - PDS APIの認証情報（API Key等）の管理
 - レート制限の考慮
 - エラーレスポンスの適切な処理
@@ -106,6 +116,7 @@ subject: {
 **現状**: TID/ULID形式（時系列）
 
 **確認事項**:
+
 - [ ] どのライブラリを使用するか？
   - `@atproto/tid`（AT Protocol標準）
   - `ulid`（ULID形式）
@@ -116,6 +127,7 @@ subject: {
   - ULID形式: `01ARZ3NDEKTSV4RRFFQ69G5FAV`
 
 **推奨**:
+
 - AT Protocol準拠: `@atproto/tid`を使用
 - または: `ulid`パッケージを使用
 
@@ -124,11 +136,13 @@ subject: {
 ### 4. AT URI生成の実装 ⚠️ **要確認**
 
 **確認事項**:
+
 - [ ] AT URI生成ユーティリティの実装方法
 - [ ] AT URI解決（逆引き）の実装
 - [ ] AT URI検証の実装
 
 **推奨**:
+
 ```typescript
 function generateAtUri(
   ownerDid: string,
@@ -152,12 +166,14 @@ function parseAtUri(uri: string): {
 ### 5. データ移行計画 ⚠️ **要確認**
 
 **確認事項**:
+
 - [ ] 既存データ（userIdベース）の移行方法
 - [ ] 移行スクリプトの実装
 - [ ] 移行時のダウンタイム
 - [ ] 後方互換性の維持期間
 
 **推奨**:
+
 - 段階的移行: 既存データと新データの並行運用
 - 移行スクリプト: 既存userId → primaryDidへのマッピング
 - 後方互換性: 一定期間は両方のID体系をサポート
@@ -167,11 +183,13 @@ function parseAtUri(uri: string): {
 ### 6. 既存APIとの互換性 ⚠️ **要確認**
 
 **確認事項**:
+
 - [ ] 既存APIエンドポイントの変更
 - [ ] 既存クライアントへの影響
 - [ ] APIバージョニングの必要性
 
 **推奨**:
+
 - APIバージョニング: `/api/v1/`と`/api/v2/`の並行運用
 - 段階的移行: 既存APIを維持しながら新APIを追加
 
@@ -180,11 +198,13 @@ function parseAtUri(uri: string): {
 ### 7. 認証フローの統合 ⚠️ **要確認**
 
 **確認事項**:
+
 - [ ] メール/パスワード認証時のDID生成タイミング
 - [ ] Flow wallet認証時のDID生成タイミング
 - [ ] 既存ユーザーのDID生成方法
 
 **推奨**:
+
 - 新規ユーザー: 登録時にPDS経由でDID生成
 - 既存ユーザー: 初回ログイン時にDID生成（遅延生成）
 
@@ -193,11 +213,13 @@ function parseAtUri(uri: string): {
 ### 8. Repository構造の実装詳細 ⚠️ **要確認**
 
 **確認事項**:
+
 - [ ] Repository構造の実装方法
 - [ ] Commit管理の実装
 - [ ] 既存DynamoDB設計との統合
 
 **推奨**:
+
 - 段階的実装: まずはRecord構造のみ実装
 - Commit管理: 将来的に実装
 - 既存設計との統合: 並行運用可能な設計
@@ -207,11 +229,13 @@ function parseAtUri(uri: string): {
 ### 9. テストデータの準備 ⚠️ **要確認**
 
 **確認事項**:
+
 - [ ] テスト用DIDの生成方法
 - [ ] モックPDSの必要性
 - [ ] 統合テストの実装方針
 
 **推奨**:
+
 - テスト用DID: `did:key:xxx`形式を使用（簡単に生成可能）
 - モックPDS: 開発環境ではモックを使用
 - 統合テスト: 実際のPDSを使用（テスト環境）
@@ -221,11 +245,13 @@ function parseAtUri(uri: string): {
 ### 10. 環境変数と設定 ⚠️ **要確認**
 
 **確認事項**:
+
 - [ ] PDS APIエンドポイントの設定
 - [ ] DID解決サービスの設定
 - [ ] その他の環境変数
 
 **推奨**:
+
 ```env
 # PDS Configuration
 PDS_ENDPOINT=https://bsky.social
@@ -308,16 +334,18 @@ AT_PROTO_NAMESPACE=jp.yourapp
 ## 📌 最新の決定事項（2025-12-30更新）
 
 ### ✅ Followのsubject.uri形式
+
 - **決定**: `at://{followedDid}/app.bsky.actor.profile/self`（AT Protocol標準形式）
 - **詳細**: `FOLLOW_SUBJECT_URI_ANALYSIS.md`を参照
 
 ### ✅ PDS API情報
+
 - **決定**: 開発環境用PDS APIとして`https://bsky.social`を使用
 - **実装**: ユーザー登録時に`com.atproto.server.createAccount`を呼び出してDID生成
 
 ### ✅ メール/パスワード認証実装計画
+
 - **決定**: AT Protocol対応を踏まえた包括的な実装計画を作成
 - **詳細**: `EMAIL_PASSWORD_AUTH_IMPLEMENTATION_PLAN.md`を参照
 - **実装フェーズ**: Phase 1（基盤実装）から順次実装
 - **統合**: 既存のFlow wallet認証と並行運用、AT Protocol DID生成と統合
-

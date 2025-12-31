@@ -48,14 +48,8 @@ export class PasswordService {
    * Private constructor for singleton pattern
    */
   private constructor() {
-    this.saltRounds = parseInt(
-      process.env.PASSWORD_BCRYPT_ROUNDS || '12',
-      10
-    );
-    this.minLength = parseInt(
-      process.env.PASSWORD_MIN_LENGTH || '8',
-      10
-    );
+    this.saltRounds = parseInt(process.env.PASSWORD_BCRYPT_ROUNDS || '12', 10);
+    this.minLength = parseInt(process.env.PASSWORD_MIN_LENGTH || '8', 10);
   }
 
   /**
@@ -187,7 +181,9 @@ export class PasswordService {
       'qwerty123',
     ];
     if (commonPasswords.includes(password.toLowerCase())) {
-      errors.push('Password is too common. Please choose a more secure password');
+      errors.push(
+        'Password is too common. Please choose a more secure password'
+      );
     }
 
     return {
@@ -217,4 +213,3 @@ export class PasswordService {
     return randomBytes.toString('base64url');
   }
 }
-

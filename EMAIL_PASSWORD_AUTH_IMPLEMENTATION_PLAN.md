@@ -64,43 +64,43 @@
 export interface DynamoDBIdentityLinkItem {
   PK: string; // USER#{primaryDid}
   SK: string; // LINK#email:{email}
-  
+
   // 基本情報
   primaryDid: string; // did:plc:...（PDS経由で生成）
   linkedId: string; // "email:alice@example.com"
-  kind: "email"; // メール認証の場合
-  role: "login"; // ログイン用途
-  status: "pending" | "verified" | "revoked";
-  
+  kind: 'email'; // メール認証の場合
+  role: 'login'; // ログイン用途
+  status: 'pending' | 'verified' | 'revoked';
+
   // メール/パスワード認証関連（既に定義済み）
   email?: string; // "alice@example.com"
   emailNormalized?: string; // 検索・比較用
   emailVerified?: boolean; // メール認証済みか
   emailVerifiedAt?: string; // 認証日時
-  
+
   passwordHash?: string; // bcrypt/argon2id ハッシュ
-  passwordKdf?: "bcrypt" | "argon2id" | "scrypt";
+  passwordKdf?: 'bcrypt' | 'argon2id' | 'scrypt';
   passwordUpdatedAt?: string;
-  
+
   // セキュリティ関連
   failedLoginCount?: number; // ログイン失敗回数
   lastFailedLoginAt?: string;
   lockUntil?: string; // ロック解除時刻
-  
+
   // メール認証トークン
   emailVerifyTokenHash?: string; // トークンのハッシュ
   emailVerifyTokenExpiresAt?: string;
   emailVerifySentAt?: string;
-  
+
   // パスワードリセット
   resetTokenHash?: string;
   resetTokenExpiresAt?: string;
   resetRequestedAt?: string;
-  
+
   // 監査ログ
   lastLoginAt?: string;
   lastLoginIpHash?: string;
-  
+
   createdAt: string;
   verifiedAt?: string;
   revokedAt?: string;
@@ -118,24 +118,26 @@ export interface DynamoDBIdentityLinkItem {
 **ファイル**: `src/services/PasswordService.ts`
 
 **機能**:
+
 - パスワードハッシュ化（bcrypt、salt rounds: 12）
 - パスワード検証
 - パスワード強度チェック
 - パスワードリセットトークン生成
 
 **実装内容**:
+
 ```typescript
 export class PasswordService {
   /**
    * Hash password using bcrypt
    */
   async hashPassword(password: string): Promise<string>;
-  
+
   /**
    * Verify password against hash
    */
   async verifyPassword(password: string, hash: string): Promise<boolean>;
-  
+
   /**
    * Check password strength
    */
@@ -143,7 +145,7 @@ export class PasswordService {
     valid: boolean;
     errors: string[];
   };
-  
+
   /**
    * Generate password reset token
    */
@@ -152,6 +154,7 @@ export class PasswordService {
 ```
 
 **依存関係**:
+
 - `bcryptjs`: `pnpm add bcryptjs @types/bcryptjs`
 
 **優先度**: **最高**
@@ -163,12 +166,14 @@ export class PasswordService {
 **ファイル**: `src/services/EmailVerificationService.ts`
 
 **機能**:
+
 - メール認証トークン生成・検証
 - 認証ステータス管理
 - 認証メール再送信
 - レート制限
 
 **実装内容**:
+
 ```typescript
 export class EmailVerificationService {
   /**
@@ -178,7 +183,7 @@ export class EmailVerificationService {
     primaryDid: string,
     email: string
   ): Promise<{ token: string; expiresAt: string }>;
-  
+
   /**
    * Verify email verification token
    */
@@ -186,7 +191,7 @@ export class EmailVerificationService {
     token: string,
     primaryDid: string
   ): Promise<{ success: boolean; email?: string; error?: string }>;
-  
+
   /**
    * Send verification email
    */
@@ -195,7 +200,7 @@ export class EmailVerificationService {
     token: string,
     primaryDid: string
   ): Promise<void>;
-  
+
   /**
    * Resend verification email
    */
@@ -203,7 +208,7 @@ export class EmailVerificationService {
     primaryDid: string,
     email: string
   ): Promise<{ success: boolean; error?: string }>;
-  
+
   /**
    * Check verification status
    */
@@ -219,6 +224,7 @@ export class EmailVerificationService {
 ```
 
 **依存関係**:
+
 - `@aws-sdk/client-ses`: `pnpm add @aws-sdk/client-ses`
 - `crypto`: Node.js標準ライブラリ
 
@@ -233,12 +239,14 @@ export class EmailVerificationService {
 **ファイル**: `src/services/EmailService.ts`
 
 **機能**:
+
 - AWS SES統合
 - メールテンプレート管理
 - 送信レート制限
 - 送信ログ
 
 **実装内容**:
+
 ```typescript
 export class EmailService {
   /**
@@ -250,7 +258,7 @@ export class EmailService {
     htmlBody: string,
     textBody?: string
   ): Promise<void>;
-  
+
   /**
    * Send verification email
    */
@@ -259,7 +267,7 @@ export class EmailService {
     token: string,
     primaryDid: string
   ): Promise<void>;
-  
+
   /**
    * Send password reset email
    */
@@ -268,7 +276,7 @@ export class EmailService {
     token: string,
     primaryDid: string
   ): Promise<void>;
-  
+
   /**
    * Send welcome email
    */
@@ -281,6 +289,7 @@ export class EmailService {
 ```
 
 **依存関係**:
+
 - `@aws-sdk/client-ses`: 既に追加済み
 
 **優先度**: **最高**
@@ -292,12 +301,14 @@ export class EmailService {
 **ファイル**: `src/services/UserAuthService.ts`
 
 **機能**:
+
 - メール/パスワード認証
 - Flow wallet認証との統合
 - 認証方法の管理
 - DID生成（PDS連携）
 
 **実装内容**:
+
 ```typescript
 export class UserAuthService {
   /**
@@ -312,7 +323,7 @@ export class UserAuthService {
     primaryDid?: string;
     error?: string;
   }>;
-  
+
   /**
    * Login with email/password
    */
@@ -325,7 +336,7 @@ export class UserAuthService {
     authData?: AuthData;
     error?: string;
   }>;
-  
+
   /**
    * Link email to existing account (Flow wallet認証済みユーザー)
    */
@@ -334,13 +345,11 @@ export class UserAuthService {
     email: string,
     password: string
   ): Promise<{ success: boolean; error?: string }>;
-  
+
   /**
    * Get user authentication methods
    */
-  async getAuthMethods(
-    primaryDid: string
-  ): Promise<{
+  async getAuthMethods(primaryDid: string): Promise<{
     emailPassword?: boolean;
     flow?: boolean;
     atproto?: boolean;
@@ -357,19 +366,21 @@ export class UserAuthService {
 **ファイル**: `src/services/PdsService.ts`
 
 **機能**:
+
 - PDS API連携（`https://bsky.social`）
 - DID生成（`com.atproto.server.createAccount`）
 - DID解決
 - エラーハンドリング
 
 **実装内容**:
+
 ```typescript
 export class PdsService {
   /**
    * Create account via PDS and generate DID
-   * 
+   *
    * @description Calls com.atproto.server.createAccount API (no authentication required)
-   * 
+   *
    * @param email - User email address
    * @param password - User password
    * @param handle - Optional handle (e.g., @username.bsky.social)
@@ -387,7 +398,7 @@ export class PdsService {
     refreshJwt?: string;
     error?: string;
   }>;
-  
+
   /**
    * Resolve DID to DID document
    */
@@ -400,11 +411,13 @@ export class PdsService {
 ```
 
 **依存関係**:
+
 - `@atproto/api`: `pnpm add @atproto/api`（AT Protocol SDK）
 
 **優先度**: **最高**
 
 **詳細**:
+
 - PDS APIエンドポイント: `https://bsky.social/xrpc/com.atproto.server.createAccount`
 - **認証**: 認証不要（リクエストパラメータのみでアカウント作成可能）
 - リクエストパラメータ: `email`, `password`, `handle`（オプション）, `inviteCode`（オプション）
@@ -426,6 +439,7 @@ export class PdsService {
 ##### `POST /auth/register` - メール/パスワード登録
 
 **リクエスト**:
+
 ```typescript
 interface EmailPasswordRegisterRequest {
   email: string;
@@ -436,6 +450,7 @@ interface EmailPasswordRegisterRequest {
 ```
 
 **レスポンス**:
+
 ```typescript
 interface RegisterResponse {
   success: boolean;
@@ -451,6 +466,7 @@ interface RegisterResponse {
 ```
 
 **フロー**:
+
 1. メールアドレス・パスワード検証
 2. メール重複チェック（`DynamoDBIdentityLookupItem`）
 3. パスワードハッシュ化
@@ -468,6 +484,7 @@ interface RegisterResponse {
 ##### `POST /auth/email-login` - メール/パスワードログイン
 
 **リクエスト**:
+
 ```typescript
 interface EmailPasswordLoginRequest {
   email: string;
@@ -476,6 +493,7 @@ interface EmailPasswordLoginRequest {
 ```
 
 **レスポンス**:
+
 ```typescript
 interface LoginResponse {
   success: boolean;
@@ -485,6 +503,7 @@ interface LoginResponse {
 ```
 
 **フロー**:
+
 1. メールアドレス正規化
 2. `DynamoDBIdentityLookupItem`で`primaryDid`取得
 3. `DynamoDBIdentityLinkItem`で認証情報取得
@@ -502,6 +521,7 @@ interface LoginResponse {
 ##### `POST /auth/verify-email` - メール認証
 
 **リクエスト**:
+
 ```typescript
 interface VerifyEmailRequest {
   token: string;
@@ -510,6 +530,7 @@ interface VerifyEmailRequest {
 ```
 
 **レスポンス**:
+
 ```typescript
 interface VerifyEmailResponse {
   success: boolean;
@@ -528,6 +549,7 @@ interface VerifyEmailResponse {
 ##### `POST /auth/resend-verification-email` - 認証メール再送信
 
 **リクエスト**:
+
 ```typescript
 interface ResendVerificationEmailRequest {
   primaryDid: string;
@@ -542,6 +564,7 @@ interface ResendVerificationEmailRequest {
 ##### `GET /auth/verification-status` - 認証ステータス確認
 
 **リクエスト**:
+
 ```typescript
 // Query parameters
 {
@@ -557,6 +580,7 @@ interface ResendVerificationEmailRequest {
 ##### `POST /auth/reset-password-request` - パスワードリセット要求
 
 **リクエスト**:
+
 ```typescript
 interface ResetPasswordRequestRequest {
   email: string;
@@ -570,6 +594,7 @@ interface ResetPasswordRequestRequest {
 ##### `POST /auth/reset-password` - パスワードリセット
 
 **リクエスト**:
+
 ```typescript
 interface ResetPasswordRequest {
   token: string;
@@ -587,6 +612,7 @@ interface ResetPasswordRequest {
 **ファイル**: `src/middleware/passport.ts`（更新）
 
 **変更内容**:
+
 ```typescript
 export interface JwtPayload {
   sub: string; // primaryDid（DID）
@@ -618,6 +644,7 @@ export interface PassportUser {
 既存の`DynamoDBIdentityLinkItem`を活用（既に定義済み）
 
 **確認事項**:
+
 - [ ] `DynamoDBIdentityLinkItem`の実装確認
 - [ ] `DynamoDBIdentityLookupItem`の実装確認
 - [ ] GSI設定（メール検索用）
@@ -631,6 +658,7 @@ export interface PassportUser {
 **ファイル**: `src/services/SnsService.ts`（更新）
 
 **追加機能**:
+
 - メール/パスワード認証情報の保存・取得
 - メール認証ステータスの更新
 - パスワードリセットトークンの管理
@@ -646,6 +674,7 @@ export interface PassportUser {
 **ファイル**: `src/services/RateLimitService.ts`（更新）
 
 **追加機能**:
+
 - ログイン試行回数制限（5回/15分）
 - メール送信レート制限（3回/24時間）
 - パスワードリセット要求レート制限（3回/24時間）
@@ -657,6 +686,7 @@ export interface PassportUser {
 #### 4.2 アカウントロック機能
 
 **実装内容**:
+
 - ログイン失敗回数による自動ロック
 - ロック解除時刻の設定
 - ロック状態の確認
@@ -668,6 +698,7 @@ export interface PassportUser {
 #### 4.3 監査ログ
 
 **実装内容**:
+
 - ログイン試行ログ
 - メール送信ログ
 - パスワード変更ログ
@@ -682,6 +713,7 @@ export interface PassportUser {
 #### 5.1 パスワード強度チェック
 
 **実装内容**:
+
 - 最小長: 8文字
 - 大文字・小文字・数字・記号の組み合わせ
 - 一般的なパスワードの拒否
@@ -693,6 +725,7 @@ export interface PassportUser {
 #### 5.2 メール認証完了通知
 
 **実装内容**:
+
 - 認証完了メール送信
 - フロントエンドへの通知（オプション）
 
@@ -961,13 +994,11 @@ pnpm add bcryptjs @types/bcryptjs @aws-sdk/client-ses @atproto/api
   - SESサンドボックス解除（本番環境）
   - 送信元メールアドレスの検証
   - IAM権限の追加（`serverless.yml`）
-  
 - [ ] 環境変数の設定（`.env`ファイル）
   - `PDS_ENDPOINT`, `PDS_TIMEOUT`
   - `SES_REGION`, `SES_FROM_EMAIL`, `FRONTEND_URL`
   - `EMAIL_VERIFICATION_TOKEN_EXPIRY`, `EMAIL_VERIFICATION_MAX_RESENDS`
   - `PASSWORD_MIN_LENGTH`, `PASSWORD_BCRYPT_ROUNDS`
-  
 - [ ] DynamoDBテーブル・GSIの設定確認
 
 ### 推奨確認
@@ -981,4 +1012,3 @@ pnpm add bcryptjs @types/bcryptjs @aws-sdk/client-ses @atproto/api
 **最終更新**: 2025-12-30  
 **状態**: 実装計画完了（実装はまだ行わない）  
 **次回**: 実装開始前の最終確認後、Phase 1から順次実装
-

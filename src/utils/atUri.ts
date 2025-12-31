@@ -109,7 +109,11 @@ export function parseAtUri(uri: string): AtUriComponents | null {
  */
 export function validateAtUri(uri: string): boolean {
   const components = parseAtUri(uri);
-  return components !== null && components.did !== undefined && components.did.length > 0;
+  return (
+    components !== null &&
+    components.did !== undefined &&
+    components.did.length > 0
+  );
 }
 
 /**
@@ -129,4 +133,3 @@ export function validateAtUri(uri: string): boolean {
 export function generateProfileAtUri(did: string): string {
   return `at://${did}/app.bsky.actor.profile/self`;
 }
-

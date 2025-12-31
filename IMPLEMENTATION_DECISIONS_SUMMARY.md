@@ -28,9 +28,10 @@
 ### AWS SES関連
 
 12. ⚠️ **AWS SES設定**: **未設定**（実装時に設定が必要）
-   - SESサンドボックス解除（本番環境）
-   - 送信元メールアドレスの検証
-   - IAM権限の追加（`serverless.yml`）
+
+- SESサンドボックス解除（本番環境）
+- 送信元メールアドレスの検証
+- IAM権限の追加（`serverless.yml`）
 
 ---
 
@@ -39,12 +40,14 @@
 ### 1. AWS SES設定
 
 **手順**:
+
 1. AWS SESコンソールで送信元メールアドレスを検証
 2. 開発環境: SESサンドボックス（検証済みメールアドレスのみ送信可能）
 3. 本番環境: SESサンドボックス解除申請
 4. IAM権限を`serverless.yml`に追加
 
 **IAM権限**（`serverless.yml`に追加）:
+
 ```yaml
 - Effect: Allow
   Action:
@@ -193,4 +196,3 @@ pnpm add bcryptjs @types/bcryptjs @aws-sdk/client-ses @atproto/api @atproto/tid
 **最終更新**: 2025-12-30  
 **状態**: 決定事項反映完了（実装はまだ行わない）  
 **次回**: 実装開始（AWS SES設定後）
-

@@ -56,12 +56,8 @@ export class PdsService {
    * Private constructor for singleton pattern
    */
   private constructor() {
-    this.pdsEndpoint =
-      process.env.PDS_ENDPOINT || 'https://bsky.social';
-    this.timeout = parseInt(
-      process.env.PDS_TIMEOUT || '30000',
-      10
-    ); // 30 seconds
+    this.pdsEndpoint = process.env.PDS_ENDPOINT || 'https://bsky.social';
+    this.timeout = parseInt(process.env.PDS_TIMEOUT || '30000', 10); // 30 seconds
     this.maxRetries = 3;
   }
 
@@ -83,7 +79,7 @@ export class PdsService {
    * @param ms - Milliseconds to sleep
    */
   private sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   /**
@@ -215,10 +211,8 @@ export class PdsService {
     } catch (error) {
       return {
         success: false,
-        error:
-          error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error.message : 'Unknown error',
       };
     }
   }
 }
-

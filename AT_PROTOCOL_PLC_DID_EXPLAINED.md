@@ -20,6 +20,7 @@
 **PLC (Placeholder DID Controller)** は、AT Protocolが提供する**中央集権的なDID解決サービス**です。
 
 #### 主な機能
+
 1. **Operations管理**: ユーザーのDID変更履歴（Operations）を管理
 2. **DID Document生成**: OperationsからDID Documentを生成
 3. **DID解決**: DIDからDID Documentを解決
@@ -55,16 +56,19 @@
 ### 一意性の保証方法
 
 #### 1. **ハッシュベースの一意性**
+
 - DIDはGenesis Operationのハッシュ値から生成される
 - ハッシュ衝突の確率は極めて低い（SHA-256）
 - **数学的に一意性が保証される**
 
 #### 2. **PLCサーバーによる管理**
+
 - PLCサーバーがOperationsを順序立てて管理
 - 同じDIDに対する重複登録を防止
 - **運用レベルで一意性が保証される**
 
 #### 3. **署名による検証**
+
 - すべてのOperationは署名されている
 - 不正なOperationの追加を防止
 - **セキュリティレベルで一意性が保証される**
@@ -170,14 +174,14 @@ PLCサーバーは、Operationsの履歴から最新のDID Documentを生成し�
 
 ## 📊 `did:plc` vs `did:web` vs `did:key`
 
-| 項目 | `did:plc` | `did:web` | `did:key` |
-|------|-----------|-----------|-----------|
-| **一意性保証** | PLCサーバー | ドメイン所有者 | 鍵の一意性 |
+| 項目           | `did:plc`           | `did:web`        | `did:key`        |
+| -------------- | ------------------- | ---------------- | ---------------- |
+| **一意性保証** | PLCサーバー         | ドメイン所有者   | 鍵の一意性       |
 | **中央集権性** | あり（PLCサーバー） | なし（自己管理） | なし（鍵ベース） |
-| **可用性** | PLCサーバー依存 | ドメイン依存 | 鍵のみ |
-| **移行可能性** | 可能（did:webへ） | 可能 | 可能 |
-| **初期設定** | 簡単 | ドメイン必要 | 簡単 |
-| **運用コスト** | 低い | ドメイン維持 | 低い |
+| **可用性**     | PLCサーバー依存     | ドメイン依存     | 鍵のみ           |
+| **移行可能性** | 可能（did:webへ）   | 可能             | 可能             |
+| **初期設定**   | 簡単                | ドメイン必要     | 簡単             |
+| **運用コスト** | 低い                | ドメイン維持     | 低い             |
 
 ---
 
@@ -193,10 +197,10 @@ async function resolvePlcDid(did: string): Promise<DidDocument> {
   // PLCサーバーに問い合わせ
   // https://plc.directory/{did}
   const plcUrl = `https://plc.directory/${did}`;
-  
+
   const response = await fetch(plcUrl, {
     headers: {
-      'Accept': 'application/json',
+      Accept: 'application/json',
     },
   });
 
@@ -219,15 +223,15 @@ async function verifyDidUniqueness(did: string): Promise<boolean> {
   try {
     // 1. PLCサーバーからDID Documentを取得
     const document = await resolvePlcDid(did);
-    
+
     // 2. DIDが一致するか確認
     if (document.id !== did) {
       return false;
     }
-    
+
     // 3. Operationsの整合性を確認（オプション）
     // PLCサーバーが提供するOperations履歴を検証
-    
+
     return true;
   } catch (error) {
     console.error('DID uniqueness verification failed:', error);
@@ -309,4 +313,3 @@ async function verifyDidUniqueness(did: string): Promise<boolean> {
 ---
 
 **最終更新**: 2025-12-30
-

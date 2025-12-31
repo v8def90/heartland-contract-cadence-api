@@ -12,10 +12,7 @@ import { PasswordService } from './PasswordService';
 import { EmailVerificationService } from './EmailVerificationService';
 import { EmailService } from './EmailService';
 import { PdsService } from './PdsService';
-import {
-  SnsService,
-  type DynamoDBIdentityLinkItem,
-} from './SnsService';
+import { SnsService, type DynamoDBIdentityLinkItem } from './SnsService';
 import { generateJwtToken } from '../middleware/passport';
 import type { AuthData } from '../models/responses';
 
@@ -219,8 +216,7 @@ export class UserAuthService {
           primaryDid,
           normalizedEmail
         );
-      const tokenHash =
-        this.emailVerificationService.getTokenHash(token);
+      const tokenHash = this.emailVerificationService.getTokenHash(token);
 
       // Store verification token (in identity link)
       await this.snsService.updateIdentityLink(
@@ -256,7 +252,9 @@ export class UserAuthService {
         normalizedEmail
       );
 
-      const payload = require('../middleware/passport').verifyJwtToken(jwtToken);
+      const payload = require('../middleware/passport').verifyJwtToken(
+        jwtToken
+      );
       const expiresIn = payload ? payload.exp - payload.iat : 86400;
 
       const authData: AuthData = {
@@ -413,7 +411,9 @@ export class UserAuthService {
         normalizedEmail
       );
 
-      const payload = require('../middleware/passport').verifyJwtToken(jwtToken);
+      const payload = require('../middleware/passport').verifyJwtToken(
+        jwtToken
+      );
       const expiresIn = payload ? payload.exp - payload.iat : 86400;
 
       const authData: AuthData = {
@@ -537,4 +537,3 @@ export class UserAuthService {
     return profile?.authProviders || {};
   }
 }
-

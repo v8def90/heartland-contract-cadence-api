@@ -51,6 +51,7 @@
 ### 1. DID解決サービス（DID Resolution Service）
 
 #### 目的
+
 DIDからDID Documentを取得し、公開鍵情報などを取得する。
 
 #### 実装
@@ -133,11 +134,11 @@ export class DidResolutionService {
     // PLCサーバーに問い合わせ
     // 例: https://plc.directory/{did}
     const plcUrl = `https://plc.directory/${did}`;
-    
+
     try {
       const response = await fetch(plcUrl, {
         headers: {
-          'Accept': 'application/json',
+          Accept: 'application/json',
         },
       });
 
@@ -165,7 +166,7 @@ export class DidResolutionService {
     try {
       const response = await fetch(url, {
         headers: {
-          'Accept': 'application/json',
+          Accept: 'application/json',
         },
       });
 
@@ -188,7 +189,9 @@ export class DidResolutionService {
   private async resolveKeyDid(did: string): Promise<DidDocument> {
     // did:keyは鍵情報から直接DID Documentを生成
     // ライブラリを使用（例: @digitalcredentials/did-method-key）
-    const { keyToDidDocument } = await import('@digitalcredentials/did-method-key');
+    const { keyToDidDocument } = await import(
+      '@digitalcredentials/did-method-key'
+    );
     return keyToDidDocument(did);
   }
 
@@ -222,6 +225,7 @@ export class DidResolutionService {
 ### 2. DID署名検証サービス（DID Signature Verification Service）
 
 #### 目的
+
 DID Documentの公開鍵を使用して署名を検証する。
 
 #### 実装
@@ -301,7 +305,10 @@ export class DidSignatureVerificationService {
         // Multibase形式から公開鍵をデコード
         const publicKey = this.decodeMultibase(vm.publicKeyMultibase);
         return { key: publicKey, algorithm: 'Ed25519' };
-      } else if (vm.type === 'Ed25519VerificationKey2018' && vm.publicKeyBase58) {
+      } else if (
+        vm.type === 'Ed25519VerificationKey2018' &&
+        vm.publicKeyBase58
+      ) {
         // Base58形式から公開鍵をデコード
         const publicKey = this.decodeBase58(vm.publicKeyBase58);
         return { key: publicKey, algorithm: 'Ed25519' };
@@ -377,6 +384,7 @@ export class DidSignatureVerificationService {
 ### 3. Handle解決サービス（Handle Resolution Service）
 
 #### 目的
+
 Handle（`@username.bsky.social`）からDIDを解決する。
 
 #### 実装
@@ -470,7 +478,7 @@ export class HandleResolutionService {
 
       const response = await fetch(url, {
         headers: {
-          'Accept': 'application/json',
+          Accept: 'application/json',
         },
       });
 
@@ -508,13 +516,18 @@ export class HandleResolutionService {
 ### 4. DID管理サービス（DID Management Service）
 
 #### 目的
+
 ユーザーのDIDを保存・管理する。
 
 #### 実装
 
 ```typescript
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, PutCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
+import {
+  DynamoDBDocumentClient,
+  PutCommand,
+  GetCommand,
+} from '@aws-sdk/lib-dynamodb';
 
 /**
  * DynamoDB DID管理アイテム
@@ -626,6 +639,7 @@ export class DidManagementService {
 ### 5. DID生成サービス（オプション）
 
 #### 目的
+
 新規ユーザーにDIDを生成して提供する（サービス提供側がDIDを管理する場合）。
 
 #### 実装
@@ -636,14 +650,14 @@ import { createHash } from 'crypto';
 
 /**
  * DID生成サービス（オプション）
- * 
+ *
  * 注意: 通常、ユーザーは自分でDIDを生成・管理しますが、
  * サービス提供側がDIDを生成する場合はこのサービスを使用します。
  */
 export class DidGenerationService {
   /**
    * 新しいDIDを生成（did:key形式）
-   * 
+   *
    * @returns { did: string, privateKey: Uint8Array, publicKey: Uint8Array }
    */
   async generateDidKey(): Promise<{
@@ -672,7 +686,9 @@ export class DidGenerationService {
   private generateDidKeyFromPublicKey(publicKey: Uint8Array): string {
     // did:key形式: did:key:z{multibase-encoded-public-key}
     // 実装はライブラリを使用（例: @digitalcredentials/did-method-key）
-    const { publicKeyToDid } = await import('@digitalcredentials/did-method-key');
+    const { publicKeyToDid } = await import(
+      '@digitalcredentials/did-method-key'
+    );
     return publicKeyToDid(publicKey);
   }
 }
@@ -712,11 +728,12 @@ export class UnifiedAuthService {
     signature: string
   ): Promise<{ success: boolean; userId?: string; error?: string }> {
     // 1. 署名検証
-    const verificationResult = await this.signatureVerificationService.verifySignature(
-      did,
-      message,
-      signature
-    );
+    const verificationResult =
+      await this.signatureVerificationService.verifySignature(
+        did,
+        message,
+        signature
+      );
 
     if (!verificationResult.success) {
       return verificationResult;
@@ -785,16 +802,19 @@ export class UnifiedAuthService {
 ## 🔒 セキュリティ考慮事項
 
 ### 1. DID解決のセキュリティ
+
 - ✅ **キャッシュの適切な管理**: TTL設定、無効化
 - ✅ **エラーハンドリング**: 解決失敗時の適切な処理
 - ✅ **レート制限**: 解決リクエストの制限
 
 ### 2. 署名検証のセキュリティ
+
 - ✅ **タイミング攻撃対策**: 定数時間比較
 - ✅ **公開鍵の検証**: DID Documentの真正性確認
 - ✅ **署名アルゴリズムの検証**: サポートされているアルゴリズムのみ受け入れ
 
 ### 3. Handle解決のセキュリティ
+
 - ✅ **DNSキャッシュポイズニング対策**: DNSSEC検証（オプション）
 - ✅ **TTLの適切な設定**: キャッシュの有効期限管理
 
@@ -803,16 +823,19 @@ export class UnifiedAuthService {
 ## 📊 実装優先順位
 
 ### Phase 1: 基本機能（必須）
+
 1. DID解決サービス
 2. DID署名検証サービス
 3. DID管理サービス
 
 ### Phase 2: 拡張機能（推奨）
+
 4. Handle解決サービス
 5. キャッシュ最適化
 6. エラーハンドリング強化
 
 ### Phase 3: オプション機能
+
 7. DID生成サービス（サービス提供側がDIDを管理する場合）
 8. DID Documentの検証強化
 
@@ -829,4 +852,3 @@ export class UnifiedAuthService {
 
 **最終更新**: 2025-12-30  
 **次回レビュー**: Phase 1実装完了後
-

@@ -109,7 +109,6 @@ export class EmailVerificationService {
     return crypto.createHash('sha256').update(token).digest('hex');
   }
 
-
   /**
    * Generate email verification token
    *
@@ -196,10 +195,7 @@ export class EmailVerificationService {
    */
   private verifyTokenHash(token: string, hash: string): boolean {
     const tokenHash = this.hashToken(token);
-    return crypto.timingSafeEqual(
-      Buffer.from(tokenHash),
-      Buffer.from(hash)
-    );
+    return crypto.timingSafeEqual(Buffer.from(tokenHash), Buffer.from(hash));
   }
 
   /**
@@ -266,8 +262,9 @@ export class EmailVerificationService {
     return {
       isVerified,
       canResend: resendCheck.allowed,
-      ...(resendCheck.nextResendAt && { nextResendAt: resendCheck.nextResendAt }),
+      ...(resendCheck.nextResendAt && {
+        nextResendAt: resendCheck.nextResendAt,
+      }),
     };
   }
 }
-

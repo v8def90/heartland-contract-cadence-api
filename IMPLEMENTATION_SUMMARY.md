@@ -11,18 +11,21 @@
 ### Phase 1: 基盤実装（完了）
 
 #### 1. ✅ PasswordService (`src/services/PasswordService.ts`)
+
 - パスワードハッシュ化（bcrypt、salt rounds: 12）
 - パスワード検証
 - パスワード強度チェック（最小8文字、3種類以上の文字種）
 - パスワードリセットトークン生成
 
 #### 2. ✅ EmailVerificationService (`src/services/EmailVerificationService.ts`)
+
 - メール認証トークン生成（32バイト、Base64 URL-safe）
 - トークンハッシュ化（SHA-256）
 - トークン検証（タイミング攻撃対策）
 - レート制限チェック（24時間あたり3回、最小5分間隔）
 
 #### 3. ✅ EmailService (`src/services/EmailService.ts`)
+
 - AWS SES統合
 - メール送信機能
 - メールテンプレート（HTML + プレーンテキスト）
@@ -31,12 +34,14 @@
   - ウェルカムメール
 
 #### 4. ✅ PdsService (`src/services/PdsService.ts`)
+
 - PDS API連携（`https://bsky.social`）
 - DID生成（`com.atproto.server.createAccount`）
 - リトライロジック（3回、指数バックオフ）
 - タイムアウト設定（30秒）
 
 #### 5. ✅ UserAuthService (`src/services/UserAuthService.ts`)
+
 - メール/パスワード登録
 - メール/パスワードログイン
 - メール認証チェック（未認証ユーザーのログイン禁止）
@@ -44,6 +49,7 @@
 - 既存アカウントへのメールリンク
 
 #### 6. ✅ AT URIユーティリティ (`src/utils/atUri.ts`)
+
 - AT URI生成
 - AT URI解析
 - AT URI検証
@@ -54,17 +60,20 @@
 ### Phase 2: API実装（完了）
 
 #### 7. ✅ AuthController拡張 (`src/controllers/auth/AuthController.ts`)
+
 - **POST /auth/register** - メール/パスワード登録
 - **POST /auth/email-login** - メール/パスワードログイン
 - **POST /auth/verify-email** - メール認証
 - **POST /auth/resend-verification-email** - 認証メール再送信
 
 #### 8. ✅ JWT Payload拡張 (`src/middleware/passport.ts`)
+
 - `authMethod`フィールド追加（'flow' | 'email' | 'did'）
 - `email`フィールド追加（メール認証の場合）
 - `address`フィールドをオプショナル化（メール認証では不要）
 
 #### 9. ✅ リクエスト/レスポンスモデル拡張
+
 - `EmailPasswordRegisterRequest`
 - `EmailPasswordLoginRequest`
 - `VerifyEmailRequest`
@@ -76,6 +85,7 @@
 ### Phase 3: データモデル統合（完了）
 
 #### 10. ✅ SnsService拡張 (`src/services/SnsService.ts`)
+
 - **AT Protocolデータモデルインターフェース追加**:
   - `DynamoDBUserProfileItem`
   - `DynamoDBIdentityLinkItem`
@@ -95,15 +105,18 @@
 ### Phase 4: インフラストラクチャ（完了）
 
 #### 11. ✅ 依存関係追加
+
 - `bcryptjs` - パスワードハッシュ化
 - `@aws-sdk/client-ses` - AWS SES統合
 - `@atproto/api` - AT Protocol API
 - `ulid` - rkey生成（TIDの代替）
 
 #### 12. ✅ serverless.yml更新
+
 - SES IAM権限追加（`ses:SendEmail`, `ses:SendRawEmail`）
 
 #### 13. ✅ 既存コード更新
+
 - `BloctoAuthService`: `generateJwtToken`呼び出しを更新（`authMethod: 'flow'`）
 - `authHelpers`: `generateJwtToken`呼び出しを更新（`authMethod: 'flow'`）
 - `AuthController`: 既存の`generateJwtToken`呼び出しを更新
@@ -166,14 +179,17 @@
 ## 📝 実装時の注意点
 
 ### 1. PDS API認証
+
 - `com.atproto.server.createAccount`は認証不要
 - リクエストパラメータ（`email`, `password`, `handle`）のみでアカウント作成可能
 
 ### 2. メール認証未完了ユーザー
+
 - `emailVerified: true`のみログイン許可
 - 未認証ユーザーは`EMAIL_NOT_VERIFIED`エラーを返却
 
 ### 3. 環境変数
+
 - `.env`ファイルで管理
 - 必要な環境変数:
   - `PDS_ENDPOINT`, `PDS_TIMEOUT`
@@ -182,6 +198,7 @@
   - `PASSWORD_MIN_LENGTH`, `PASSWORD_BCRYPT_ROUNDS`
 
 ### 4. AWS SES設定
+
 - ⚠️ **未設定**（実装時に設定が必要）
 - IAM権限は`serverless.yml`に追加済み
 - 送信元メールアドレスの検証が必要
@@ -284,21 +301,25 @@ PASSWORD_BCRYPT_ROUNDS=12
 ## 📝 実装時の注意事項
 
 ### 1. PDS API
+
 - 認証不要で利用可能
 - リトライロジック実装済み（3回、指数バックオフ）
 - タイムアウト: 30秒
 
 ### 2. メール認証
+
 - 未認証ユーザーはログイン禁止
 - レート制限: 24時間あたり3回、最小5分間隔
 - トークン有効期限: 24時間
 
 ### 3. パスワード
+
 - 最小長: 8文字
 - 複雑さ: 3種類以上の文字種
 - ハッシュ化: bcrypt（salt rounds: 12）
 
 ### 4. アカウントロック
+
 - 5回失敗で15分ロック
 - ロック解除は自動（時間経過）
 
@@ -307,4 +328,3 @@ PASSWORD_BCRYPT_ROUNDS=12
 **最終更新**: 2025-12-30  
 **状態**: Phase 1-3 実装完了  
 **次回**: AWS SES設定後、テスト・デプロイ
-
