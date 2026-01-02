@@ -866,14 +866,20 @@ export class AuthController extends Controller {
   ): Promise<ApiResponse<AuthData>> {
     try {
       // Validate request
-      if (!request.email || !request.password || !request.displayName) {
+      if (
+        !request.email ||
+        !request.password ||
+        !request.displayName ||
+        !request.handle
+      ) {
         this.setStatus(400);
         return {
           success: false,
           error: {
             code: 'VALIDATION_ERROR',
-            message: 'Email, password, and displayName are required',
-            details: 'All fields are mandatory for registration',
+            message: 'Email, password, displayName, and handle are required',
+            details:
+              'All fields including handle are mandatory for registration',
           },
           timestamp: new Date().toISOString(),
         };

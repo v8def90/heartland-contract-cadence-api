@@ -1204,7 +1204,7 @@ const models: TsoaRoute.Models = {
             "email": {"dataType":"string","required":true},
             "password": {"dataType":"string","required":true},
             "displayName": {"dataType":"string","required":true},
-            "handle": {"dataType":"string"},
+            "handle": {"dataType":"string","required":true},
         },
         "additionalProperties": false,
     },

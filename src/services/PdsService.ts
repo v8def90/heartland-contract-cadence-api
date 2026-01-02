@@ -2,7 +2,8 @@
  * PDS (Personal Data Server) Service
  *
  * @description Handles integration with AT Protocol PDS for DID generation and account management.
- * Uses the official Bluesky PDS (https://bsky.social) for development.
+ * Uses custom PDS server (https://pds-dev.heart-land.io) for development.
+ * Can be configured via PDS_ENDPOINT environment variable.
  *
  * @author Heart Token API Team
  * @since 1.0.0
@@ -53,12 +54,19 @@ export class PdsService {
   private readonly maxRetries: number;
 
   /**
+   * Default invite code for account creation
+   */
+  private readonly defaultInviteCode: string | undefined;
+
+  /**
    * Private constructor for singleton pattern
    */
   private constructor() {
-    this.pdsEndpoint = process.env.PDS_ENDPOINT || 'https://bsky.social';
+    this.pdsEndpoint =
+      process.env.PDS_ENDPOINT || 'https://pds-dev.heart-land.io';
     this.timeout = parseInt(process.env.PDS_TIMEOUT || '30000', 10); // 30 seconds
     this.maxRetries = 3;
+    this.defaultInviteCode = process.env.PDS_INVITE_CODE;
   }
 
   /**
@@ -91,7 +99,8 @@ export class PdsService {
    *
    * @param email - User email address
    * @param password - User password
-   * @param handle - Optional handle (e.g., @username.bsky.social)
+   * @param handle - Handle (required, e.g., username.pds-dev.heart-land.io)
+   * @param inviteCode - Optional invite code (uses PDS_INVITE_CODE env var if not provided)
    * @returns Promise with DID and account information
    *
    * @example
@@ -99,7 +108,7 @@ export class PdsService {
    * const result = await pdsService.createAccount(
    *   'user@example.com',
    *   'password123',
-   *   'username.bsky.social'
+   *   'username.pds-dev.heart-land.io'
    * );
    * if (result.success) {
    *   console.log('DID:', result.did);
@@ -109,7 +118,8 @@ export class PdsService {
   public async createAccount(
     email: string,
     password: string,
-    handle?: string
+    handle: string,
+    inviteCode?: string
   ): Promise<PdsAccountResult> {
     let lastError: Error | null = null;
 
@@ -125,10 +135,22 @@ export class PdsService {
         const createAccountParams: any = {
           email,
           password,
+          handle, // Required by AT Protocol
         };
-        if (handle) {
-          createAccountParams.handle = handle;
+
+        // Add invite code (required by PDS server)
+        const finalInviteCode = inviteCode || this.defaultInviteCode;
+        if (finalInviteCode) {
+          createAccountParams.inviteCode = finalInviteCode;
+        } else {
+          // If no invite code is provided, return error
+          return {
+            success: false,
+            error:
+              'Invite code is required for account creation. Please provide PDS_INVITE_CODE environment variable or pass inviteCode parameter.',
+          };
         }
+
         const response = await agent.createAccount(createAccountParams);
 
         const result: PdsAccountResult = {
@@ -141,19 +163,39 @@ export class PdsService {
           result.handle = response.data.handle;
         }
         return result;
-      } catch (error) {
-        lastError = error instanceof Error ? error : new Error(String(error));
+      } catch (error: any) {
+        // Extract detailed error message
+        let errorMessage = 'Unknown error';
+        if (error instanceof Error) {
+          errorMessage = error.message;
+        } else if (error?.data?.error) {
+          errorMessage = error.data.error;
+        } else if (error?.data?.message) {
+          errorMessage = error.data.message;
+        } else if (typeof error === 'string') {
+          errorMessage = error;
+        }
 
-        // Don't retry on certain errors (e.g., validation errors)
+        lastError = new Error(errorMessage);
+
+        // Log detailed error for debugging
+        console.error('PDS createAccount error:', {
+          message: errorMessage,
+          error: error,
+          data: error?.data,
+        });
+
+        // Don't retry on certain errors (e.g., validation errors, verification required)
         if (
-          error instanceof Error &&
-          (error.message.includes('already exists') ||
-            error.message.includes('invalid') ||
-            error.message.includes('validation'))
+          errorMessage.includes('already exists') ||
+          errorMessage.includes('invalid') ||
+          errorMessage.includes('validation') ||
+          errorMessage.includes('Verification is now required') ||
+          errorMessage.includes('verification')
         ) {
           return {
             success: false,
-            error: error.message,
+            error: errorMessage,
           };
         }
 

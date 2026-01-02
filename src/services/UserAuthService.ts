@@ -151,6 +151,14 @@ export class UserAuthService {
       const passwordHash = await this.passwordService.hashPassword(password);
 
       // Create account via PDS (generate DID)
+      // handle is required by AT Protocol
+      if (!handle) {
+        return {
+          success: false,
+          error: 'Handle is required for account creation',
+        };
+      }
+
       const pdsResult = await this.pdsService.createAccount(
         normalizedEmail,
         password,

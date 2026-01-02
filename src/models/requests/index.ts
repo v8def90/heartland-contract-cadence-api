@@ -386,8 +386,8 @@ export interface EmailPasswordRegisterRequest {
   password: string;
   /** User display name */
   displayName: string;
-  /** Optional AT Protocol handle (e.g., @username.bsky.social) */
-  handle?: string;
+  /** AT Protocol handle (required, e.g., username.pds-dev.heart-land.io) */
+  handle: string;
 }
 
 /**
