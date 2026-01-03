@@ -360,6 +360,18 @@ resources:
             AttributeType: S
           - AttributeName: GSI5SK
             AttributeType: S
+          - AttributeName: GSI6PK
+            AttributeType: S
+          - AttributeName: GSI6SK
+            AttributeType: S
+          - AttributeName: GSI7PK
+            AttributeType: S
+          - AttributeName: GSI7SK
+            AttributeType: S
+          - AttributeName: GSI8PK
+            AttributeType: S
+          - AttributeName: GSI8SK
+            AttributeType: S
         KeySchema:
           - AttributeName: PK
             KeyType: HASH
@@ -408,6 +420,33 @@ resources:
               - AttributeName: GSI5PK
                 KeyType: HASH
               - AttributeName: GSI5SK
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+          # GSI6: User search by username (USER_SEARCH#{username}, primaryDid)
+          - IndexName: GSI6
+            KeySchema:
+              - AttributeName: GSI6PK
+                KeyType: HASH
+              - AttributeName: GSI6SK
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+          # GSI7: User search by displayName (USER_SEARCH#{displayName}, primaryDid)
+          - IndexName: GSI7
+            KeySchema:
+              - AttributeName: GSI7PK
+                KeyType: HASH
+              - AttributeName: GSI7SK
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+          # GSI8: User search by email (USER_SEARCH#{email}, primaryDid)
+          - IndexName: GSI8
+            KeySchema:
+              - AttributeName: GSI8PK
+                KeyType: HASH
+              - AttributeName: GSI8SK
                 KeyType: RANGE
             Projection:
               ProjectionType: ALL

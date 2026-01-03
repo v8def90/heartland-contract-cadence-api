@@ -460,16 +460,6 @@ const models: TsoaRoute.Models = {
         "type": {"ref":"ApiResponse_PaginatedData_SearchUserData__","validators":{}},
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    "SearchUsersRequest": {
-        "dataType": "refObject",
-        "properties": {
-            "query": {"dataType":"string","required":true},
-            "limit": {"dataType":"double"},
-            "cursor": {"dataType":"string"},
-        },
-        "additionalProperties": false,
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     "SuccessResponse_PostData_": {
         "dataType": "refObject",
         "properties": {
@@ -1882,37 +1872,6 @@ export function RegisterRoutes(app: Router) {
 
               await templateService.apiHandler({
                 methodName: 'getUploadStatus',
-                controller,
-                response,
-                next,
-                validatedArgs,
-                successStatus: 200,
-              });
-            } catch (err) {
-                return next(err);
-            }
-        });
-        // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-        const argsSearchController_searchUsers: Record<string, TsoaRoute.ParameterSchema> = {
-                request: {"in":"body","name":"request","required":true,"ref":"SearchUsersRequest"},
-                requestObj: {"in":"request","name":"requestObj","dataType":"object"},
-        };
-        app.post('/sns/search/users',
-            ...(fetchMiddlewares<RequestHandler>(SearchController)),
-            ...(fetchMiddlewares<RequestHandler>(SearchController.prototype.searchUsers)),
-
-            async function SearchController_searchUsers(request: ExRequest, response: ExResponse, next: any) {
-
-            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-
-            let validatedArgs: any[] = [];
-            try {
-                validatedArgs = templateService.getValidatedArgs({ args: argsSearchController_searchUsers, request, response });
-
-                const controller = new SearchController();
-
-              await templateService.apiHandler({
-                methodName: 'searchUsers',
                 controller,
                 response,
                 next,

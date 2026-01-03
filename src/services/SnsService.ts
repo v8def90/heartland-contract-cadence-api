@@ -142,6 +142,7 @@ export interface DynamoDBUserProfileItem {
   SK: string; // PROFILE
   primaryDid: string; // did:plc:...
   handle: string;
+  username?: string; // handleからドメイン部分を除いたもの（検索用）
   displayName: string;
   bio?: string;
   avatarUrl?: string;
@@ -155,6 +156,7 @@ export interface DynamoDBUserProfileItem {
   // Email/Password authentication
   primaryEmail?: string;
   primaryEmailNormalized?: string;
+  email?: string; // 検索用（primaryEmailから）
   emailLoginEnabled?: boolean;
   authProviders?: {
     emailPassword?: boolean;
@@ -165,6 +167,13 @@ export interface DynamoDBUserProfileItem {
   accountStatus?: 'active' | 'suspended' | 'deleted';
   suspendedAt?: string;
   deletedAt?: string;
+  // GSI keys for search
+  GSI6PK?: string; // USER_SEARCH#username (lowercase)
+  GSI6SK?: string; // primaryDid
+  GSI7PK?: string; // USER_SEARCH#displayName (lowercase)
+  GSI7SK?: string; // primaryDid
+  GSI8PK?: string; // USER_SEARCH#email (lowercase)
+  GSI8SK?: string; // primaryDid
 }
 
 /**
@@ -240,6 +249,16 @@ export interface DynamoDBIdentityLookupItem {
  */
 export class SnsService {
   private client: DynamoDBDocumentClient | null;
+
+  /**
+   * Extract username from handle (remove domain part)
+   * @param handle - Full handle (e.g., "testuser1.pds-dev.heart-land.io")
+   * @returns Username part (e.g., "testuser1")
+   */
+  private extractUsername(handle: string): string {
+    const parts = handle.split('.');
+    return parts[0] || handle;
+  };
   private tableName: string;
   private mockFollows: Set<string>; // For development environment
 
@@ -322,11 +341,18 @@ export class SnsService {
     profile: Omit<UserProfile, 'did' | 'createdAt' | 'updatedAt'>
   ): Promise<void> {
     // Convert UserProfile (AT Protocol Lexicon compliant) to DynamoDBUserProfileItem format
+    const handle = profile.handle || userId;
+    const username = this.extractUsername(handle);
+    const normalizedEmail = profile.email
+      ? profile.email.toLowerCase().trim()
+      : undefined;
+
     const profileItem: Omit<
       DynamoDBUserProfileItem,
       'PK' | 'SK' | 'primaryDid' | 'createdAt' | 'updatedAt'
     > = {
-      handle: profile.handle || userId, // AT Protocol standard: handle
+      handle, // AT Protocol standard: handle
+      username, // Username part for search (without domain)
       displayName: profile.displayName, // AT Protocol standard
       ...(profile.description !== undefined && { bio: profile.description }), // Map description to bio (internal storage)
       ...(profile.avatar !== undefined && { avatarUrl: profile.avatar }), // Map avatar to avatarUrl (internal storage)
@@ -336,15 +362,29 @@ export class SnsService {
       followerCount: profile.followerCount, // AT Protocol standard
       followingCount: profile.followingCount, // AT Protocol standard
       postCount: profile.postCount, // Custom extension
-      ...(profile.email && {
+      ...(normalizedEmail && {
         primaryEmail: profile.email,
-        primaryEmailNormalized: profile.email.toLowerCase().trim(),
+        primaryEmailNormalized: normalizedEmail,
+        email: normalizedEmail, // For search
       }),
       emailLoginEnabled: !!profile.email,
       authProviders: {
         emailPassword: !!profile.email,
       },
       accountStatus: 'active',
+      // GSI keys for search
+      ...(username && {
+        GSI6PK: `USER_SEARCH#${username.toLowerCase()}`,
+        GSI6SK: userId,
+      }),
+      ...(profile.displayName && {
+        GSI7PK: `USER_SEARCH#${profile.displayName.toLowerCase()}`,
+        GSI7SK: userId,
+      }),
+      ...(normalizedEmail && {
+        GSI8PK: `USER_SEARCH#${normalizedEmail}`,
+        GSI8SK: userId,
+      }),
     };
 
     // Use createUserProfileItem which works with DynamoDBUserProfileItem
@@ -461,12 +501,26 @@ export class SnsService {
       updateExpression.push('#displayName = :displayName');
       expressionAttributeNames['#displayName'] = 'displayName';
       expressionAttributeValues[':displayName'] = updates.displayName;
+      // Update GSI7 key
+      updateExpression.push('GSI7PK = :gsi7pk');
+      expressionAttributeValues[':gsi7pk'] = `USER_SEARCH#${updates.displayName.toLowerCase()}`;
+      updateExpression.push('GSI7SK = :gsi7sk');
+      expressionAttributeValues[':gsi7sk'] = userId;
     }
     if (updates.handle !== undefined) {
       // AT Protocol standard: handle
       updateExpression.push('#handle = :handle');
       expressionAttributeNames['#handle'] = 'handle';
       expressionAttributeValues[':handle'] = updates.handle;
+      // Update username and GSI6 key
+      const username = this.extractUsername(updates.handle);
+      updateExpression.push('#username = :username');
+      expressionAttributeNames['#username'] = 'username';
+      expressionAttributeValues[':username'] = username;
+      updateExpression.push('GSI6PK = :gsi6pk');
+      expressionAttributeValues[':gsi6pk'] = `USER_SEARCH#${username.toLowerCase()}`;
+      updateExpression.push('GSI6SK = :gsi6sk');
+      expressionAttributeValues[':gsi6sk'] = userId;
     }
     if (updates.description !== undefined) {
       // AT Protocol standard: description (map to bio for internal storage)
@@ -489,13 +543,18 @@ export class SnsService {
     if (updates.email !== undefined) {
       // Update email in profile and identity link
       const normalizedEmail = updates.email.toLowerCase().trim();
-      updateExpression.push('#primaryEmail = :primaryEmail');
-      expressionAttributeNames['#primaryEmail'] = 'primaryEmail';
-      expressionAttributeValues[':primaryEmail'] = normalizedEmail;
-      updateExpression.push('#primaryEmailNormalized = :primaryEmailNormalized');
-      expressionAttributeNames['#primaryEmailNormalized'] =
-        'primaryEmailNormalized';
+      updateExpression.push('#email = :email');
+      expressionAttributeNames['#email'] = 'email';
+      expressionAttributeValues[':email'] = normalizedEmail;
+      updateExpression.push('primaryEmail = :primaryEmail');
+      expressionAttributeValues[':primaryEmail'] = updates.email;
+      updateExpression.push('primaryEmailNormalized = :primaryEmailNormalized');
       expressionAttributeValues[':primaryEmailNormalized'] = normalizedEmail;
+      // Update GSI8 key
+      updateExpression.push('GSI8PK = :gsi8pk');
+      expressionAttributeValues[':gsi8pk'] = `USER_SEARCH#${normalizedEmail}`;
+      updateExpression.push('GSI8SK = :gsi8sk');
+      expressionAttributeValues[':gsi8sk'] = userId;
 
       // Update or create identity link for email
       const emailLink = await this.getIdentityLink(userId, `email:${normalizedEmail}`);
@@ -1699,34 +1758,94 @@ export class SnsService {
         };
       }
 
-      // Use Scan to search for users
+      // Use Scan with FilterExpression for partial matching
+      // Since DynamoDB Query only supports exact match on HASH key,
+      // we'll use Scan with FilterExpression for partial matching on username, displayName, and email
+      // Note: GSI Query is only useful for exact matches, so we use Scan for partial matching
+      const normalizedQuery = query.toLowerCase().trim();
       const exclusiveStartKey = cursor ? this.decodeCursor(cursor) : undefined;
 
-      const command = new ScanCommand({
+      // Use Scan with FilterExpression for partial matching
+      // We search username, displayName, email, handle, and primaryEmail for backward compatibility
+      // Note: We use contains() which is case-sensitive, so we normalize the query to lowercase
+      // and ensure DynamoDB items also store lowercase values for searchable fields
+      const scanCommand = new ScanCommand({
         TableName: this.tableName,
         FilterExpression:
-          'begins_with(PK, :userPrefix) AND (contains(handle, :query) OR contains(displayName, :query))',
+          'begins_with(PK, :userPrefix) AND SK = :profile AND (' +
+          'contains(displayName, :query) OR ' +
+          'contains(handle, :query) OR ' +
+          '(attribute_exists(username) AND contains(username, :query)) OR ' +
+          '(attribute_exists(email) AND contains(email, :query)) OR ' +
+          '(attribute_exists(primaryEmail) AND contains(primaryEmail, :query))' +
+          ')',
         ExpressionAttributeValues: {
           ':userPrefix': 'USER#',
-          ':query': query,
+          ':profile': 'PROFILE',
+          ':query': normalizedQuery,
         },
-        Limit: limit,
+        Limit: limit * 10, // Get more items to filter by emailVerified and domain
         ExclusiveStartKey: exclusiveStartKey,
       });
 
-      const result = await this.client.send(command);
+      const scanResult = await this.client.send(scanCommand);
+
+      // Process results
+      const allItems: DynamoDBUserProfileItem[] = [];
+      if (scanResult.Items) {
+        for (const item of scanResult.Items) {
+          const userItem = item as DynamoDBUserProfileItem;
+          if (userItem.SK === 'PROFILE') {
+            allItems.push(userItem);
+          }
+        }
+      }
 
       const users: SearchUserData[] = [];
-      if (result.Items) {
-        for (const item of result.Items) {
-          const userItem = item as DynamoDBUserProfileItem;
+      for (const userItem of allItems) {
+        // Get username (extract from handle if not set)
+        const username = userItem.username || this.extractUsername(userItem.handle);
+        
+        // Filter by username (only username part, not domain)
+        // If query matches domain part only (not username part), exclude it
+        if (userItem.handle && userItem.handle.includes('.')) {
+          const handleParts = userItem.handle.split('.');
+          const usernamePart = handleParts[0]?.toLowerCase() || '';
+          const domainPart = handleParts.slice(1).join('.').toLowerCase();
+          
+          // Check if query matches domain part but not username part
+          const matchesDomain = domainPart.includes(normalizedQuery);
+          const matchesUsername = usernamePart.includes(normalizedQuery);
+          
+          // If query matches domain part but not username part, skip this user
+          if (matchesDomain && !matchesUsername) {
+            continue;
+          }
+        }
 
-          // Get email and wallet address from identity links
-          const identityLinks = await this.queryIdentityLinks(userItem.primaryDid);
-          const emailLink = identityLinks.find(
-            link => link.linkedId.startsWith('email:') && link.email
-          );
-          const email = emailLink?.email || userItem.primaryEmail || '';
+        // Get email and wallet address from identity links
+        const identityLinks = await this.queryIdentityLinks(userItem.primaryDid);
+        const emailLink = identityLinks.find(
+          link => link.linkedId.startsWith('email:') && link.email
+        );
+        
+        // Filter out users with unverified email addresses
+        // Only include users with verified email addresses in search results
+        if (emailLink && emailLink.emailVerified === false) {
+          // Skip users with unverified email addresses
+          continue;
+        }
+        
+        const email = emailLink?.email || userItem.email || userItem.primaryEmail || '';
+        
+        // Additional filtering: check if query matches username, displayName, or email
+        const matchesUsername = username.toLowerCase().includes(normalizedQuery);
+        const matchesDisplayName = (userItem.displayName || '').toLowerCase().includes(normalizedQuery);
+        const matchesEmail = email.toLowerCase().includes(normalizedQuery);
+        
+        if (!matchesUsername && !matchesDisplayName && !matchesEmail) {
+          continue;
+        }
           const walletLink = identityLinks.find(
             link =>
               (link.linkedId.startsWith('flow:') ||
@@ -1760,22 +1879,25 @@ export class SnsService {
             updatedAt: userItem.updatedAt,
             isFollowing,
           });
-        }
       }
 
       // Sort by handle for consistent results (AT Protocol standard: handle)
       users.sort((a, b) => a.handle.localeCompare(b.handle));
 
-      const nextCursor = result.LastEvaluatedKey
-        ? this.encodeCursor(result.LastEvaluatedKey)
+      // Limit results to requested limit
+      const limitedUsers = users.slice(0, limit);
+
+      // Determine next cursor (use scan result's LastEvaluatedKey)
+      const nextCursor = scanResult.LastEvaluatedKey
+        ? this.encodeCursor(scanResult.LastEvaluatedKey)
         : undefined;
 
       return {
         success: true,
         data: {
-          items: users,
+          items: limitedUsers,
           nextCursor,
-          hasMore: !!result.LastEvaluatedKey,
+          hasMore: !!scanResult.LastEvaluatedKey,
         },
       };
     } catch (error) {
@@ -1810,11 +1932,33 @@ export class SnsService {
       return;
     }
 
-    const item: DynamoDBUserProfileItem = {
+    // Extract username from handle if not provided
+    const username =
+      profile.username || (profile.handle ? this.extractUsername(profile.handle) : undefined);
+    
+    // Set email from primaryEmail if not provided
+    const email = profile.email || profile.primaryEmailNormalized || undefined;
+
+    const item: Partial<DynamoDBUserProfileItem> = {
       PK: `USER#${primaryDid}`,
       SK: 'PROFILE',
       primaryDid,
       ...profile,
+      ...(username && { username }),
+      ...(email && { email }),
+      // GSI keys for search
+      ...(username && {
+        GSI6PK: `USER_SEARCH#${username.toLowerCase()}`,
+        GSI6SK: primaryDid,
+      }),
+      ...(profile.displayName && {
+        GSI7PK: `USER_SEARCH#${profile.displayName.toLowerCase()}`,
+        GSI7SK: primaryDid,
+      }),
+      ...(email && {
+        GSI8PK: `USER_SEARCH#${email.toLowerCase()}`,
+        GSI8SK: primaryDid,
+      }),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       ttl: this.getTTL(),
@@ -1822,7 +1966,7 @@ export class SnsService {
 
     const command = new PutCommand({
       TableName: this.tableName,
-      Item: item,
+      Item: item as DynamoDBUserProfileItem,
     });
 
     await this.client.send(command);

@@ -193,15 +193,22 @@ export class UserAuthService {
       const primaryDid = pdsResult.did;
       const finalHandle = pdsResult.handle || fullHandle;
 
+      // Extract username from handle
+      const username = finalHandle
+        ? finalHandle.split('.')[0]
+        : undefined;
+
       // Create user profile (DynamoDBUserProfileItem)
       await this.snsService.createUserProfileItem(primaryDid, {
         handle: finalHandle || '',
+        ...(username && { username }),
         displayName,
         followerCount: 0,
         followingCount: 0,
         postCount: 0,
         primaryEmail: normalizedEmail,
         primaryEmailNormalized: normalizedEmail,
+        email: normalizedEmail, // For search
         emailLoginEnabled: true,
         authProviders: {
           emailPassword: true,
