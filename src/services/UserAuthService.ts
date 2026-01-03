@@ -100,11 +100,13 @@ export class UserAuthService {
    *
    * @description Registers a new user with email/password authentication.
    * Creates DID via PDS, stores user profile and credentials, and sends verification email.
+   * The handle should contain only the username part (e.g., "username").
+   * The domain part will be automatically appended based on PDS_ENDPOINT.
    *
    * @param email - User email address
    * @param password - User password
    * @param displayName - User display name
-   * @param handle - Optional AT Protocol handle
+   * @param handle - AT Protocol handle username (domain will be automatically appended)
    * @returns Registration result with DID and auth data
    *
    * @example
@@ -112,7 +114,8 @@ export class UserAuthService {
    * const result = await authService.registerWithEmailPassword(
    *   'user@example.com',
    *   'password123',
-   *   'John Doe'
+   *   'John Doe',
+   *   'username'  // Domain will be automatically appended
    * );
    * ```
    */
@@ -159,10 +162,24 @@ export class UserAuthService {
         };
       }
 
+      // Append domain to handle if not already present
+      // This allows clients to send just the username part
+      let fullHandle = handle;
+      const handleDomain = this.pdsService.getHandleDomain();
+      
+      // Check if handle already contains the domain
+      if (handle.endsWith(`.${handleDomain}`)) {
+        // Handle already includes the domain, use as is
+        fullHandle = handle;
+      } else {
+        // Append domain to handle (assume it's just the username)
+        fullHandle = `${handle}.${handleDomain}`;
+      }
+
       const pdsResult = await this.pdsService.createAccount(
         normalizedEmail,
         password,
-        handle
+        fullHandle
       );
 
       if (!pdsResult.success || !pdsResult.did) {
@@ -173,7 +190,7 @@ export class UserAuthService {
       }
 
       const primaryDid = pdsResult.did;
-      const finalHandle = pdsResult.handle || handle;
+      const finalHandle = pdsResult.handle || fullHandle;
 
       // Create user profile (DynamoDBUserProfileItem)
       await this.snsService.createUserProfileItem(primaryDid, {

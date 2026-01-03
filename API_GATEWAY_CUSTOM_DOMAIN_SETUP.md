@@ -40,6 +40,7 @@ aws acm list-certificates \
 ACMからDNS検証レコードが提供されます。CloudflareのDNS設定に追加してください。
 
 **Cloudflare DNS設定例**:
+
 ```
 Type: CNAME
 Name: _xxxxxxxxxxxxx.dev-api.heart-land.io
@@ -53,11 +54,13 @@ Proxy: Off (DNS only)
 #### 方法1: serverless-domain-managerプラグインを使用（推奨）
 
 **1. プラグインをインストール**:
+
 ```bash
 pnpm add -D serverless-domain-manager
 ```
 
 **2. `serverless.yml`に設定を追加**:
+
 ```yaml
 plugins:
   - serverless-offline
@@ -70,18 +73,20 @@ custom:
     stage: ${self:provider.stage}
     certificateName: dev-api.heart-land.io
     certificateArn: arn:aws:acm:us-east-1:925271162067:certificate/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-    createRoute53Record: false  # Cloudflareで管理しているためfalse
+    createRoute53Record: false # Cloudflareで管理しているためfalse
     endpointType: regional
     apiType: http
     securityPolicy: TLS_1_2
 ```
 
 **3. カスタムドメインを作成**:
+
 ```bash
 serverless create_domain --stage dev
 ```
 
 **4. デプロイ**:
+
 ```bash
 pnpm run deploy:dev
 ```
@@ -111,12 +116,13 @@ resources:
         ApiId: !Ref HttpApi
         DomainName: !Ref ApiGatewayDomain
         Stage: ${self:provider.stage}
-        ApiMappingKey: ''  # 空文字列でベースパスなし
+        ApiMappingKey: '' # 空文字列でベースパスなし
 ```
 
 ### 4. CloudflareのDNS設定
 
 **Cloudflare DNS設定**:
+
 ```
 Type: A (または CNAME)
 Name: dev-api
@@ -126,6 +132,7 @@ Proxy: Off (DNS only)  # 重要: SSL/TLS設定を「Full」または「Full (str
 ```
 
 **または、Cloudflare Proxyを使用する場合**:
+
 ```
 Type: A
 Name: dev-api
@@ -137,12 +144,14 @@ Proxy: On (Proxied)
 ### 5. CloudflareのSSL/TLS設定
 
 **Cloudflareダッシュボード**:
+
 1. SSL/TLS → Overview
 2. **Encryption mode**を以下のいずれかに設定:
    - **Full (strict)**: Cloudflareがオリジンサーバーの証明書を検証（推奨）
    - **Full**: Cloudflareがオリジンサーバーの証明書を検証しない（自己署名証明書でもOK）
 
-**重要**: 
+**重要**:
+
 - Cloudflare Proxyが**Off**の場合: SSL/TLS設定は無関係（直接API Gatewayに接続）
 - Cloudflare Proxyが**On**の場合: **Full (strict)**を推奨
 
@@ -153,12 +162,14 @@ Proxy: On (Proxied)
 ### 設定1: Cloudflare Proxyを使用（推奨）
 
 **メリット**:
+
 - ✅ DDoS保護
 - ✅ CDN機能
 - ✅ レート制限
 - ✅ キャッシュ機能
 
 **設定**:
+
 1. Cloudflare DNS: `dev-api` → Aレコード → Proxy: **On**
 2. Cloudflare SSL/TLS: **Full (strict)**
 3. API Gateway: カスタムドメイン + ACM証明書
@@ -166,10 +177,12 @@ Proxy: On (Proxied)
 ### 設定2: Cloudflare Proxyを使用しない（シンプル）
 
 **メリット**:
+
 - ✅ シンプルな設定
 - ✅ 低レイテンシー
 
 **設定**:
+
 1. Cloudflare DNS: `dev-api` → CNAMEレコード → API Gatewayエンドポイント → Proxy: **Off**
 2. API Gateway: カスタムドメイン + ACM証明書
 
@@ -220,7 +233,7 @@ custom:
     basePath: ''
     stage: ${self:provider.stage}
     certificateName: dev-api.heart-land.io
-    certificateArn: ${env:ACM_CERTIFICATE_ARN}  # .envファイルから読み込み
+    certificateArn: ${env:ACM_CERTIFICATE_ARN} # .envファイルから読み込み
     createRoute53Record: false
     endpointType: regional
     apiType: http
@@ -243,6 +256,7 @@ serverless create_domain --stage dev
 ### Step 7: CloudflareのDNS設定
 
 **Cloudflare DNS**:
+
 ```
 Type: CNAME
 Name: dev-api
@@ -279,6 +293,7 @@ curl -v https://dev-api.heart-land.io/auth/verify-email
 ```
 
 **期待される結果**:
+
 - ✅ SSL証明書が正しく表示される
 - ✅ 証明書の発行者がACM（Amazon）である
 - ✅ 証明書の有効期限が表示される
@@ -286,6 +301,7 @@ curl -v https://dev-api.heart-land.io/auth/verify-email
 ### 3. CloudflareのSSL/TLS設定を確認
 
 Cloudflareダッシュボードで以下を確認:
+
 - SSL/TLS → Overview → Encryption mode: **Full (strict)** または **Full**
 
 ---
@@ -297,6 +313,7 @@ Cloudflareダッシュボードで以下を確認:
 **原因**: ACM証明書がus-east-1リージョンで取得されていない
 
 **解決方法**:
+
 ```bash
 # us-east-1リージョンで証明書を確認
 aws acm list-certificates --region us-east-1 --profile AWSAdministratorAccess-925271162067
@@ -307,6 +324,7 @@ aws acm list-certificates --region us-east-1 --profile AWSAdministratorAccess-92
 **原因**: CloudflareのDNS検証レコードが正しく設定されていない
 
 **解決方法**:
+
 1. ACMからDNS検証レコードを取得
 2. CloudflareのDNS設定に追加（Proxy: **Off**）
 3. 数分待ってから再確認
@@ -316,6 +334,7 @@ aws acm list-certificates --region us-east-1 --profile AWSAdministratorAccess-92
 **原因**: CloudflareのSSL/TLS設定が「Flexible」になっている
 
 **解決方法**:
+
 1. Cloudflareダッシュボード → SSL/TLS → Overview
 2. Encryption modeを**Full (strict)**に変更
 
@@ -324,6 +343,7 @@ aws acm list-certificates --region us-east-1 --profile AWSAdministratorAccess-92
 **原因**: カスタムドメインが正しく作成されていない
 
 **解決方法**:
+
 ```bash
 # カスタムドメインの状態を確認
 aws apigatewayv2 get-domain-name \
@@ -360,5 +380,3 @@ aws apigatewayv2 get-domain-name \
 6. ✅ CloudflareのDNS設定を更新
 7. ✅ デプロイ
 8. ✅ SSL/TLS証明書を確認
-
-

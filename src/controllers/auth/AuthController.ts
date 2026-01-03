@@ -830,8 +830,10 @@ export class AuthController extends Controller {
    *
    * @description Registers a new user with email/password authentication.
    * Creates DID via PDS, stores user profile and credentials, and sends verification email.
+   * The handle field should contain only the username part (e.g., "username").
+   * The domain part will be automatically appended by the API server based on PDS_ENDPOINT.
    *
-   * @param request - Registration request with email, password, and display name
+   * @param request - Registration request with email, password, display name, and handle
    * @returns Promise resolving to registration result with DID and auth data
    *
    * @example
@@ -840,7 +842,7 @@ export class AuthController extends Controller {
    *   email: "user@example.com",
    *   password: "password123",
    *   displayName: "John Doe",
-   *   handle: "username.bsky.social"
+   *   handle: "username"  // Domain will be automatically appended
    * };
    * const result = await authController.register(request);
    * ```

@@ -368,6 +368,8 @@ export interface TransactionJobRequest {
  * Email/Password registration request payload
  *
  * @description Request to register a new user with email/password authentication.
+ * The handle field should contain only the username part (e.g., "username").
+ * The domain part (e.g., "pds-dev.heart-land.io") will be automatically appended by the API server.
  *
  * @example
  * ```typescript
@@ -375,7 +377,7 @@ export interface TransactionJobRequest {
  *   email: "user@example.com",
  *   password: "password123",
  *   displayName: "John Doe",
- *   handle: "username.bsky.social"
+ *   handle: "username"  // Domain will be automatically appended
  * };
  * ```
  */
@@ -386,7 +388,7 @@ export interface EmailPasswordRegisterRequest {
   password: string;
   /** User display name */
   displayName: string;
-  /** AT Protocol handle (required, e.g., username.pds-dev.heart-land.io) */
+  /** AT Protocol handle username (required, domain will be automatically appended by API server) */
   handle: string;
 }
 

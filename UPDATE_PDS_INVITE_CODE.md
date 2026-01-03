@@ -159,6 +159,7 @@ echo "✅ PDS_INVITE_CODE updated to: $NEW_INVITE_CODE"
 ```
 
 使用方法：
+
 ```bash
 chmod +x update-invite-code.sh
 ./update-invite-code.sh pds-dev-heart-land-io-svtti-fuwpx
@@ -168,5 +169,3 @@ chmod +x update-invite-code.sh
 
 **最終更新**: 2026-01-02  
 **状態**: 手順完了
-
-

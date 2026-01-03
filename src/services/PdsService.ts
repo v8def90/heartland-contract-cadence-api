@@ -91,6 +91,28 @@ export class PdsService {
   }
 
   /**
+   * Get handle domain from PDS endpoint
+   *
+   * @description Extracts the domain part from PDS endpoint URL for handle construction.
+   * Removes protocol (http://, https://) and returns the domain.
+   *
+   * @returns Handle domain (e.g., "pds-dev.heart-land.io")
+   *
+   * @example
+   * ```typescript
+   * const domain = pdsService.getHandleDomain();
+   * // Returns: "pds-dev.heart-land.io"
+   * ```
+   */
+  public getHandleDomain(): string {
+    // Remove protocol (http:// or https://)
+    let domain = this.pdsEndpoint.replace(/^https?:\/\//, '');
+    // Remove trailing slash if present
+    domain = domain.replace(/\/$/, '');
+    return domain;
+  }
+
+  /**
    * Create account via PDS and generate DID
    *
    * @description Creates a new account on the PDS and generates a DID.

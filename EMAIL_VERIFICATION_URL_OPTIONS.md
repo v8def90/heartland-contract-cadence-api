@@ -28,20 +28,24 @@ ${FRONTEND_URL}/auth/verify-email?token=${token}&did=${primaryDid}
 ### オプション1: フロントエンドサーバーを使用（現在の実装）
 
 **URL形式**:
+
 ```
 https://your-frontend.com/auth/verify-email?token=xxx&did=xxx
 ```
 
 **メリット**:
+
 - ✅ ユーザー体験が良い（検証成功/失敗ページを表示可能）
 - ✅ ブランディングやデザインを統一できる
 - ✅ 検証後のリダイレクト先を柔軟に設定可能
 
 **デメリット**:
+
 - ⚠️ フロントエンドサーバーが必要
 - ⚠️ フロントエンドでAPIを呼び出す実装が必要
 
 **実装例（フロントエンド側）**:
+
 ```typescript
 // フロントエンドで検証処理
 const params = new URLSearchParams(window.location.search);
@@ -51,7 +55,7 @@ const did = params.get('did');
 const response = await fetch('https://api.example.com/auth/verify-email', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ token, primaryDid: did })
+  body: JSON.stringify({ token, primaryDid: did }),
 });
 
 if (response.ok) {
@@ -66,20 +70,24 @@ if (response.ok) {
 ### オプション2: APIサーバーのURLを使用（推奨：シンプル）
 
 **URL形式**:
+
 ```
 https://dev-api.heart-land.io/auth/verify-email?token=xxx&did=xxx
 ```
 
 **メリット**:
+
 - ✅ フロントエンドサーバー不要
 - ✅ シンプルな実装
 - ✅ 直接APIエンドポイントにアクセス可能
 
 **デメリット**:
+
 - ⚠️ ユーザー体験が劣る（JSONレスポンスのみ）
 - ⚠️ 検証成功/失敗の表示が難しい
 
 **実装変更**:
+
 ```typescript
 // EmailService.ts
 public async sendVerificationEmail(
@@ -99,22 +107,26 @@ public async sendVerificationEmail(
 ### オプション3: ハイブリッド方式（推奨：バランス型）
 
 **URL形式**:
+
 ```
 https://your-frontend.com/auth/verify-email?token=xxx&did=xxx
 ```
 
 **フロー**:
+
 1. ユーザーがフロントエンドのURLにアクセス
 2. フロントエンドがAPIを呼び出して検証
 3. 検証成功後、フロントエンドで成功ページを表示
 4. 検証失敗時、エラーページを表示
 
 **メリット**:
+
 - ✅ ユーザー体験が良い
 - ✅ APIサーバーとフロントエンドの役割が明確
 - ✅ 検証後のリダイレクト先を柔軟に設定可能
 
 **デメリット**:
+
 - ⚠️ フロントエンドサーバーが必要
 
 ---
@@ -126,6 +138,7 @@ https://your-frontend.com/auth/verify-email?token=xxx&did=xxx
 開発環境では、フロントエンドサーバーがまだない可能性があるため、APIサーバーのURLを使用することを推奨します。
 
 **環境変数の設定**:
+
 ```bash
 # .env
 FRONTEND_URL=https://dev-api.heart-land.io
@@ -138,6 +151,7 @@ API_BASE_URL=https://dev-api.heart-land.io
 本番環境では、フロントエンドサーバーを使用して、より良いユーザー体験を提供することを推奨します。
 
 **環境変数の設定**:
+
 ```bash
 # .env (production)
 FRONTEND_URL=https://app.heart-land.io
@@ -183,6 +197,7 @@ private constructor() {
 ## 📝 現在のAPIエンドポイント
 
 **検証エンドポイント**:
+
 - URL: `POST https://dev-api.heart-land.io/auth/verify-email`
 - リクエストボディ:
   ```json
@@ -222,5 +237,3 @@ private constructor() {
 
 **最終更新**: 2026-01-02  
 **状態**: 選択待ち
-
-
