@@ -62,6 +62,7 @@
     "jest": "^30.0.4",
     "prettier": "^3.6.2",
     "serverless": "^4.17.1",
+    "serverless-domain-manager": "^8.0.0",
     "serverless-offline": "^14.4.0",
     "serverless-plugin-typescript": "^2.1.5",
     "serverless-plugin-warmup": "^8.3.0",

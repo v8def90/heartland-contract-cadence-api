@@ -1614,7 +1614,7 @@ export class AuthController extends Controller {
 
       // Get user DID from JWT token
       const user = req.user;
-      if (!user || !user.sub) {
+      if (!user || !user.id) {
         this.setStatus(401);
         return {
           success: false,
@@ -1627,7 +1627,7 @@ export class AuthController extends Controller {
         };
       }
 
-      const primaryDid = user.sub;
+      const primaryDid = user.id;
 
       // Change password
       const result = await this.userAuthService.changePassword(
