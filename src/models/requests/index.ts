@@ -451,3 +451,63 @@ export interface ResendVerificationEmailRequest {
   /** User email address */
   email: string;
 }
+
+/**
+ * Password reset request payload
+ *
+ * @description Request to initiate password reset process.
+ *
+ * @example
+ * ```typescript
+ * const request: ResetPasswordRequestRequest = {
+ *   email: "user@example.com"
+ * };
+ * ```
+ */
+export interface ResetPasswordRequestRequest {
+  /** User email address */
+  email: string;
+}
+
+/**
+ * Password reset execution payload
+ *
+ * @description Request to reset password using reset token.
+ *
+ * @example
+ * ```typescript
+ * const request: ResetPasswordRequest = {
+ *   token: "reset-token-123",
+ *   primaryDid: "did:plc:xxx",
+ *   newPassword: "NewSecurePass123!"
+ * };
+ * ```
+ */
+export interface ResetPasswordRequest {
+  /** Password reset token */
+  token: string;
+  /** User's primary DID */
+  primaryDid: string;
+  /** New password */
+  newPassword: string;
+}
+
+/**
+ * Change password request payload
+ *
+ * @description Request to change password for authenticated user.
+ *
+ * @example
+ * ```typescript
+ * const request: ChangePasswordRequest = {
+ *   currentPassword: "OldPassword123!",
+ *   newPassword: "NewSecurePass123!"
+ * };
+ * ```
+ */
+export interface ChangePasswordRequest {
+  /** Current password */
+  currentPassword: string;
+  /** New password */
+  newPassword: string;
+}

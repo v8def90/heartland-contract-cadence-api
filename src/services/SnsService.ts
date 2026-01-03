@@ -1827,35 +1827,69 @@ export class SnsService {
   async updateIdentityLink(
     primaryDid: string,
     linkedId: string,
-    updates: Partial<DynamoDBIdentityLinkItem>
+    updates: Partial<DynamoDBIdentityLinkItem>,
+    removeFields?: string[]
   ): Promise<void> {
     if (!this.client) {
       console.log('Mock updateIdentityLink:', {
         primaryDid,
         linkedId,
         updates,
+        removeFields,
       });
       return;
     }
 
     // Build update expression
-    const updateExpressions: string[] = [];
+    const setExpressions: string[] = [];
+    const removeExpressions: string[] = [];
     const expressionAttributeNames: Record<string, string> = {};
     const expressionAttributeValues: Record<string, any> = {};
 
+    // Handle SET expressions
     Object.keys(updates).forEach((key, index) => {
       if (key !== 'PK' && key !== 'SK' && key !== 'primaryDid') {
-        const attrName = `#attr${index}`;
-        const attrValue = `:val${index}`;
-        updateExpressions.push(`${attrName} = ${attrValue}`);
-        expressionAttributeNames[attrName] = key;
-        expressionAttributeValues[attrValue] = (updates as any)[key];
+        const value = (updates as any)[key];
+        // Skip undefined values
+        if (value !== undefined) {
+          const attrName = `#attr${index}`;
+          const attrValue = `:val${index}`;
+          setExpressions.push(`${attrName} = ${attrValue}`);
+          expressionAttributeNames[attrName] = key;
+          expressionAttributeValues[attrValue] = value;
+        }
       }
     });
 
-    updateExpressions.push('#updatedAt = :updatedAt');
-    expressionAttributeNames['#updatedAt'] = 'updatedAt';
-    expressionAttributeValues[':updatedAt'] = new Date().toISOString();
+    // Handle REMOVE expressions
+    if (removeFields && removeFields.length > 0) {
+      removeFields.forEach((key, index) => {
+        const attrName = `#remove${index}`;
+        removeExpressions.push(attrName);
+        expressionAttributeNames[attrName] = key;
+      });
+    }
+
+    // Always update updatedAt
+    if (setExpressions.length > 0 || removeExpressions.length > 0) {
+      setExpressions.push('#updatedAt = :updatedAt');
+      expressionAttributeNames['#updatedAt'] = 'updatedAt';
+      expressionAttributeValues[':updatedAt'] = new Date().toISOString();
+    }
+
+    // Build UpdateExpression
+    const updateParts: string[] = [];
+    if (setExpressions.length > 0) {
+      updateParts.push(`SET ${setExpressions.join(', ')}`);
+    }
+    if (removeExpressions.length > 0) {
+      updateParts.push(`REMOVE ${removeExpressions.join(', ')}`);
+    }
+
+    if (updateParts.length === 0) {
+      // Nothing to update
+      return;
+    }
 
     const command = new UpdateCommand({
       TableName: this.tableName,
@@ -1863,9 +1897,12 @@ export class SnsService {
         PK: `USER#${primaryDid}`,
         SK: `LINK#${linkedId}`,
       },
-      UpdateExpression: `SET ${updateExpressions.join(', ')}`,
+      UpdateExpression: updateParts.join(' '),
       ExpressionAttributeNames: expressionAttributeNames,
-      ExpressionAttributeValues: expressionAttributeValues,
+      ExpressionAttributeValues:
+        Object.keys(expressionAttributeValues).length > 0
+          ? expressionAttributeValues
+          : undefined,
     });
 
     await this.client.send(command);

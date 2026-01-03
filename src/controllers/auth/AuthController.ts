@@ -47,6 +47,9 @@ import type {
   EmailPasswordLoginRequest,
   VerifyEmailRequest,
   ResendVerificationEmailRequest,
+  ResetPasswordRequestRequest,
+  ResetPasswordRequest,
+  ChangePasswordRequest,
 } from '../../models/requests';
 
 /**
@@ -1362,6 +1365,312 @@ export class AuthController extends Controller {
         error: {
           code: 'INTERNAL_SERVER_ERROR',
           message: 'Failed to resend verification email',
+          details:
+            error instanceof Error ? error.message : 'Unknown error occurred',
+        },
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
+
+  /**
+   * Request password reset
+   *
+   * @description Initiates password reset process by sending a reset email.
+   * For security, always returns success even if email doesn't exist.
+   *
+   * @param request - Password reset request with email
+   * @returns Promise resolving to success result
+   *
+   * @example
+   * ```typescript
+   * const request: ResetPasswordRequestRequest = {
+   *   email: "user@example.com"
+   * };
+   * const result = await authController.requestPasswordReset(request);
+   * ```
+   */
+  @Post('reset-password-request')
+  @SuccessResponse('200', 'Password reset email sent successfully')
+  @Response<ApiResponse>('400', 'Invalid request')
+  @Example<ApiResponse<{ sent: boolean }>>({
+    success: true,
+    data: {
+      sent: true,
+    },
+    timestamp: '2024-01-01T00:00:00.000Z',
+  })
+  public async requestPasswordReset(
+    @Body() request: ResetPasswordRequestRequest
+  ): Promise<ApiResponse<{ sent: boolean }>> {
+    try {
+      // Validate request
+      if (!request.email) {
+        this.setStatus(400);
+        return {
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Email is required',
+            details: 'Email field is mandatory',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      // Request password reset
+      const result = await this.userAuthService.requestPasswordReset(
+        request.email
+      );
+
+      if (!result.success) {
+        this.setStatus(500);
+        return {
+          success: false,
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: result.error || 'Failed to send password reset email',
+            details: result.error || 'Unable to process password reset request',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      // Always return success for security (don't reveal if email exists)
+      this.setStatus(200);
+      return {
+        success: true,
+        data: {
+          sent: true,
+        },
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      console.error('Password reset request error:', error);
+      this.setStatus(500);
+      return {
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to process password reset request',
+          details:
+            error instanceof Error ? error.message : 'Unknown error occurred',
+        },
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
+
+  /**
+   * Reset password using reset token
+   *
+   * @description Resets user password using a valid reset token from email.
+   *
+   * @param request - Password reset request with token, DID, and new password
+   * @returns Promise resolving to success result
+   *
+   * @example
+   * ```typescript
+   * const request: ResetPasswordRequest = {
+   *   token: "reset-token-123",
+   *   primaryDid: "did:plc:xxx",
+   *   newPassword: "NewSecurePass123!"
+   * };
+   * const result = await authController.resetPassword(request);
+   * ```
+   */
+  @Post('reset-password')
+  @SuccessResponse('200', 'Password reset successfully')
+  @Response<ApiResponse>('400', 'Invalid request')
+  @Response<ApiResponse>('401', 'Invalid or expired token')
+  @Example<ApiResponse<{ reset: boolean }>>({
+    success: true,
+    data: {
+      reset: true,
+    },
+    timestamp: '2024-01-01T00:00:00.000Z',
+  })
+  public async resetPassword(
+    @Body() request: ResetPasswordRequest
+  ): Promise<ApiResponse<{ reset: boolean }>> {
+    try {
+      // Validate request
+      if (!request.token || !request.primaryDid || !request.newPassword) {
+        this.setStatus(400);
+        return {
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Token, primaryDid, and newPassword are required',
+            details: 'All fields are mandatory for password reset',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      // Reset password
+      const result = await this.userAuthService.resetPassword(
+        request.token,
+        request.primaryDid,
+        request.newPassword
+      );
+
+      if (!result.success) {
+        if (
+          result.error?.includes('expired') ||
+          result.error?.includes('Invalid')
+        ) {
+          this.setStatus(401);
+        } else {
+          this.setStatus(400);
+        }
+        return {
+          success: false,
+          error: {
+            code: result.error?.includes('expired')
+              ? 'TOKEN_EXPIRED'
+              : result.error?.includes('Invalid')
+                ? 'INVALID_TOKEN'
+                : 'VALIDATION_ERROR',
+            message: result.error || 'Password reset failed',
+            details: result.error || 'Unable to reset password',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      this.setStatus(200);
+      return {
+        success: true,
+        data: {
+          reset: true,
+        },
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      console.error('Password reset error:', error);
+      this.setStatus(500);
+      return {
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Password reset failed',
+          details:
+            error instanceof Error ? error.message : 'Unknown error occurred',
+        },
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
+
+  /**
+   * Change password for authenticated user
+   *
+   * @description Changes password for an authenticated user after verifying current password.
+   * Requires JWT authentication.
+   *
+   * @param request - Change password request with current and new password
+   * @returns Promise resolving to success result
+   *
+   * @example
+   * ```typescript
+   * const request: ChangePasswordRequest = {
+   *   currentPassword: "OldPassword123!",
+   *   newPassword: "NewSecurePass123!"
+   * };
+   * const result = await authController.changePassword(request);
+   * ```
+   */
+  @Post('change-password')
+  @Security('jwt')
+  @SuccessResponse('200', 'Password changed successfully')
+  @Response<ApiResponse>('400', 'Invalid request')
+  @Response<ApiResponse>('401', 'Authentication required or incorrect password')
+  @Example<ApiResponse<{ changed: boolean }>>({
+    success: true,
+    data: {
+      changed: true,
+    },
+    timestamp: '2024-01-01T00:00:00.000Z',
+  })
+  public async changePassword(
+    @Body() request: ChangePasswordRequest,
+    @Request() req: any
+  ): Promise<ApiResponse<{ changed: boolean }>> {
+    try {
+      // Validate request
+      if (!request.currentPassword || !request.newPassword) {
+        this.setStatus(400);
+        return {
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Current password and new password are required',
+            details: 'Both fields are mandatory for password change',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      // Get user DID from JWT token
+      const user = req.user;
+      if (!user || !user.sub) {
+        this.setStatus(401);
+        return {
+          success: false,
+          error: {
+            code: 'AUTHENTICATION_ERROR',
+            message: 'Authentication required',
+            details: 'Valid JWT token is required',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      const primaryDid = user.sub;
+
+      // Change password
+      const result = await this.userAuthService.changePassword(
+        primaryDid,
+        request.currentPassword,
+        request.newPassword
+      );
+
+      if (!result.success) {
+        if (result.error?.includes('incorrect')) {
+          this.setStatus(401);
+        } else {
+          this.setStatus(400);
+        }
+        return {
+          success: false,
+          error: {
+            code: result.error?.includes('incorrect')
+              ? 'AUTHENTICATION_ERROR'
+              : 'VALIDATION_ERROR',
+            message: result.error || 'Password change failed',
+            details: result.error || 'Unable to change password',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      this.setStatus(200);
+      return {
+        success: true,
+        data: {
+          changed: true,
+        },
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      console.error('Password change error:', error);
+      this.setStatus(500);
+      return {
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Password change failed',
           details:
             error instanceof Error ? error.message : 'Unknown error occurred',
         },

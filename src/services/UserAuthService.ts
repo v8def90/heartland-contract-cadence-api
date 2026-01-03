@@ -8,6 +8,7 @@
  * @since 1.0.0
  */
 
+import crypto from 'crypto';
 import { PasswordService } from './PasswordService';
 import { EmailVerificationService } from './EmailVerificationService';
 import { EmailService } from './EmailService';
@@ -531,6 +532,286 @@ export class UserAuthService {
         normalizedEmail,
         token,
         primaryDid
+      );
+
+      return {
+        success: true,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error:
+          error instanceof Error ? error.message : 'Unknown error occurred',
+      };
+    }
+  }
+
+  /**
+   * Request password reset
+   *
+   * @description Initiates password reset process by generating a reset token and sending reset email.
+   *
+   * @param email - User email address
+   * @returns Success result
+   *
+   * @example
+   * ```typescript
+   * const result = await authService.requestPasswordReset('user@example.com');
+   * ```
+   */
+  public async requestPasswordReset(
+    email: string
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      const normalizedEmail = this.normalizeEmail(email);
+
+      // Get user by email (via identity lookup)
+      const lookup = await this.snsService.getIdentityLookup(
+        `email:${normalizedEmail}`
+      );
+      if (!lookup || lookup.status !== 'verified') {
+        // Don't reveal if email exists for security
+        return {
+          success: true, // Return success even if email doesn't exist
+        };
+      }
+
+      const primaryDid = lookup.primaryDid;
+
+      // Get identity link
+      const identityLink = await this.snsService.getIdentityLink(
+        primaryDid,
+        `email:${normalizedEmail}`
+      );
+      if (!identityLink || !identityLink.emailVerified) {
+        // Don't reveal if email exists for security
+        return {
+          success: true,
+        };
+      }
+
+      // Generate password reset token
+      const resetToken = this.passwordService.generateResetToken(32);
+      const tokenHash = crypto
+        .createHash('sha256')
+        .update(resetToken)
+        .digest('hex');
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24 hours
+
+      // Store reset token in identity link
+      await this.snsService.updateIdentityLink(
+        primaryDid,
+        `email:${normalizedEmail}`,
+        {
+          resetTokenHash: tokenHash,
+          resetTokenExpiresAt: expiresAt,
+          resetRequestedAt: new Date().toISOString(),
+        }
+      );
+
+      // Send password reset email
+      await this.emailService.sendPasswordResetEmail(
+        normalizedEmail,
+        resetToken,
+        primaryDid
+      );
+
+      return {
+        success: true,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error:
+          error instanceof Error ? error.message : 'Unknown error occurred',
+      };
+    }
+  }
+
+  /**
+   * Reset password using reset token
+   *
+   * @description Resets user password using a valid reset token.
+   *
+   * @param token - Password reset token
+   * @param primaryDid - User's primary DID
+   * @param newPassword - New password
+   * @returns Success result
+   *
+   * @example
+   * ```typescript
+   * const result = await authService.resetPassword(
+   *   'reset-token-123',
+   *   'did:plc:xxx',
+   *   'NewSecurePass123!'
+   * );
+   * ```
+   */
+  public async resetPassword(
+    token: string,
+    primaryDid: string,
+    newPassword: string
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      // Validate password strength
+      const passwordValidation =
+        this.passwordService.validatePasswordStrength(newPassword);
+      if (!passwordValidation.valid) {
+        return {
+          success: false,
+          error: `Password validation failed: ${passwordValidation.errors.join(', ')}`,
+        };
+      }
+
+      // Query all identity links for this primaryDid to find email link
+      const identityLinks = await this.snsService.queryIdentityLinks(
+        primaryDid
+      );
+
+      // Find email identity link with reset token
+      const identityLink = identityLinks.find(
+        link =>
+          link.linkedId.startsWith('email:') &&
+          link.resetTokenHash &&
+          link.resetTokenExpiresAt
+      );
+
+      if (!identityLink) {
+        return {
+          success: false,
+          error: 'Invalid or expired reset token',
+        };
+      }
+
+      // Verify token
+      const tokenHash = crypto
+        .createHash('sha256')
+        .update(token)
+        .digest('hex');
+      const storedHash = identityLink.resetTokenHash;
+
+      if (!storedHash || tokenHash !== storedHash) {
+        return {
+          success: false,
+          error: 'Invalid reset token',
+        };
+      }
+
+      // Check expiration
+      if (
+        !identityLink.resetTokenExpiresAt ||
+        new Date(identityLink.resetTokenExpiresAt) < new Date()
+      ) {
+        return {
+          success: false,
+          error: 'Reset token has expired',
+        };
+      }
+
+      // Hash new password
+      const passwordHash = await this.passwordService.hashPassword(newPassword);
+
+      // Update password and clear reset token
+      await this.snsService.updateIdentityLink(
+        primaryDid,
+        identityLink.linkedId,
+        {
+          passwordHash,
+          passwordUpdatedAt: new Date().toISOString(),
+          failedLoginCount: 0, // Reset failed login count
+        },
+        ['resetTokenHash', 'resetTokenExpiresAt'] // Remove reset token fields
+      );
+
+      return {
+        success: true,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error:
+          error instanceof Error ? error.message : 'Unknown error occurred',
+      };
+    }
+  }
+
+  /**
+   * Change password for authenticated user
+   *
+   * @description Changes password for an authenticated user after verifying current password.
+   *
+   * @param primaryDid - User's primary DID
+   * @param currentPassword - Current password
+   * @param newPassword - New password
+   * @returns Success result
+   *
+   * @example
+   * ```typescript
+   * const result = await authService.changePassword(
+   *   'did:plc:xxx',
+   *   'OldPassword123!',
+   *   'NewSecurePass123!'
+   * );
+   * ```
+   */
+  public async changePassword(
+    primaryDid: string,
+    currentPassword: string,
+    newPassword: string
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      // Validate new password strength
+      const passwordValidation =
+        this.passwordService.validatePasswordStrength(newPassword);
+      if (!passwordValidation.valid) {
+        return {
+          success: false,
+          error: `Password validation failed: ${passwordValidation.errors.join(', ')}`,
+        };
+      }
+
+      // Query all identity links for this primaryDid to find email link
+      const identityLinks = await this.snsService.queryIdentityLinks(
+        primaryDid
+      );
+
+      // Find email identity link
+      const identityLink = identityLinks.find(link =>
+        link.linkedId.startsWith('email:')
+      );
+
+      if (!identityLink || !identityLink.passwordHash) {
+        return {
+          success: false,
+          error: 'Password authentication not found for this account',
+        };
+      }
+
+      // Verify current password
+      const isValidPassword = await this.passwordService.verifyPassword(
+        currentPassword,
+        identityLink.passwordHash
+      );
+
+      if (!isValidPassword) {
+        return {
+          success: false,
+          error: 'Current password is incorrect',
+        };
+      }
+
+      // Hash new password
+      const passwordHash = await this.passwordService.hashPassword(newPassword);
+
+      // Update password
+      await this.snsService.updateIdentityLink(
+        primaryDid,
+        identityLink.linkedId,
+        {
+          passwordHash,
+          passwordUpdatedAt: new Date().toISOString(),
+          failedLoginCount: 0, // Reset failed login count
+        }
       );
 
       return {
