@@ -144,11 +144,50 @@ export class UserAuthService {
       const existingLookup = await this.snsService.getIdentityLookup(
         `email:${normalizedEmail}`
       );
+      let existingPrimaryDid: string | undefined;
+      let isDeletedAccount = false;
+
       if (existingLookup && existingLookup.status === 'verified') {
-        return {
-          success: false,
-          error: 'Email already registered',
-        };
+        // Check if the account is deleted - if so, allow re-registration
+        existingPrimaryDid = existingLookup.primaryDid;
+        const existingProfile =
+          await this.snsService.getUserProfileItem(existingPrimaryDid);
+
+        console.log('Checking existing account for re-registration:', {
+          email: normalizedEmail,
+          primaryDid: existingPrimaryDid,
+          profileExists: !!existingProfile,
+          accountStatus: existingProfile?.accountStatus,
+        });
+
+        // If account is deleted or accountStatus is null/undefined, allow re-registration
+        if (existingProfile) {
+          if (existingProfile.accountStatus === 'active') {
+            // Account exists and is active - prevent re-registration
+            return {
+              success: false,
+              error: 'Email already registered',
+            };
+          } else {
+            // Account is deleted, suspended, or has null/undefined status - allow re-registration
+            isDeletedAccount = true;
+            console.log(
+              'Re-registering account (deleted/suspended/null status):',
+              {
+                email: normalizedEmail,
+                primaryDid: existingPrimaryDid,
+                accountStatus: existingProfile.accountStatus,
+              }
+            );
+          }
+        } else {
+          // Profile not found but lookup exists - this shouldn't happen, but allow registration
+          console.warn('Identity lookup exists but profile not found:', {
+            email: normalizedEmail,
+            primaryDid: existingPrimaryDid,
+          });
+          // Allow registration to proceed
+        }
       }
 
       // Hash password
@@ -167,7 +206,7 @@ export class UserAuthService {
       // This allows clients to send just the username part
       let fullHandle = handle;
       const handleDomain = this.pdsService.getHandleDomain();
-      
+
       // Check if handle already contains the domain
       if (handle.endsWith(`.${handleDomain}`)) {
         // Handle already includes the domain, use as is
@@ -177,28 +216,153 @@ export class UserAuthService {
         fullHandle = `${handle}.${handleDomain}`;
       }
 
-      const pdsResult = await this.pdsService.createAccount(
-        normalizedEmail,
-        password,
-        fullHandle
-      );
+      let primaryDid: string;
+      let finalHandle: string;
+      let pdsAccessJwt: string | undefined;
+      let pdsRefreshJwt: string | undefined;
 
-      if (!pdsResult.success || !pdsResult.did) {
-        return {
-          success: false,
-          error: pdsResult.error || 'Failed to create account via PDS',
-        };
+      if (isDeletedAccount && existingPrimaryDid) {
+        // For deleted accounts, PDS account was already deleted
+        // Create a new PDS account with a new handle (or reuse if handle is available)
+        // Use the new DID from PDS server (not the old one)
+        const pdsResult = await this.pdsService.createAccount(
+          normalizedEmail,
+          password,
+          fullHandle
+        );
+
+        if (!pdsResult.success || !pdsResult.did) {
+          return {
+            success: false,
+            error: pdsResult.error || 'Failed to create account via PDS',
+          };
+        }
+
+        // Use the new DID from PDS server (not the old one)
+        primaryDid = pdsResult.did; // Use new DID from PDS
+        finalHandle = pdsResult.handle || fullHandle;
+        pdsAccessJwt = pdsResult.accessJwt;
+        pdsRefreshJwt = pdsResult.refreshJwt;
+
+        // Migrate existing data from old DID to new DID
+        // 1. Update existing profile to new DID (or create new profile if old one doesn't exist)
+        try {
+          const existingProfile =
+            await this.snsService.getUserProfileItem(existingPrimaryDid);
+          if (existingProfile) {
+            // Delete old profile and create new one with new DID
+            // Note: We keep the old profile for audit purposes (soft delete already done)
+            // Just create a new profile with the new DID
+            console.log(
+              'Migrating profile from old DID to new DID:',
+              existingPrimaryDid,
+              '->',
+              primaryDid
+            );
+          }
+        } catch (error) {
+          console.warn(
+            'Error checking existing profile during migration:',
+            error
+          );
+          // Continue with registration even if profile check fails
+        }
+
+        // 2. Migrate IdentityLinks from old DID to new DID
+        try {
+          const oldIdentityLinks =
+            await this.snsService.queryIdentityLinks(existingPrimaryDid);
+          for (const oldLink of oldIdentityLinks) {
+            // Create new IdentityLink with new DID
+            // Keep old link for audit purposes
+            const newLinkData: any = {
+              linkedId: oldLink.linkedId,
+              kind: oldLink.kind,
+              role: oldLink.role,
+              status: 'pending', // Reset status for re-registration
+              email: oldLink.email,
+              emailNormalized: oldLink.emailNormalized,
+              emailVerified: false, // Reset verification status
+              passwordHash,
+              passwordKdf: 'bcrypt',
+              passwordUpdatedAt: new Date().toISOString(),
+              kdfParams: {
+                cost: 12,
+              },
+              failedLoginCount: 0,
+            };
+
+            // Save PDS tokens if available
+            if (pdsAccessJwt) {
+              newLinkData.pdsAccessJwt = pdsAccessJwt;
+            }
+            if (pdsRefreshJwt) {
+              newLinkData.pdsRefreshJwt = pdsRefreshJwt;
+            }
+            if (pdsAccessJwt) {
+              newLinkData.pdsTokensUpdatedAt = new Date().toISOString();
+            }
+
+            // Create new IdentityLink with new DID
+            await this.snsService.createIdentityLink(primaryDid, newLinkData);
+          }
+        } catch (error) {
+          console.warn(
+            'Error migrating IdentityLinks during re-registration:',
+            error
+          );
+          // Continue with registration even if migration fails
+        }
+
+        // 3. Update IdentityLookup to point to new DID
+        try {
+          const existingLookup = await this.snsService.getIdentityLookup(
+            `email:${normalizedEmail}`
+          );
+          if (existingLookup) {
+            await this.snsService.updateIdentityLookup(
+              `email:${normalizedEmail}`,
+              {
+                primaryDid,
+                status: 'verified',
+                emailVerified: false, // Reset verification status
+              }
+            );
+          }
+        } catch (error) {
+          console.warn(
+            'Error updating IdentityLookup during re-registration:',
+            error
+          );
+          // Continue with registration even if update fails
+        }
+      } else {
+        // Create new account via PDS
+        const pdsResult = await this.pdsService.createAccount(
+          normalizedEmail,
+          password,
+          fullHandle
+        );
+
+        if (!pdsResult.success || !pdsResult.did) {
+          return {
+            success: false,
+            error: pdsResult.error || 'Failed to create account via PDS',
+          };
+        }
+
+        primaryDid = pdsResult.did;
+        finalHandle = pdsResult.handle || fullHandle;
+        pdsAccessJwt = pdsResult.accessJwt;
+        pdsRefreshJwt = pdsResult.refreshJwt;
       }
 
-      const primaryDid = pdsResult.did;
-      const finalHandle = pdsResult.handle || fullHandle;
-
       // Extract username from handle
-      const username = finalHandle
-        ? finalHandle.split('.')[0]
-        : undefined;
+      const username = finalHandle ? finalHandle.split('.')[0] : undefined;
 
       // Create user profile (DynamoDBUserProfileItem)
+      // For re-registration, this will create a new profile with the new DID
+      // The old profile (with old DID) remains for audit purposes
       await this.snsService.createUserProfileItem(primaryDid, {
         handle: finalHandle || '',
         ...(username && { username }),
@@ -217,31 +381,55 @@ export class UserAuthService {
       });
 
       // Create identity link (DynamoDBIdentityLinkItem)
-      await this.snsService.createIdentityLink(primaryDid, {
-        linkedId: `email:${normalizedEmail}`,
-        kind: 'account',
-        role: 'login',
-        status: 'pending',
-        email: normalizedEmail,
-        emailNormalized: normalizedEmail,
-        emailVerified: false,
-        passwordHash,
-        passwordKdf: 'bcrypt',
-        passwordUpdatedAt: new Date().toISOString(),
-        kdfParams: {
-          cost: 12, // bcrypt rounds
-        },
-        failedLoginCount: 0,
-      });
+      // For re-registration, this will create a new link with the new DID
+      // The old link (with old DID) remains for audit purposes
+      if (!isDeletedAccount || !existingPrimaryDid) {
+        // Only create new IdentityLink if this is a new account
+        // For re-registration, IdentityLinks were already migrated above
+        const identityLinkData: any = {
+          linkedId: `email:${normalizedEmail}`,
+          kind: 'account',
+          role: 'login',
+          status: 'pending',
+          email: normalizedEmail,
+          emailNormalized: normalizedEmail,
+          emailVerified: false,
+          passwordHash,
+          passwordKdf: 'bcrypt',
+          passwordUpdatedAt: new Date().toISOString(),
+          kdfParams: {
+            cost: 12, // bcrypt rounds
+          },
+          failedLoginCount: 0,
+        };
 
-      // Create identity lookup (DynamoDBIdentityLookupItem)
-      await this.snsService.createIdentityLookup(`email:${normalizedEmail}`, {
-        primaryDid,
-        status: 'verified',
-        linkType: 'email',
-        emailNormalized: normalizedEmail,
-        emailVerified: false,
-      });
+        // Save PDS tokens for account deletion if available
+        if (pdsAccessJwt) {
+          identityLinkData.pdsAccessJwt = pdsAccessJwt;
+        }
+        if (pdsRefreshJwt) {
+          identityLinkData.pdsRefreshJwt = pdsRefreshJwt;
+        }
+        if (pdsAccessJwt) {
+          identityLinkData.pdsTokensUpdatedAt = new Date().toISOString();
+        }
+
+        await this.snsService.createIdentityLink(primaryDid, identityLinkData);
+      }
+
+      // Create or update identity lookup (DynamoDBIdentityLookupItem)
+      // For re-registration, this was already updated above
+      if (!isDeletedAccount || !existingPrimaryDid) {
+        // Only create new IdentityLookup if this is a new account
+        // For re-registration, IdentityLookup was already updated above
+        await this.snsService.createIdentityLookup(`email:${normalizedEmail}`, {
+          primaryDid,
+          status: 'verified',
+          linkType: 'email',
+          emailNormalized: normalizedEmail,
+          emailVerified: false,
+        });
+      }
 
       // Generate email verification token
       const { token, expiresAt } =
@@ -353,6 +541,15 @@ export class UserAuthService {
       }
 
       const primaryDid = lookup.primaryDid;
+
+      // Check if account is deleted
+      const profile = await this.snsService.getUserProfileItem(primaryDid);
+      if (profile && profile.accountStatus === 'deleted') {
+        return {
+          success: false,
+          error: 'Account has been deleted',
+        };
+      }
 
       // Get identity link (credentials)
       const identityLink = await this.snsService.getIdentityLink(
@@ -603,7 +800,9 @@ export class UserAuthService {
         .createHash('sha256')
         .update(resetToken)
         .digest('hex');
-      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24 hours
+      const expiresAt = new Date(
+        Date.now() + 24 * 60 * 60 * 1000
+      ).toISOString(); // 24 hours
 
       // Store reset token in identity link
       await this.snsService.updateIdentityLink(
@@ -671,9 +870,8 @@ export class UserAuthService {
       }
 
       // Query all identity links for this primaryDid to find email link
-      const identityLinks = await this.snsService.queryIdentityLinks(
-        primaryDid
-      );
+      const identityLinks =
+        await this.snsService.queryIdentityLinks(primaryDid);
 
       // Find email identity link with reset token
       const identityLink = identityLinks.find(
@@ -691,10 +889,7 @@ export class UserAuthService {
       }
 
       // Verify token
-      const tokenHash = crypto
-        .createHash('sha256')
-        .update(token)
-        .digest('hex');
+      const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
       const storedHash = identityLink.resetTokenHash;
 
       if (!storedHash || tokenHash !== storedHash) {
@@ -778,9 +973,8 @@ export class UserAuthService {
       }
 
       // Query all identity links for this primaryDid to find email link
-      const identityLinks = await this.snsService.queryIdentityLinks(
-        primaryDid
-      );
+      const identityLinks =
+        await this.snsService.queryIdentityLinks(primaryDid);
 
       // Find email identity link
       const identityLink = identityLinks.find(link =>

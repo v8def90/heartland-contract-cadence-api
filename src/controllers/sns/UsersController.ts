@@ -171,7 +171,7 @@ export class UsersController extends Controller {
    *
    * @description Creates a new user profile with the provided information.
    * This endpoint requires authentication and can only be called by the user themselves.
-   * 
+   *
    * NOTE: If the user was registered via `/auth/register`, the profile is already created
    * during registration. This endpoint is for users who registered via other methods
    * (e.g., Blocto wallet, Flow wallet) and need to create their profile separately.
@@ -307,21 +307,19 @@ export class UsersController extends Controller {
       }
 
       // Create user profile (map request fields to AT Protocol Lexicon compliant UserProfile)
-      const profileData: Omit<
-        UserProfile,
-        'did' | 'createdAt' | 'updatedAt'
-      > = {
-        displayName: request.displayName,
-        handle: request.username, // Map username to handle (AT Protocol standard)
-        description: request.bio, // Map bio to description (AT Protocol standard)
-        avatar: request.avatarUrl, // Map avatarUrl to avatar (AT Protocol standard)
-        banner: request.backgroundImageUrl, // Map backgroundImageUrl to banner (AT Protocol standard)
-        email: request.email,
-        walletAddress: request.walletAddress,
-        followerCount: 0,
-        followingCount: 0,
-        postCount: 0,
-      };
+      const profileData: Omit<UserProfile, 'did' | 'createdAt' | 'updatedAt'> =
+        {
+          displayName: request.displayName,
+          handle: request.username, // Map username to handle (AT Protocol standard)
+          description: request.bio, // Map bio to description (AT Protocol standard)
+          avatar: request.avatarUrl, // Map avatarUrl to avatar (AT Protocol standard)
+          banner: request.backgroundImageUrl, // Map backgroundImageUrl to banner (AT Protocol standard)
+          email: request.email,
+          walletAddress: request.walletAddress,
+          followerCount: 0,
+          followingCount: 0,
+          postCount: 0,
+        };
 
       await this.snsService.createUserProfile(did, profileData);
 
@@ -366,7 +364,7 @@ export class UsersController extends Controller {
    *
    * @description Updates an existing user profile with the provided information.
    * This endpoint requires authentication and can only be called by the user themselves.
-   * 
+   *
    * NOTE: This endpoint is for updating an existing profile. If the profile does not exist,
    * use POST /sns/users/{did} to create it first.
    *
@@ -389,7 +387,8 @@ export class UsersController extends Controller {
       did: 'did:plc:lld5wgybmddzz32guiotcpce',
       displayName: 'John Doe Updated',
       handle: 'johndoe',
-      description: 'Senior Software developer passionate about blockchain technology',
+      description:
+        'Senior Software developer passionate about blockchain technology',
       avatar: 'https://example.com/new-avatar.jpg',
       banner: 'https://example.com/new-background.jpg',
       followerCount: 150,
@@ -498,10 +497,8 @@ export class UsersController extends Controller {
       > = {};
       if (request.displayName !== undefined)
         updateData.displayName = request.displayName;
-      if (request.username !== undefined)
-        updateData.handle = request.username; // Map username to handle (AT Protocol standard)
-      if (request.bio !== undefined)
-        updateData.description = request.bio; // Map bio to description (AT Protocol standard)
+      if (request.username !== undefined) updateData.handle = request.username; // Map username to handle (AT Protocol standard)
+      if (request.bio !== undefined) updateData.description = request.bio; // Map bio to description (AT Protocol standard)
       if (request.avatarUrl !== undefined)
         updateData.avatar = request.avatarUrl; // Map avatarUrl to avatar (AT Protocol standard)
       if (request.backgroundImageUrl !== undefined)
@@ -552,11 +549,11 @@ export class UsersController extends Controller {
    *
    * @description Deletes the user profile and marks associated data as deleted.
    * This endpoint requires authentication and can only be called by the user themselves.
-   * 
+   *
    * NOTE: This performs a soft delete (logical delete) rather than a hard delete.
    * The profile is marked as deleted, but related data (posts, comments, likes, follows)
    * may be anonymized or kept for data integrity, depending on the implementation.
-   * 
+   *
    * WARNING: This action is irreversible and will delete all user data.
    *
    * @param did - The user's primary DID (did:plc:...)
@@ -642,6 +639,7 @@ export class UsersController extends Controller {
       }
 
       // Delete user profile (soft delete - marks as deleted but keeps related data)
+      // Also deletes PDS account if accessJwt is available
       await this.snsService.deleteUserProfile(did);
 
       return {
@@ -651,13 +649,21 @@ export class UsersController extends Controller {
       };
     } catch (error) {
       console.error('Error deleting user profile:', error);
+
+      // Check if error is related to PDS deletion
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      const isPdsError = errorMessage.includes('PDS account deletion');
+
       this.setStatus(500);
       return {
         success: false,
         error: {
-          code: 'INTERNAL_ERROR',
-          message: 'Failed to delete user profile',
-          details: error instanceof Error ? error.message : 'Unknown error',
+          code: isPdsError ? 'PDS_DELETION_ERROR' : 'INTERNAL_ERROR',
+          message: isPdsError
+            ? 'Failed to delete PDS account'
+            : 'Failed to delete user profile',
+          details: errorMessage,
         },
         timestamp: new Date().toISOString(),
       };

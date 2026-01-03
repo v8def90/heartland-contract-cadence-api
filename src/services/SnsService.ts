@@ -226,6 +226,10 @@ export interface DynamoDBIdentityLinkItem {
   resetRequestedAt?: string;
   lastLoginAt?: string;
   lastLoginIpHash?: string;
+  // PDS (AT Protocol) authentication tokens
+  pdsAccessJwt?: string; // Access JWT for PDS operations (e.g., account deletion)
+  pdsRefreshJwt?: string; // Refresh JWT for PDS operations
+  pdsTokensUpdatedAt?: string; // Timestamp when PDS tokens were last updated
 }
 
 /**
@@ -258,7 +262,7 @@ export class SnsService {
   private extractUsername(handle: string): string {
     const parts = handle.split('.');
     return parts[0] || handle;
-  };
+  }
   private tableName: string;
   private mockFollows: Set<string>; // For development environment
 
@@ -503,7 +507,8 @@ export class SnsService {
       expressionAttributeValues[':displayName'] = updates.displayName;
       // Update GSI7 key
       updateExpression.push('GSI7PK = :gsi7pk');
-      expressionAttributeValues[':gsi7pk'] = `USER_SEARCH#${updates.displayName.toLowerCase()}`;
+      expressionAttributeValues[':gsi7pk'] =
+        `USER_SEARCH#${updates.displayName.toLowerCase()}`;
       updateExpression.push('GSI7SK = :gsi7sk');
       expressionAttributeValues[':gsi7sk'] = userId;
     }
@@ -518,7 +523,8 @@ export class SnsService {
       expressionAttributeNames['#username'] = 'username';
       expressionAttributeValues[':username'] = username;
       updateExpression.push('GSI6PK = :gsi6pk');
-      expressionAttributeValues[':gsi6pk'] = `USER_SEARCH#${username.toLowerCase()}`;
+      expressionAttributeValues[':gsi6pk'] =
+        `USER_SEARCH#${username.toLowerCase()}`;
       updateExpression.push('GSI6SK = :gsi6sk');
       expressionAttributeValues[':gsi6sk'] = userId;
     }
@@ -557,7 +563,10 @@ export class SnsService {
       expressionAttributeValues[':gsi8sk'] = userId;
 
       // Update or create identity link for email
-      const emailLink = await this.getIdentityLink(userId, `email:${normalizedEmail}`);
+      const emailLink = await this.getIdentityLink(
+        userId,
+        `email:${normalizedEmail}`
+      );
       if (emailLink) {
         await this.updateIdentityLink(userId, `email:${normalizedEmail}`, {
           email: normalizedEmail,
@@ -637,7 +646,7 @@ export class SnsService {
    *
    * @description Performs a soft delete (logical delete) of the user profile.
    * The profile is marked as deleted rather than physically removed from the database.
-   * 
+   *
    * Best Practices for User Deletion:
    * 1. Profile: Mark as deleted (soft delete) - keeps data for audit/legal purposes
    * 2. Posts: Anonymize (set authorId to "deleted" or remove author info) - preserves content integrity
@@ -645,7 +654,7 @@ export class SnsService {
    * 4. Likes: Delete - no need to keep anonymous likes
    * 5. Follows: Delete - clean up follow relationships
    * 6. Identity Links: Keep for audit purposes (legal/compliance requirements)
-   * 
+   *
    * NOTE: This implementation currently only marks the profile as deleted.
    * Full implementation should include anonymization of posts/comments and deletion of likes/follows.
    *
@@ -681,13 +690,62 @@ export class SnsService {
 
     await this.client.send(updateCommand);
 
+    // Delete PDS account if accessJwt is available
+    try {
+      const identityLinks = await this.queryIdentityLinks(userId);
+      const emailLink = identityLinks.find(
+        link => link.linkedId.startsWith('email:') && link.pdsAccessJwt
+      );
+
+      if (emailLink && emailLink.pdsAccessJwt) {
+        // Import PdsService dynamically to avoid circular dependency
+        const { PdsService } = await import('./PdsService');
+        const pdsService = PdsService.getInstance();
+
+        const deleteResult = await pdsService.deleteAccount(
+          userId,
+          emailLink.pdsAccessJwt
+        );
+
+        if (!deleteResult.success) {
+          // Log error but don't fail the entire deletion process
+          // DynamoDB deletion has already succeeded
+          console.error('Failed to delete PDS account:', {
+            did: userId,
+            error: deleteResult.error,
+          });
+          // Throw error to indicate PDS deletion failure
+          throw new Error(`PDS account deletion failed: ${deleteResult.error}`);
+        }
+
+        console.log('PDS account deleted successfully:', { did: userId });
+      } else {
+        console.warn('Cannot delete PDS account: missing pdsAccessJwt', {
+          did: userId,
+          hasEmailLink: !!emailLink,
+          hasAccessJwt: !!emailLink?.pdsAccessJwt,
+        });
+      }
+    } catch (error) {
+      // PDS deletion failed - throw error to indicate failure
+      console.error('Error during PDS account deletion:', {
+        did: userId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      throw new Error(
+        `Account deletion failed: PDS account deletion error - ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`
+      );
+    }
+
     // TODO: Implement full deletion workflow:
     // 1. Anonymize posts (set authorId to "deleted" or remove author info)
     // 2. Anonymize comments (set authorId to "deleted")
     // 3. Delete likes (remove all likes by this user)
     // 4. Delete follows (remove all follow relationships)
     // 5. Keep Identity Links for audit purposes (legal/compliance)
-    
+
     // Note: Identity links are kept for audit purposes
     // If you want to delete all identity links, you would need to query and delete them separately
   }
@@ -1848,19 +1906,20 @@ export class SnsService {
         // }
 
         // Get username (extract from handle if not set)
-        const username = userItem.username || this.extractUsername(userItem.handle);
-        
+        const username =
+          userItem.username || this.extractUsername(userItem.handle);
+
         // Filter by username (only username part, not domain)
         // If query matches domain part only (not username part), exclude it
         if (userItem.handle && userItem.handle.includes('.')) {
           const handleParts = userItem.handle.split('.');
           const usernamePart = handleParts[0]?.toLowerCase() || '';
           const domainPart = handleParts.slice(1).join('.').toLowerCase();
-          
+
           // Check if query matches domain part but not username part
           const matchesDomain = domainPart.includes(normalizedQuery);
           const matchesUsername = usernamePart.includes(normalizedQuery);
-          
+
           // If query matches domain part but not username part, skip this user
           if (matchesDomain && !matchesUsername) {
             continue;
@@ -1868,61 +1927,68 @@ export class SnsService {
         }
 
         // Get email and wallet address from identity links
-        const identityLinks = await this.queryIdentityLinks(userItem.primaryDid);
+        const identityLinks = await this.queryIdentityLinks(
+          userItem.primaryDid
+        );
         const emailLink = identityLinks.find(
           link => link.linkedId.startsWith('email:') && link.email
         );
-        
+
         // Filter out users with unverified email addresses
         // Only include users with verified email addresses in search results
         if (emailLink && emailLink.emailVerified === false) {
           // Skip users with unverified email addresses
           continue;
         }
-        
-        const email = emailLink?.email || userItem.email || userItem.primaryEmail || '';
-        
+
+        const email =
+          emailLink?.email || userItem.email || userItem.primaryEmail || '';
+
         // Additional filtering: check if query matches username, displayName, or email
-        const matchesUsername = username.toLowerCase().includes(normalizedQuery);
-        const matchesDisplayName = (userItem.displayName || '').toLowerCase().includes(normalizedQuery);
+        const matchesUsername = username
+          .toLowerCase()
+          .includes(normalizedQuery);
+        const matchesDisplayName = (userItem.displayName || '')
+          .toLowerCase()
+          .includes(normalizedQuery);
         const matchesEmail = email.toLowerCase().includes(normalizedQuery);
-        
+
         if (!matchesUsername && !matchesDisplayName && !matchesEmail) {
           continue;
         }
-          const walletLink = identityLinks.find(
-            link =>
-              (link.linkedId.startsWith('flow:') ||
-                link.linkedId.startsWith('eip155:')) &&
-              link.linkedId
-          );
-          const walletAddress = walletLink?.linkedId || '';
+        const walletLink = identityLinks.find(
+          link =>
+            (link.linkedId.startsWith('flow:') ||
+              link.linkedId.startsWith('eip155:')) &&
+            link.linkedId
+        );
+        const walletAddress = walletLink?.linkedId || '';
 
-          // Check if current user is following this user
-          let isFollowing = false;
-          if (currentUserId && currentUserId !== userItem.primaryDid) {
-            // TODO: Implement follow status check
-            // For now, we'll set it to false
-            isFollowing = false;
-          }
+        // Check if current user is following this user
+        let isFollowing = false;
+        if (currentUserId && currentUserId !== userItem.primaryDid) {
+          // TODO: Implement follow status check
+          // For now, we'll set it to false
+          isFollowing = false;
+        }
 
-          users.push({
-            did: userItem.primaryDid, // AT Protocol standard: did
-            displayName: userItem.displayName, // AT Protocol standard
-            handle: userItem.handle, // AT Protocol standard: handle
-            description: userItem.bio || undefined, // AT Protocol standard: description (previously bio)
-            avatar: userItem.avatarUrl || undefined, // AT Protocol standard: avatar (previously avatarUrl)
-            banner: userItem.bannerUrl || undefined, // AT Protocol standard: banner (previously backgroundImageUrl)
-            followerCount: userItem.followerCount, // AT Protocol standard
-            followingCount: userItem.followingCount, // AT Protocol standard
-            createdAt: userItem.createdAt, // AT Protocol standard
-            // Custom extensions
-            email,
-            walletAddress,
-            postCount: userItem.postCount,
-            updatedAt: userItem.updatedAt,
-            isFollowing,
-          });
+        users.push({
+          did: userItem.primaryDid, // AT Protocol standard: did
+          displayName: userItem.displayName, // AT Protocol standard
+          handle: userItem.handle, // AT Protocol standard: handle
+          description: userItem.bio || undefined, // AT Protocol standard: description (previously bio)
+          avatar: userItem.avatarUrl || undefined, // AT Protocol standard: avatar (previously avatarUrl)
+          banner: userItem.bannerUrl || undefined, // AT Protocol standard: banner (previously backgroundImageUrl)
+          followerCount: userItem.followerCount, // AT Protocol standard
+          followingCount: userItem.followingCount, // AT Protocol standard
+          createdAt: userItem.createdAt, // AT Protocol standard
+          // Custom extensions
+          email,
+          walletAddress,
+          postCount: userItem.postCount,
+          updatedAt: userItem.updatedAt,
+          isFollowing,
+        });
       }
 
       // Sort by handle for consistent results (AT Protocol standard: handle)
@@ -1978,8 +2044,9 @@ export class SnsService {
 
     // Extract username from handle if not provided
     const username =
-      profile.username || (profile.handle ? this.extractUsername(profile.handle) : undefined);
-    
+      profile.username ||
+      (profile.handle ? this.extractUsername(profile.handle) : undefined);
+
     // Set email from primaryEmail if not provided
     const email = profile.email || profile.primaryEmailNormalized || undefined;
 
@@ -2279,6 +2346,57 @@ export class SnsService {
 
     const response = await this.client.send(command);
     return (response.Item as DynamoDBIdentityLookupItem) || null;
+  }
+
+  /**
+   * Update identity lookup
+   *
+   * @description Updates an existing identity lookup with new primary DID.
+   * Used when re-registering a deleted account with a new DID.
+   *
+   * @param linkedId - Linked ID (e.g., email:alice@example.com)
+   * @param updates - Update data
+   */
+  async updateIdentityLookup(
+    linkedId: string,
+    updates: Partial<
+      Omit<DynamoDBIdentityLookupItem, 'PK' | 'SK' | 'linkedId' | 'createdAt'>
+    >
+  ): Promise<void> {
+    if (!this.client) {
+      console.log('Mock updateIdentityLookup:', { linkedId, updates });
+      return;
+    }
+
+    const updateParts: string[] = [];
+    const expressionAttributeNames: Record<string, string> = {};
+    const expressionAttributeValues: Record<string, any> = {};
+
+    Object.entries(updates).forEach(([key, value], index) => {
+      const nameKey = `#${key}`;
+      const valueKey = `:${key}${index}`;
+      expressionAttributeNames[nameKey] = key;
+      expressionAttributeValues[valueKey] = value;
+      updateParts.push(`${nameKey} = ${valueKey}`);
+    });
+
+    if (updateParts.length === 0) {
+      // Nothing to update
+      return;
+    }
+
+    const command = new UpdateCommand({
+      TableName: this.tableName,
+      Key: {
+        PK: `LINK#${linkedId}`,
+        SK: 'PRIMARY',
+      },
+      UpdateExpression: `SET ${updateParts.join(', ')}`,
+      ExpressionAttributeNames: expressionAttributeNames,
+      ExpressionAttributeValues: expressionAttributeValues,
+    });
+
+    await this.client.send(command);
   }
 
   /**
