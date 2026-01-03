@@ -192,7 +192,7 @@ export class CommentsController extends Controller {
       const commentData: CommentData = {
         ...comment,
         authorName: userProfile.displayName,
-        authorUsername: userProfile.username,
+        authorUsername: userProfile.handle, // AT Protocol standard: handle (previously username)
       };
 
       this.setStatus(201);
@@ -307,7 +307,7 @@ export class CommentsController extends Controller {
           commentsWithAuthorInfo.push({
             ...comment,
             authorName: userProfile.displayName,
-            authorUsername: userProfile.username,
+            authorUsername: userProfile.handle, // AT Protocol standard: handle (previously username)
           });
         }
       }

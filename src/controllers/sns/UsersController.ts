@@ -96,18 +96,18 @@ export class UsersController extends Controller {
   @Example<UserProfileResponse>({
     success: true,
     data: {
-      userId: 'user-123',
+      did: 'did:plc:lld5wgybmddzz32guiotcpce',
       displayName: 'John Doe',
-      username: 'johndoe',
-      bio: 'Software developer passionate about blockchain technology',
-      avatarUrl: 'https://example.com/avatar.jpg',
-      backgroundImageUrl: 'https://example.com/background.jpg',
-      email: 'john.doe@example.com',
-      walletAddress: '0x1234567890abcdef',
+      handle: 'johndoe',
+      description: 'Software developer passionate about blockchain technology',
+      avatar: 'https://example.com/avatar.jpg',
+      banner: 'https://example.com/background.jpg',
       followerCount: 150,
       followingCount: 75,
-      postCount: 42,
       createdAt: '2024-01-01T00:00:00.000Z',
+      email: 'john.doe@example.com',
+      walletAddress: '0x1234567890abcdef',
+      postCount: 42,
       updatedAt: '2024-01-15T10:30:00.000Z',
     },
     timestamp: '2024-01-15T10:30:00.000Z',
@@ -188,18 +188,18 @@ export class UsersController extends Controller {
   @Example<UserProfileResponse>({
     success: true,
     data: {
-      userId: 'user-123',
+      did: 'did:plc:lld5wgybmddzz32guiotcpce',
       displayName: 'John Doe',
-      username: 'johndoe',
-      bio: 'Software developer passionate about blockchain technology',
-      avatarUrl: 'https://example.com/avatar.jpg',
-      backgroundImageUrl: 'https://example.com/background.jpg',
-      email: 'john.doe@example.com',
-      walletAddress: '0x1234567890abcdef',
+      handle: 'johndoe',
+      description: 'Software developer passionate about blockchain technology',
+      avatar: 'https://example.com/avatar.jpg',
+      banner: 'https://example.com/background.jpg',
       followerCount: 0,
       followingCount: 0,
-      postCount: 0,
       createdAt: '2024-01-15T10:30:00.000Z',
+      email: 'john.doe@example.com',
+      walletAddress: '0x1234567890abcdef',
+      postCount: 0,
       updatedAt: '2024-01-15T10:30:00.000Z',
     },
     timestamp: '2024-01-15T10:30:00.000Z',
@@ -302,16 +302,16 @@ export class UsersController extends Controller {
         };
       }
 
-      // Create user profile
+      // Create user profile (map request fields to AT Protocol Lexicon compliant UserProfile)
       const profileData: Omit<
         UserProfile,
-        'userId' | 'createdAt' | 'updatedAt'
+        'did' | 'createdAt' | 'updatedAt'
       > = {
         displayName: request.displayName,
-        username: request.username,
-        bio: request.bio,
-        avatarUrl: request.avatarUrl,
-        backgroundImageUrl: request.backgroundImageUrl,
+        handle: request.username, // Map username to handle (AT Protocol standard)
+        description: request.bio, // Map bio to description (AT Protocol standard)
+        avatar: request.avatarUrl, // Map avatarUrl to avatar (AT Protocol standard)
+        banner: request.backgroundImageUrl, // Map backgroundImageUrl to banner (AT Protocol standard)
         email: request.email,
         walletAddress: request.walletAddress,
         followerCount: 0,
@@ -379,18 +379,18 @@ export class UsersController extends Controller {
   @Example<UserProfileResponse>({
     success: true,
     data: {
-      userId: 'user-123',
+      did: 'did:plc:lld5wgybmddzz32guiotcpce',
       displayName: 'John Doe Updated',
-      username: 'johndoe',
-      bio: 'Senior Software developer passionate about blockchain technology',
-      avatarUrl: 'https://example.com/new-avatar.jpg',
-      backgroundImageUrl: 'https://example.com/new-background.jpg',
-      email: 'john.doe.updated@example.com',
-      walletAddress: '0x1234567890abcdef',
+      handle: 'johndoe',
+      description: 'Senior Software developer passionate about blockchain technology',
+      avatar: 'https://example.com/new-avatar.jpg',
+      banner: 'https://example.com/new-background.jpg',
       followerCount: 150,
       followingCount: 75,
-      postCount: 42,
       createdAt: '2024-01-01T00:00:00.000Z',
+      email: 'john.doe.updated@example.com',
+      walletAddress: '0x1234567890abcdef',
+      postCount: 42,
       updatedAt: '2024-01-15T11:00:00.000Z',
     },
     timestamp: '2024-01-15T11:00:00.000Z',
@@ -485,19 +485,20 @@ export class UsersController extends Controller {
         };
       }
 
-      // Update user profile
+      // Update user profile (map request fields to AT Protocol Lexicon compliant UserProfile)
       const updateData: Partial<
-        Omit<UserProfile, 'userId' | 'createdAt' | 'updatedAt'>
+        Omit<UserProfile, 'did' | 'createdAt' | 'updatedAt'>
       > = {};
       if (request.displayName !== undefined)
         updateData.displayName = request.displayName;
       if (request.username !== undefined)
-        updateData.username = request.username;
-      if (request.bio !== undefined) updateData.bio = request.bio;
+        updateData.handle = request.username; // Map username to handle (AT Protocol standard)
+      if (request.bio !== undefined)
+        updateData.description = request.bio; // Map bio to description (AT Protocol standard)
       if (request.avatarUrl !== undefined)
-        updateData.avatarUrl = request.avatarUrl;
+        updateData.avatar = request.avatarUrl; // Map avatarUrl to avatar (AT Protocol standard)
       if (request.backgroundImageUrl !== undefined)
-        updateData.backgroundImageUrl = request.backgroundImageUrl;
+        updateData.banner = request.backgroundImageUrl; // Map backgroundImageUrl to banner (AT Protocol standard)
       if (request.email !== undefined) updateData.email = request.email;
       if (request.walletAddress !== undefined)
         updateData.walletAddress = request.walletAddress;
@@ -741,7 +742,7 @@ export class UsersController extends Controller {
           postsWithAuthorInfo.push({
             ...post,
             authorName: userProfile.displayName,
-            authorUsername: userProfile.username,
+            authorUsername: userProfile.handle, // AT Protocol standard: handle (previously username)
             // TODO: Check if current user liked this post
             isLiked: false, // This should come from JWT middleware
           });

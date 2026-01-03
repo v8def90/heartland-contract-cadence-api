@@ -186,7 +186,7 @@ export class FeedController extends Controller {
           postsWithAuthorInfo.push({
             ...post,
             authorName: userProfile.displayName,
-            authorUsername: userProfile.username,
+            authorUsername: userProfile.handle, // AT Protocol standard: handle (previously username)
             isLiked,
           });
         }

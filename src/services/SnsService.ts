@@ -310,95 +310,140 @@ export class SnsService {
 
   /**
    * Create or update user profile
+   *
+   * @description Creates a user profile using the new AT Protocol data model.
+   * The userId parameter is treated as primaryDid.
+   *
+   * @param userId - User's primary DID (did:plc:...)
+   * @param profile - User profile data
    */
   async createUserProfile(
     userId: string,
-    profile: Omit<UserProfile, 'userId' | 'createdAt' | 'updatedAt'>
+    profile: Omit<UserProfile, 'did' | 'createdAt' | 'updatedAt'>
   ): Promise<void> {
-    if (!this.client) {
-      // For local development, just log the operation
-      console.log('Mock createUserProfile:', { userId, profile });
-      return;
-    }
-
-    const item: DynamoDBUserItem = {
-      PK: `USER#${userId}`,
-      SK: 'PROFILE',
-      GSI1PK: `USER#${userId}`,
-      GSI1SK: 'PROFILE',
-      userId,
-      ...profile,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      ttl: this.getTTL(),
+    // Convert UserProfile (AT Protocol Lexicon compliant) to DynamoDBUserProfileItem format
+    const profileItem: Omit<
+      DynamoDBUserProfileItem,
+      'PK' | 'SK' | 'primaryDid' | 'createdAt' | 'updatedAt'
+    > = {
+      handle: profile.handle || userId, // AT Protocol standard: handle
+      displayName: profile.displayName, // AT Protocol standard
+      ...(profile.description !== undefined && { bio: profile.description }), // Map description to bio (internal storage)
+      ...(profile.avatar !== undefined && { avatarUrl: profile.avatar }), // Map avatar to avatarUrl (internal storage)
+      ...(profile.banner !== undefined && {
+        bannerUrl: profile.banner,
+      }), // Map banner to bannerUrl (internal storage)
+      followerCount: profile.followerCount, // AT Protocol standard
+      followingCount: profile.followingCount, // AT Protocol standard
+      postCount: profile.postCount, // Custom extension
+      ...(profile.email && {
+        primaryEmail: profile.email,
+        primaryEmailNormalized: profile.email.toLowerCase().trim(),
+      }),
+      emailLoginEnabled: !!profile.email,
+      authProviders: {
+        emailPassword: !!profile.email,
+      },
+      accountStatus: 'active',
     };
 
-    const command = new PutCommand({
-      TableName: this.tableName,
-      Item: item,
-    });
+    // Use createUserProfileItem which works with DynamoDBUserProfileItem
+    await this.createUserProfileItem(userId, profileItem);
 
-    await this.client.send(command);
+    // Create identity link for email if provided
+    if (profile.email) {
+      const normalizedEmail = profile.email.toLowerCase().trim();
+      await this.createIdentityLink(userId, {
+        linkedId: `email:${normalizedEmail}`,
+        kind: 'account',
+        role: 'login',
+        status: 'pending',
+        email: normalizedEmail,
+        emailNormalized: normalizedEmail,
+        emailVerified: false,
+      });
+    }
+
+    // Create identity link for wallet address if provided
+    if (profile.walletAddress) {
+      // Determine wallet type from address format
+      let linkedId: string;
+      if (profile.walletAddress.startsWith('0x')) {
+        linkedId = `eip155:${profile.walletAddress}`;
+      } else {
+        linkedId = `flow:${profile.walletAddress}`;
+      }
+
+      await this.createIdentityLink(userId, {
+        linkedId,
+        kind: 'account',
+        role: 'login',
+        status: 'pending',
+      });
+    }
   }
 
   /**
    * Get user profile
+   *
+   * @description Retrieves user profile by primaryDid (AT Protocol DID).
+   * The userId parameter is treated as primaryDid.
+   *
+   * @param userId - User's primary DID (did:plc:...)
+   * @returns User profile or null if not found
    */
   async getUserProfile(userId: string): Promise<UserProfile | null> {
-    if (!this.client) {
-      // Return mock data for local development
-      return {
-        userId,
-        displayName: 'Mock User',
-        username: 'mockuser',
-        bio: 'This is a mock user for local development',
-        avatarUrl: 'https://example.com/avatar.jpg',
-        backgroundImageUrl: 'https://example.com/background.jpg',
-        email: 'mock@example.com',
-        walletAddress: '0x1234567890abcdef',
-        followerCount: 0,
-        followingCount: 0,
-        postCount: 0,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-    }
+    // Use getUserProfileItem which works with DynamoDBUserProfileItem
+    const profileItem = await this.getUserProfileItem(userId);
+    if (!profileItem) return null;
 
-    const command = new GetCommand({
-      TableName: this.tableName,
-      Key: {
-        PK: `USER#${userId}`,
-        SK: 'PROFILE',
-      },
-    });
+    // Get email from identity link if available
+    const identityLinks = await this.queryIdentityLinks(userId);
+    const emailLink = identityLinks.find(
+      link => link.linkedId.startsWith('email:') && link.email
+    );
+    const email = emailLink?.email || profileItem.primaryEmail || '';
 
-    const result = await this.client.send(command);
-    if (!result.Item) return null;
+    // Get wallet address from identity link if available
+    const walletLink = identityLinks.find(
+      link =>
+        (link.linkedId.startsWith('flow:') ||
+          link.linkedId.startsWith('eip155:')) &&
+        link.linkedId
+    );
+    const walletAddress = walletLink?.linkedId || '';
 
-    const item = result.Item as DynamoDBUserItem;
+    // Convert DynamoDBUserProfileItem to UserProfile (AT Protocol Lexicon compliant)
     return {
-      userId: item.userId,
-      displayName: item.displayName,
-      username: item.username,
-      bio: item.bio,
-      avatarUrl: item.avatarUrl,
-      backgroundImageUrl: item.backgroundImageUrl,
-      email: item.email || '',
-      walletAddress: item.walletAddress || '',
-      followerCount: item.followerCount,
-      followingCount: item.followingCount,
-      postCount: item.postCount,
-      createdAt: item.createdAt,
-      updatedAt: item.updatedAt,
+      did: profileItem.primaryDid, // AT Protocol standard: did
+      displayName: profileItem.displayName, // AT Protocol standard
+      handle: profileItem.handle || profileItem.primaryDid, // AT Protocol standard: handle
+      description: profileItem.bio, // AT Protocol standard: description (previously bio)
+      avatar: profileItem.avatarUrl, // AT Protocol standard: avatar (previously avatarUrl)
+      banner: profileItem.bannerUrl, // AT Protocol standard: banner (previously backgroundImageUrl)
+      followerCount: profileItem.followerCount, // AT Protocol standard
+      followingCount: profileItem.followingCount, // AT Protocol standard
+      createdAt: profileItem.createdAt, // AT Protocol standard
+      // Custom extensions
+      email,
+      walletAddress,
+      postCount: profileItem.postCount,
+      updatedAt: profileItem.updatedAt,
     };
   }
 
   /**
    * Update user profile
+   *
+   * @description Updates user profile using the new AT Protocol data model.
+   * The userId parameter is treated as primaryDid.
+   *
+   * @param userId - User's primary DID (did:plc:...)
+   * @param updates - Profile fields to update
    */
   async updateUserProfile(
     userId: string,
-    updates: Partial<Omit<UserProfile, 'userId' | 'createdAt' | 'updatedAt'>>
+    updates: Partial<Omit<UserProfile, 'did' | 'createdAt' | 'updatedAt'>>
   ): Promise<void> {
     if (!this.client) {
       // For local development, just log the operation
@@ -411,42 +456,85 @@ export class SnsService {
     const expressionAttributeNames: Record<string, string> = {};
     const expressionAttributeValues: Record<string, any> = {};
 
-    // Build update expression dynamically
+    // Map UserProfile (AT Protocol Lexicon compliant) fields to DynamoDBUserProfileItem fields
     if (updates.displayName !== undefined) {
       updateExpression.push('#displayName = :displayName');
       expressionAttributeNames['#displayName'] = 'displayName';
       expressionAttributeValues[':displayName'] = updates.displayName;
     }
-    if (updates.username !== undefined) {
-      updateExpression.push('#username = :username');
-      expressionAttributeNames['#username'] = 'username';
-      expressionAttributeValues[':username'] = updates.username;
+    if (updates.handle !== undefined) {
+      // AT Protocol standard: handle
+      updateExpression.push('#handle = :handle');
+      expressionAttributeNames['#handle'] = 'handle';
+      expressionAttributeValues[':handle'] = updates.handle;
     }
-    if (updates.bio !== undefined) {
+    if (updates.description !== undefined) {
+      // AT Protocol standard: description (map to bio for internal storage)
       updateExpression.push('#bio = :bio');
       expressionAttributeNames['#bio'] = 'bio';
-      expressionAttributeValues[':bio'] = updates.bio;
+      expressionAttributeValues[':bio'] = updates.description;
     }
-    if (updates.avatarUrl !== undefined) {
+    if (updates.avatar !== undefined) {
+      // AT Protocol standard: avatar (map to avatarUrl for internal storage)
       updateExpression.push('#avatarUrl = :avatarUrl');
       expressionAttributeNames['#avatarUrl'] = 'avatarUrl';
-      expressionAttributeValues[':avatarUrl'] = updates.avatarUrl;
+      expressionAttributeValues[':avatarUrl'] = updates.avatar;
     }
-    if (updates.backgroundImageUrl !== undefined) {
-      updateExpression.push('#backgroundImageUrl = :backgroundImageUrl');
-      expressionAttributeNames['#backgroundImageUrl'] = 'backgroundImageUrl';
-      expressionAttributeValues[':backgroundImageUrl'] =
-        updates.backgroundImageUrl;
+    if (updates.banner !== undefined) {
+      // AT Protocol standard: banner (map to bannerUrl for internal storage)
+      updateExpression.push('#bannerUrl = :bannerUrl');
+      expressionAttributeNames['#bannerUrl'] = 'bannerUrl';
+      expressionAttributeValues[':bannerUrl'] = updates.banner;
     }
     if (updates.email !== undefined) {
-      updateExpression.push('#email = :email');
-      expressionAttributeNames['#email'] = 'email';
-      expressionAttributeValues[':email'] = updates.email;
+      // Update email in profile and identity link
+      const normalizedEmail = updates.email.toLowerCase().trim();
+      updateExpression.push('#primaryEmail = :primaryEmail');
+      expressionAttributeNames['#primaryEmail'] = 'primaryEmail';
+      expressionAttributeValues[':primaryEmail'] = normalizedEmail;
+      updateExpression.push('#primaryEmailNormalized = :primaryEmailNormalized');
+      expressionAttributeNames['#primaryEmailNormalized'] =
+        'primaryEmailNormalized';
+      expressionAttributeValues[':primaryEmailNormalized'] = normalizedEmail;
+
+      // Update or create identity link for email
+      const emailLink = await this.getIdentityLink(userId, `email:${normalizedEmail}`);
+      if (emailLink) {
+        await this.updateIdentityLink(userId, `email:${normalizedEmail}`, {
+          email: normalizedEmail,
+          emailNormalized: normalizedEmail,
+        });
+      } else {
+        await this.createIdentityLink(userId, {
+          linkedId: `email:${normalizedEmail}`,
+          kind: 'account',
+          role: 'login',
+          status: 'pending',
+          email: normalizedEmail,
+          emailNormalized: normalizedEmail,
+          emailVerified: false,
+        });
+      }
     }
     if (updates.walletAddress !== undefined) {
-      updateExpression.push('#walletAddress = :walletAddress');
-      expressionAttributeNames['#walletAddress'] = 'walletAddress';
-      expressionAttributeValues[':walletAddress'] = updates.walletAddress;
+      // Update wallet address in identity link
+      // Determine wallet type from address format
+      let linkedId: string;
+      if (updates.walletAddress.startsWith('0x')) {
+        linkedId = `eip155:${updates.walletAddress}`;
+      } else {
+        linkedId = `flow:${updates.walletAddress}`;
+      }
+
+      const walletLink = await this.getIdentityLink(userId, linkedId);
+      if (!walletLink) {
+        await this.createIdentityLink(userId, {
+          linkedId,
+          kind: 'account',
+          role: 'login',
+          status: 'pending',
+        });
+      }
     }
     if (updates.followerCount !== undefined) {
       updateExpression.push('#followerCount = :followerCount');
@@ -465,30 +553,33 @@ export class SnsService {
     }
 
     // Always update the updatedAt timestamp
-    updateExpression.push('#updatedAt = :updatedAt');
-    expressionAttributeNames['#updatedAt'] = 'updatedAt';
-    expressionAttributeValues[':updatedAt'] = now;
+    if (updateExpression.length > 0) {
+      updateExpression.push('#updatedAt = :updatedAt');
+      expressionAttributeNames['#updatedAt'] = 'updatedAt';
+      expressionAttributeValues[':updatedAt'] = now;
 
-    if (updateExpression.length === 0) {
-      return; // No updates to perform
+      const command = new UpdateCommand({
+        TableName: this.tableName,
+        Key: {
+          PK: `USER#${userId}`,
+          SK: 'PROFILE',
+        },
+        UpdateExpression: `SET ${updateExpression.join(', ')}`,
+        ExpressionAttributeNames: expressionAttributeNames,
+        ExpressionAttributeValues: expressionAttributeValues,
+      });
+
+      await this.client.send(command);
     }
-
-    const command = new UpdateCommand({
-      TableName: this.tableName,
-      Key: {
-        PK: `USER#${userId}`,
-        SK: 'PROFILE',
-      },
-      UpdateExpression: `SET ${updateExpression.join(', ')}`,
-      ExpressionAttributeNames: expressionAttributeNames,
-      ExpressionAttributeValues: expressionAttributeValues,
-    });
-
-    await this.client.send(command);
   }
 
   /**
    * Delete user profile
+   *
+   * @description Deletes user profile using the new AT Protocol data model.
+   * The userId parameter is treated as primaryDid.
+   *
+   * @param userId - User's primary DID (did:plc:...)
    */
   async deleteUserProfile(userId: string): Promise<void> {
     if (!this.client) {
@@ -497,7 +588,7 @@ export class SnsService {
       return;
     }
 
-    // Delete the user profile
+    // Delete the user profile (DynamoDBUserProfileItem)
     const command = new DeleteCommand({
       TableName: this.tableName,
       Key: {
@@ -507,6 +598,9 @@ export class SnsService {
     });
 
     await this.client.send(command);
+
+    // Note: Identity links are kept for audit purposes
+    // If you want to delete all identity links, you would need to query and delete them separately
   }
 
   // ===== POST OPERATIONS =====
@@ -1555,34 +1649,34 @@ export class SnsService {
         // Return mock data for local development
         const mockUsers: SearchUserData[] = [
           {
-            userId: 'user-123',
+            did: 'did:plc:lld5wgybmddzz32guiotcpce',
             displayName: 'John Doe',
-            username: 'johndoe',
-            bio: 'Software developer',
-            avatarUrl: 'https://example.com/avatar1.jpg',
-            backgroundImageUrl: 'https://example.com/background1.jpg',
-            email: 'john.doe@example.com',
-            walletAddress: '0x1234567890abcdef',
+            handle: 'johndoe',
+            description: 'Software developer',
+            avatar: 'https://example.com/avatar1.jpg',
+            banner: 'https://example.com/background1.jpg',
             followerCount: 150,
             followingCount: 200,
-            postCount: 45,
             createdAt: '2024-01-01T00:00:00.000Z',
+            email: 'john.doe@example.com',
+            walletAddress: '0x1234567890abcdef',
+            postCount: 45,
             updatedAt: '2024-01-01T00:00:00.000Z',
             isFollowing: false,
           },
           {
-            userId: 'user-456',
+            did: 'did:plc:abcdef1234567890',
             displayName: 'Jane Smith',
-            username: 'janesmith',
-            bio: 'Designer',
-            avatarUrl: 'https://example.com/avatar2.jpg',
-            backgroundImageUrl: 'https://example.com/background2.jpg',
-            email: 'jane.smith@example.com',
-            walletAddress: '0xabcdef1234567890',
+            handle: 'janesmith',
+            description: 'Designer',
+            avatar: 'https://example.com/avatar2.jpg',
+            banner: 'https://example.com/background2.jpg',
             followerCount: 300,
             followingCount: 150,
-            postCount: 78,
             createdAt: '2024-01-01T00:00:00.000Z',
+            email: 'jane.smith@example.com',
+            walletAddress: '0xabcdef1234567890',
+            postCount: 78,
             updatedAt: '2024-01-01T00:00:00.000Z',
             isFollowing: true,
           },
@@ -1591,7 +1685,7 @@ export class SnsService {
         // Filter mock data based on query
         const filteredUsers = mockUsers.filter(
           user =>
-            user.username.toLowerCase().includes(query.toLowerCase()) ||
+            user.handle.toLowerCase().includes(query.toLowerCase()) ||
             user.displayName.toLowerCase().includes(query.toLowerCase())
         );
 
@@ -1611,7 +1705,7 @@ export class SnsService {
       const command = new ScanCommand({
         TableName: this.tableName,
         FilterExpression:
-          'begins_with(PK, :userPrefix) AND (contains(username, :query) OR contains(displayName, :query))',
+          'begins_with(PK, :userPrefix) AND (contains(handle, :query) OR contains(displayName, :query))',
         ExpressionAttributeValues: {
           ':userPrefix': 'USER#',
           ':query': query,
@@ -1625,37 +1719,52 @@ export class SnsService {
       const users: SearchUserData[] = [];
       if (result.Items) {
         for (const item of result.Items) {
-          const userItem = item as DynamoDBUserItem;
+          const userItem = item as DynamoDBUserProfileItem;
+
+          // Get email and wallet address from identity links
+          const identityLinks = await this.queryIdentityLinks(userItem.primaryDid);
+          const emailLink = identityLinks.find(
+            link => link.linkedId.startsWith('email:') && link.email
+          );
+          const email = emailLink?.email || userItem.primaryEmail || '';
+          const walletLink = identityLinks.find(
+            link =>
+              (link.linkedId.startsWith('flow:') ||
+                link.linkedId.startsWith('eip155:')) &&
+              link.linkedId
+          );
+          const walletAddress = walletLink?.linkedId || '';
 
           // Check if current user is following this user
           let isFollowing = false;
-          if (currentUserId && currentUserId !== userItem.userId) {
+          if (currentUserId && currentUserId !== userItem.primaryDid) {
             // TODO: Implement follow status check
             // For now, we'll set it to false
             isFollowing = false;
           }
 
           users.push({
-            userId: userItem.userId,
-            displayName: userItem.displayName,
-            username: userItem.username,
-            bio: userItem.bio || undefined,
-            avatarUrl: userItem.avatarUrl || undefined,
-            backgroundImageUrl: userItem.backgroundImageUrl || undefined,
-            email: userItem.email || '',
-            walletAddress: userItem.walletAddress || '',
-            followerCount: userItem.followerCount,
-            followingCount: userItem.followingCount,
+            did: userItem.primaryDid, // AT Protocol standard: did
+            displayName: userItem.displayName, // AT Protocol standard
+            handle: userItem.handle, // AT Protocol standard: handle
+            description: userItem.bio || undefined, // AT Protocol standard: description (previously bio)
+            avatar: userItem.avatarUrl || undefined, // AT Protocol standard: avatar (previously avatarUrl)
+            banner: userItem.bannerUrl || undefined, // AT Protocol standard: banner (previously backgroundImageUrl)
+            followerCount: userItem.followerCount, // AT Protocol standard
+            followingCount: userItem.followingCount, // AT Protocol standard
+            createdAt: userItem.createdAt, // AT Protocol standard
+            // Custom extensions
+            email,
+            walletAddress,
             postCount: userItem.postCount,
-            createdAt: userItem.createdAt,
             updatedAt: userItem.updatedAt,
             isFollowing,
           });
         }
       }
 
-      // Sort by username for consistent results
-      users.sort((a, b) => a.username.localeCompare(b.username));
+      // Sort by handle for consistent results (AT Protocol standard: handle)
+      users.sort((a, b) => a.handle.localeCompare(b.handle));
 
       const nextCursor = result.LastEvaluatedKey
         ? this.encodeCursor(result.LastEvaluatedKey)

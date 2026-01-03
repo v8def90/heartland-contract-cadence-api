@@ -368,9 +368,9 @@ export class FollowsController extends Controller {
           followersWithUserInfo.push({
             ...follower,
             displayName: userProfile.displayName,
-            username: userProfile.username,
-            avatarUrl: userProfile.avatarUrl,
-            bio: userProfile.bio,
+            username: userProfile.handle, // AT Protocol standard: handle (previously username)
+            avatarUrl: userProfile.avatar, // AT Protocol standard: avatar (previously avatarUrl)
+            bio: userProfile.description, // AT Protocol standard: description (previously bio)
             isFollowingBack,
           });
         }
@@ -500,9 +500,9 @@ export class FollowsController extends Controller {
           followingWithUserInfo.push({
             ...following,
             displayName: userProfile.displayName,
-            username: userProfile.username,
-            avatarUrl: userProfile.avatarUrl,
-            bio: userProfile.bio,
+            username: userProfile.handle, // AT Protocol standard: handle (previously username)
+            avatarUrl: userProfile.avatar, // AT Protocol standard: avatar (previously avatarUrl)
+            bio: userProfile.description, // AT Protocol standard: description (previously bio)
             isFollowingBack,
           });
         }

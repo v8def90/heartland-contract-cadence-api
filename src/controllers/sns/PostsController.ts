@@ -253,7 +253,7 @@ export class PostsController extends Controller {
         postId,
         userId,
         userProfile.displayName,
-        userProfile.username,
+        userProfile.handle, // AT Protocol standard: handle (previously username)
         request.content,
         request.images,
         request.tags
@@ -278,7 +278,7 @@ export class PostsController extends Controller {
       const postData: PostData = {
         ...post,
         authorName: userProfile.displayName,
-        authorUsername: userProfile.username,
+        authorUsername: userProfile.handle, // AT Protocol standard: handle (previously username)
       };
 
       this.setStatus(201);
@@ -368,7 +368,7 @@ export class PostsController extends Controller {
       const postData: PostData = {
         ...post,
         authorName: userProfile.displayName,
-        authorUsername: userProfile.username,
+        authorUsername: userProfile.handle, // AT Protocol standard: handle (previously username)
         isLiked,
       };
 
@@ -560,7 +560,7 @@ export class PostsController extends Controller {
           postsWithAuthorInfo.push({
             ...post,
             authorName: userProfile.displayName,
-            authorUsername: userProfile.username,
+            authorUsername: userProfile.handle, // AT Protocol standard: handle (previously username)
           });
         }
       }

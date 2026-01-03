@@ -10,33 +10,37 @@ import type { ApiResponse } from './ApiResponse';
 
 /**
  * User Profile Data
+ *
+ * @description User profile following AT Protocol Lexicon conventions.
+ * Standard fields follow AT Protocol naming, while extended fields (email, walletAddress, etc.)
+ * are custom extensions for this API.
  */
 export interface UserProfile {
-  /** User ID */
-  userId: string;
-  /** Display name */
+  /** User's primary DID (AT Protocol standard) */
+  did: string;
+  /** Display name (AT Protocol standard) */
   displayName: string;
-  /** Username (unique) */
-  username: string;
-  /** Bio description */
-  bio?: string | undefined;
-  /** Avatar URL */
-  avatarUrl?: string | undefined;
-  /** Background image URL */
-  backgroundImageUrl?: string | undefined;
-  /** Email address (required) */
-  email: string;
-  /** Wallet address (Blocto address, required) */
-  walletAddress: string;
-  /** Follower count */
+  /** Handle (AT Protocol standard) */
+  handle: string;
+  /** Description (AT Protocol standard, previously bio) */
+  description?: string | undefined;
+  /** Avatar URL (AT Protocol standard) */
+  avatar?: string | undefined;
+  /** Banner URL (AT Protocol standard, previously backgroundImageUrl) */
+  banner?: string | undefined;
+  /** Follower count (AT Protocol standard) */
   followerCount: number;
-  /** Following count */
+  /** Following count (AT Protocol standard) */
   followingCount: number;
-  /** Post count */
-  postCount: number;
-  /** Created timestamp */
+  /** Created timestamp (AT Protocol standard) */
   createdAt: string;
-  /** Updated timestamp */
+  /** Email address (custom extension) */
+  email: string;
+  /** Wallet address (custom extension, Blocto address) */
+  walletAddress: string;
+  /** Post count (custom extension) */
+  postCount: number;
+  /** Updated timestamp (custom extension) */
   updatedAt: string;
 }
 
@@ -208,33 +212,35 @@ export type FollowListResponse = ApiResponse<PaginatedData<FollowData>>;
 
 /**
  * Search User Data
+ *
+ * @description Search user data following AT Protocol Lexicon conventions.
  */
 export interface SearchUserData {
-  /** User ID */
-  userId: string;
-  /** Display name */
+  /** User's primary DID (AT Protocol standard) */
+  did: string;
+  /** Display name (AT Protocol standard) */
   displayName: string;
-  /** Username (unique) */
-  username: string;
-  /** Bio description */
-  bio?: string | undefined;
-  /** Avatar URL */
-  avatarUrl?: string | undefined;
-  /** Background image URL */
-  backgroundImageUrl?: string | undefined;
-  /** Email address (required) */
-  email: string;
-  /** Wallet address (Blocto address, required) */
-  walletAddress: string;
-  /** Follower count */
+  /** Handle (AT Protocol standard) */
+  handle: string;
+  /** Description (AT Protocol standard, previously bio) */
+  description?: string | undefined;
+  /** Avatar URL (AT Protocol standard) */
+  avatar?: string | undefined;
+  /** Banner URL (AT Protocol standard, previously backgroundImageUrl) */
+  banner?: string | undefined;
+  /** Follower count (AT Protocol standard) */
   followerCount: number;
-  /** Following count */
+  /** Following count (AT Protocol standard) */
   followingCount: number;
-  /** Post count */
-  postCount: number;
-  /** Created timestamp */
+  /** Created timestamp (AT Protocol standard) */
   createdAt: string;
-  /** Updated timestamp */
+  /** Email address (custom extension) */
+  email: string;
+  /** Wallet address (custom extension, Blocto address) */
+  walletAddress: string;
+  /** Post count (custom extension) */
+  postCount: number;
+  /** Updated timestamp (custom extension) */
   updatedAt: string;
   /** Is following this user (if authenticated) */
   isFollowing?: boolean;

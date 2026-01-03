@@ -347,8 +347,8 @@ export class LikesController extends Controller {
           likesWithUserInfo.push({
             ...like,
             displayName: userProfile.displayName,
-            username: userProfile.username,
-            avatarUrl: userProfile.avatarUrl,
+            username: userProfile.handle, // AT Protocol standard: handle (previously username)
+            avatarUrl: userProfile.avatar, // AT Protocol standard: avatar (previously avatarUrl)
           });
         }
       }
