@@ -635,8 +635,19 @@ export class SnsService {
   /**
    * Delete user profile
    *
-   * @description Deletes user profile using the new AT Protocol data model.
-   * The userId parameter is treated as primaryDid.
+   * @description Performs a soft delete (logical delete) of the user profile.
+   * The profile is marked as deleted rather than physically removed from the database.
+   * 
+   * Best Practices for User Deletion:
+   * 1. Profile: Mark as deleted (soft delete) - keeps data for audit/legal purposes
+   * 2. Posts: Anonymize (set authorId to "deleted" or remove author info) - preserves content integrity
+   * 3. Comments: Anonymize (set authorId to "deleted") - preserves thread integrity
+   * 4. Likes: Delete - no need to keep anonymous likes
+   * 5. Follows: Delete - clean up follow relationships
+   * 6. Identity Links: Keep for audit purposes (legal/compliance requirements)
+   * 
+   * NOTE: This implementation currently only marks the profile as deleted.
+   * Full implementation should include anonymization of posts/comments and deletion of likes/follows.
    *
    * @param userId - User's primary DID (did:plc:...)
    */
@@ -647,17 +658,36 @@ export class SnsService {
       return;
     }
 
-    // Delete the user profile (DynamoDBUserProfileItem)
-    const command = new DeleteCommand({
+    // Soft delete: Mark profile as deleted instead of physically deleting
+    const updateCommand = new UpdateCommand({
       TableName: this.tableName,
       Key: {
         PK: `USER#${userId}`,
         SK: 'PROFILE',
       },
+      UpdateExpression:
+        'SET accountStatus = :deleted, deletedAt = :deletedAt, #displayName = :deletedName, #handle = :deletedHandle REMOVE email, primaryEmail, primaryEmailNormalized',
+      ExpressionAttributeNames: {
+        '#displayName': 'displayName',
+        '#handle': 'handle',
+      },
+      ExpressionAttributeValues: {
+        ':deleted': 'deleted',
+        ':deletedAt': new Date().toISOString(),
+        ':deletedName': '[Deleted User]',
+        ':deletedHandle': `deleted.${userId.substring(0, 8)}`,
+      },
     });
 
-    await this.client.send(command);
+    await this.client.send(updateCommand);
 
+    // TODO: Implement full deletion workflow:
+    // 1. Anonymize posts (set authorId to "deleted" or remove author info)
+    // 2. Anonymize comments (set authorId to "deleted")
+    // 3. Delete likes (remove all likes by this user)
+    // 4. Delete follows (remove all follow relationships)
+    // 5. Keep Identity Links for audit purposes (legal/compliance)
+    
     // Note: Identity links are kept for audit purposes
     // If you want to delete all identity links, you would need to query and delete them separately
   }
@@ -1769,10 +1799,12 @@ export class SnsService {
       // We search username, displayName, email, handle, and primaryEmail for backward compatibility
       // Note: We use contains() which is case-sensitive, so we normalize the query to lowercase
       // and ensure DynamoDB items also store lowercase values for searchable fields
+      // Also filter out deleted accounts at the DynamoDB level for better performance
       const scanCommand = new ScanCommand({
         TableName: this.tableName,
         FilterExpression:
-          'begins_with(PK, :userPrefix) AND SK = :profile AND (' +
+          'begins_with(PK, :userPrefix) AND SK = :profile AND ' +
+          '(attribute_not_exists(accountStatus) OR accountStatus <> :deleted) AND (' +
           'contains(displayName, :query) OR ' +
           'contains(handle, :query) OR ' +
           '(attribute_exists(username) AND contains(username, :query)) OR ' +
@@ -1782,9 +1814,10 @@ export class SnsService {
         ExpressionAttributeValues: {
           ':userPrefix': 'USER#',
           ':profile': 'PROFILE',
+          ':deleted': 'deleted',
           ':query': normalizedQuery,
         },
-        Limit: limit * 10, // Get more items to filter by emailVerified and domain
+        Limit: limit * 10, // Get more items to filter by emailVerified, accountStatus, and domain
         ExclusiveStartKey: exclusiveStartKey,
       });
 
@@ -1803,6 +1836,17 @@ export class SnsService {
 
       const users: SearchUserData[] = [];
       for (const userItem of allItems) {
+        // Filter out deleted accounts
+        // Deleted accounts should not appear in search results
+        if (userItem.accountStatus === 'deleted') {
+          continue;
+        }
+
+        // Filter out suspended accounts (optional - uncomment if needed)
+        // if (userItem.accountStatus === 'suspended') {
+        //   continue;
+        // }
+
         // Get username (extract from handle if not set)
         const username = userItem.username || this.extractUsername(userItem.handle);
         

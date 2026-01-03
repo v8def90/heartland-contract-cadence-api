@@ -79,17 +79,17 @@ export class UsersController extends Controller {
   }
 
   /**
-   * Get user profile by user ID
+   * Get user profile by DID
    *
-   * @description Retrieves the complete user profile information for the specified user ID.
+   * @description Retrieves the complete user profile information for the specified DID.
    * This includes display name, username, bio, avatar, follower/following counts, and post count.
    *
-   * @param userId - The unique identifier of the user
+   * @param did - The user's primary DID (did:plc:...)
    * @returns Promise resolving to user profile data
    *
-   * @example userId "user-123"
+   * @example did "did:plc:lld5wgybmddzz32guiotcpce"
    */
-  @Get('{userId}/profile')
+  @Get('{did}')
   @SuccessResponse('200', 'User profile retrieved successfully')
   @Response<ApiResponse>('404', 'User not found')
   @Response<ApiResponse>('500', 'Failed to retrieve user profile')
@@ -113,25 +113,25 @@ export class UsersController extends Controller {
     timestamp: '2024-01-15T10:30:00.000Z',
   })
   public async getUserProfile(
-    @Path() userId: string
+    @Path() did: string
   ): Promise<ApiResponse<UserProfile>> {
     try {
-      // Validate userId
-      if (!userId || userId.trim().length === 0) {
+      // Validate did
+      if (!did || did.trim().length === 0) {
         this.setStatus(400);
         return {
           success: false,
           error: {
-            code: 'INVALID_USER_ID',
-            message: 'User ID is required',
-            details: 'The userId parameter cannot be empty',
+            code: 'INVALID_DID',
+            message: 'DID is required',
+            details: 'The did parameter cannot be empty',
           },
           timestamp: new Date().toISOString(),
         };
       }
 
       // Get user profile
-      const profile = await this.snsService.getUserProfile(userId);
+      const profile = await this.snsService.getUserProfile(did);
 
       if (!profile) {
         this.setStatus(404);
@@ -140,7 +140,7 @@ export class UsersController extends Controller {
           error: {
             code: 'USER_NOT_FOUND',
             message: 'User not found',
-            details: `No user found with ID: ${userId}`,
+            details: `No user found with DID: ${did}`,
           },
           timestamp: new Date().toISOString(),
         };
@@ -171,14 +171,18 @@ export class UsersController extends Controller {
    *
    * @description Creates a new user profile with the provided information.
    * This endpoint requires authentication and can only be called by the user themselves.
+   * 
+   * NOTE: If the user was registered via `/auth/register`, the profile is already created
+   * during registration. This endpoint is for users who registered via other methods
+   * (e.g., Blocto wallet, Flow wallet) and need to create their profile separately.
    *
-   * @param userId - The unique identifier of the user
+   * @param did - The user's primary DID (did:plc:...)
    * @param request - User profile creation data
    * @returns Promise resolving to created user profile
    *
    * @security JWT authentication required
    */
-  @Post('{userId}/profile')
+  @Post('{did}')
   @Security('jwt')
   @SuccessResponse('201', 'User profile created successfully')
   @Response<ApiResponse>('400', 'Invalid profile data')
@@ -215,7 +219,7 @@ export class UsersController extends Controller {
     timestamp: '2024-01-15T10:30:00.000Z',
   })
   public async createUserProfile(
-    @Path() userId: string,
+    @Path() did: string,
     @Body() request: CreateUserProfileRequest,
     @Request() requestObj: any
   ): Promise<ApiResponse<UserProfile>> {
@@ -236,31 +240,31 @@ export class UsersController extends Controller {
         };
       }
 
-      const authenticatedUserId = user.id;
+      const authenticatedDid = user.id;
 
-      // Validate userId
-      if (!userId || userId.trim().length === 0) {
+      // Validate did
+      if (!did || did.trim().length === 0) {
         this.setStatus(400);
         return {
           success: false,
           error: {
-            code: 'INVALID_USER_ID',
-            message: 'User ID is required',
-            details: 'The userId parameter cannot be empty',
+            code: 'INVALID_DID',
+            message: 'DID is required',
+            details: 'The did parameter cannot be empty',
           },
           timestamp: new Date().toISOString(),
         };
       }
 
       // Validate that authenticated user can only create their own profile
-      if (authenticatedUserId !== userId) {
+      if (authenticatedDid !== did) {
         this.setStatus(403);
         return {
           success: false,
           error: {
             code: 'FORBIDDEN',
             message: 'Cannot create profile for another user',
-            details: `You can only create your own profile. Authenticated user: ${authenticatedUserId}, Requested user: ${userId}`,
+            details: `You can only create your own profile. Authenticated user: ${authenticatedDid}, Requested user: ${did}`,
           },
           timestamp: new Date().toISOString(),
         };
@@ -288,7 +292,7 @@ export class UsersController extends Controller {
       }
 
       // Check if user profile already exists
-      const existingProfile = await this.snsService.getUserProfile(userId);
+      const existingProfile = await this.snsService.getUserProfile(did);
       if (existingProfile) {
         this.setStatus(409);
         return {
@@ -296,7 +300,7 @@ export class UsersController extends Controller {
           error: {
             code: 'PROFILE_EXISTS',
             message: 'User profile already exists',
-            details: `Profile for user ${userId} already exists`,
+            details: `Profile for user ${did} already exists. Use PUT /sns/users/${did} to update the profile.`,
           },
           timestamp: new Date().toISOString(),
         };
@@ -319,10 +323,10 @@ export class UsersController extends Controller {
         postCount: 0,
       };
 
-      await this.snsService.createUserProfile(userId, profileData);
+      await this.snsService.createUserProfile(did, profileData);
 
       // Get the created profile
-      const createdProfile = await this.snsService.getUserProfile(userId);
+      const createdProfile = await this.snsService.getUserProfile(did);
       if (!createdProfile) {
         this.setStatus(500);
         return {
@@ -362,14 +366,17 @@ export class UsersController extends Controller {
    *
    * @description Updates an existing user profile with the provided information.
    * This endpoint requires authentication and can only be called by the user themselves.
+   * 
+   * NOTE: This endpoint is for updating an existing profile. If the profile does not exist,
+   * use POST /sns/users/{did} to create it first.
    *
-   * @param userId - The unique identifier of the user
+   * @param did - The user's primary DID (did:plc:...)
    * @param request - User profile update data
    * @returns Promise resolving to updated user profile
    *
    * @security JWT authentication required
    */
-  @Put('{userId}/profile')
+  @Put('{did}')
   @Security('jwt')
   @SuccessResponse('200', 'User profile updated successfully')
   @Response<ApiResponse>('400', 'Invalid profile data')
@@ -396,7 +403,7 @@ export class UsersController extends Controller {
     timestamp: '2024-01-15T11:00:00.000Z',
   })
   public async updateUserProfile(
-    @Path() userId: string,
+    @Path() did: string,
     @Body() request: UpdateUserProfileRequest,
     @Request() requestObj: any
   ): Promise<ApiResponse<UserProfile>> {
@@ -417,38 +424,38 @@ export class UsersController extends Controller {
         };
       }
 
-      const authenticatedUserId = user.id;
+      const authenticatedDid = user.id;
 
-      // Validate userId
-      if (!userId || userId.trim().length === 0) {
+      // Validate did
+      if (!did || did.trim().length === 0) {
         this.setStatus(400);
         return {
           success: false,
           error: {
-            code: 'INVALID_USER_ID',
-            message: 'User ID is required',
-            details: 'The userId parameter cannot be empty',
+            code: 'INVALID_DID',
+            message: 'DID is required',
+            details: 'The did parameter cannot be empty',
           },
           timestamp: new Date().toISOString(),
         };
       }
 
       // Validate that authenticated user can only update their own profile
-      if (authenticatedUserId !== userId) {
+      if (authenticatedDid !== did) {
         this.setStatus(403);
         return {
           success: false,
           error: {
             code: 'FORBIDDEN',
             message: 'Cannot update profile for another user',
-            details: `You can only update your own profile. Authenticated user: ${authenticatedUserId}, Requested user: ${userId}`,
+            details: `You can only update your own profile. Authenticated user: ${authenticatedDid}, Requested user: ${did}`,
           },
           timestamp: new Date().toISOString(),
         };
       }
 
       // Check if user profile exists
-      const existingProfile = await this.snsService.getUserProfile(userId);
+      const existingProfile = await this.snsService.getUserProfile(did);
       if (!existingProfile) {
         this.setStatus(404);
         return {
@@ -456,7 +463,7 @@ export class UsersController extends Controller {
           error: {
             code: 'PROFILE_NOT_FOUND',
             message: 'User profile not found',
-            details: `No profile found for user ${userId}`,
+            details: `No profile found for user ${did}. Use POST /sns/users/${did} to create the profile first.`,
           },
           timestamp: new Date().toISOString(),
         };
@@ -503,10 +510,10 @@ export class UsersController extends Controller {
       if (request.walletAddress !== undefined)
         updateData.walletAddress = request.walletAddress;
 
-      await this.snsService.updateUserProfile(userId, updateData);
+      await this.snsService.updateUserProfile(did, updateData);
 
       // Get the updated profile
-      const updatedProfile = await this.snsService.getUserProfile(userId);
+      const updatedProfile = await this.snsService.getUserProfile(did);
       if (!updatedProfile) {
         this.setStatus(500);
         return {
@@ -543,16 +550,21 @@ export class UsersController extends Controller {
   /**
    * Delete user profile
    *
-   * @description Deletes the user profile and all associated data.
+   * @description Deletes the user profile and marks associated data as deleted.
    * This endpoint requires authentication and can only be called by the user themselves.
+   * 
+   * NOTE: This performs a soft delete (logical delete) rather than a hard delete.
+   * The profile is marked as deleted, but related data (posts, comments, likes, follows)
+   * may be anonymized or kept for data integrity, depending on the implementation.
+   * 
    * WARNING: This action is irreversible and will delete all user data.
    *
-   * @param userId - The unique identifier of the user
+   * @param did - The user's primary DID (did:plc:...)
    * @returns Promise resolving to deletion confirmation
    *
    * @security JWT authentication required
    */
-  @Delete('{userId}/profile')
+  @Delete('{did}')
   @Security('jwt')
   @SuccessResponse('200', 'User profile deleted successfully')
   @Response<ApiResponse>('401', 'Authentication required')
@@ -564,7 +576,7 @@ export class UsersController extends Controller {
     timestamp: '2024-01-15T11:30:00.000Z',
   })
   public async deleteUserProfile(
-    @Path() userId: string,
+    @Path() did: string,
     @Request() requestObj: any
   ): Promise<ApiResponse<null>> {
     try {
@@ -584,38 +596,38 @@ export class UsersController extends Controller {
         };
       }
 
-      const authenticatedUserId = user.id;
+      const authenticatedDid = user.id;
 
-      // Validate userId
-      if (!userId || userId.trim().length === 0) {
+      // Validate did
+      if (!did || did.trim().length === 0) {
         this.setStatus(400);
         return {
           success: false,
           error: {
-            code: 'INVALID_USER_ID',
-            message: 'User ID is required',
-            details: 'The userId parameter cannot be empty',
+            code: 'INVALID_DID',
+            message: 'DID is required',
+            details: 'The did parameter cannot be empty',
           },
           timestamp: new Date().toISOString(),
         };
       }
 
       // Validate that authenticated user can only delete their own profile
-      if (authenticatedUserId !== userId) {
+      if (authenticatedDid !== did) {
         this.setStatus(403);
         return {
           success: false,
           error: {
             code: 'FORBIDDEN',
             message: 'Cannot delete profile for another user',
-            details: `You can only delete your own profile. Authenticated user: ${authenticatedUserId}, Requested user: ${userId}`,
+            details: `You can only delete your own profile. Authenticated user: ${authenticatedDid}, Requested user: ${did}`,
           },
           timestamp: new Date().toISOString(),
         };
       }
 
       // Check if user profile exists
-      const existingProfile = await this.snsService.getUserProfile(userId);
+      const existingProfile = await this.snsService.getUserProfile(did);
       if (!existingProfile) {
         this.setStatus(404);
         return {
@@ -623,14 +635,14 @@ export class UsersController extends Controller {
           error: {
             code: 'PROFILE_NOT_FOUND',
             message: 'User profile not found',
-            details: `No profile found for user ${userId}`,
+            details: `No profile found for user ${did}`,
           },
           timestamp: new Date().toISOString(),
         };
       }
 
-      // Delete user profile
-      await this.snsService.deleteUserProfile(userId);
+      // Delete user profile (soft delete - marks as deleted but keeps related data)
+      await this.snsService.deleteUserProfile(did);
 
       return {
         success: true,
@@ -658,14 +670,14 @@ export class UsersController extends Controller {
    * @description Retrieves posts created by the specified user with pagination.
    * This endpoint is public and does not require authentication.
    *
-   * @param userId - The unique identifier of the user
+   * @param did - The user's primary DID (did:plc:...)
    * @param limit - Number of posts to return (max 50, default 20)
    * @param cursor - Pagination cursor for next page
    * @returns Promise resolving to paginated posts data
    *
-   * @example userId "user-123"
+   * @example did "did:plc:lld5wgybmddzz32guiotcpce"
    */
-  @Get('{userId}/posts')
+  @Get('{did}/posts')
   @SuccessResponse('200', 'User posts retrieved successfully')
   @Response<ApiResponse>('400', 'Invalid query parameters')
   @Response<ApiResponse>('404', 'User not found')
@@ -697,7 +709,7 @@ export class UsersController extends Controller {
     timestamp: '2024-01-15T10:30:00.000Z',
   })
   public async getUserPosts(
-    @Path() userId: string,
+    @Path() did: string,
     @Query() limit: number = 20,
     @Query() cursor?: string
   ): Promise<PostListResponse> {
@@ -717,7 +729,7 @@ export class UsersController extends Controller {
       }
 
       // Check if user exists
-      const user = await this.snsService.getUserProfile(userId);
+      const user = await this.snsService.getUserProfile(did);
       if (!user) {
         this.setStatus(404);
         return {
@@ -725,14 +737,14 @@ export class UsersController extends Controller {
           error: {
             code: 'USER_NOT_FOUND',
             message: 'User not found',
-            details: `No user found with ID: ${userId}`,
+            details: `No user found with DID: ${did}`,
           },
           timestamp: new Date().toISOString(),
         };
       }
 
       // Get user posts
-      const result = await this.snsService.getUserPosts(userId, limit, cursor);
+      const result = await this.snsService.getUserPosts(did, limit, cursor);
 
       // Get author profiles for all posts
       const postsWithAuthorInfo: any[] = [];

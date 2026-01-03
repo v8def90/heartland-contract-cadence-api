@@ -1657,9 +1657,9 @@ export function RegisterRoutes(app: Router) {
         });
         // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
         const argsUsersController_getUserProfile: Record<string, TsoaRoute.ParameterSchema> = {
-                userId: {"in":"path","name":"userId","required":true,"dataType":"string"},
+                did: {"in":"path","name":"did","required":true,"dataType":"string"},
         };
-        app.get('/sns/users/:userId/profile',
+        app.get('/sns/users/:did',
             ...(fetchMiddlewares<RequestHandler>(UsersController)),
             ...(fetchMiddlewares<RequestHandler>(UsersController.prototype.getUserProfile)),
 
@@ -1687,11 +1687,11 @@ export function RegisterRoutes(app: Router) {
         });
         // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
         const argsUsersController_createUserProfile: Record<string, TsoaRoute.ParameterSchema> = {
-                userId: {"in":"path","name":"userId","required":true,"dataType":"string"},
+                did: {"in":"path","name":"did","required":true,"dataType":"string"},
                 request: {"in":"body","name":"request","required":true,"ref":"CreateUserProfileRequest"},
                 requestObj: {"in":"request","name":"requestObj","required":true,"dataType":"object"},
         };
-        app.post('/sns/users/:userId/profile',
+        app.post('/sns/users/:did',
             authenticateMiddleware([{"jwt":[]}]),
             ...(fetchMiddlewares<RequestHandler>(UsersController)),
             ...(fetchMiddlewares<RequestHandler>(UsersController.prototype.createUserProfile)),
@@ -1720,11 +1720,11 @@ export function RegisterRoutes(app: Router) {
         });
         // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
         const argsUsersController_updateUserProfile: Record<string, TsoaRoute.ParameterSchema> = {
-                userId: {"in":"path","name":"userId","required":true,"dataType":"string"},
+                did: {"in":"path","name":"did","required":true,"dataType":"string"},
                 request: {"in":"body","name":"request","required":true,"ref":"UpdateUserProfileRequest"},
                 requestObj: {"in":"request","name":"requestObj","required":true,"dataType":"object"},
         };
-        app.put('/sns/users/:userId/profile',
+        app.put('/sns/users/:did',
             authenticateMiddleware([{"jwt":[]}]),
             ...(fetchMiddlewares<RequestHandler>(UsersController)),
             ...(fetchMiddlewares<RequestHandler>(UsersController.prototype.updateUserProfile)),
@@ -1753,10 +1753,10 @@ export function RegisterRoutes(app: Router) {
         });
         // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
         const argsUsersController_deleteUserProfile: Record<string, TsoaRoute.ParameterSchema> = {
-                userId: {"in":"path","name":"userId","required":true,"dataType":"string"},
+                did: {"in":"path","name":"did","required":true,"dataType":"string"},
                 requestObj: {"in":"request","name":"requestObj","required":true,"dataType":"object"},
         };
-        app.delete('/sns/users/:userId/profile',
+        app.delete('/sns/users/:did',
             authenticateMiddleware([{"jwt":[]}]),
             ...(fetchMiddlewares<RequestHandler>(UsersController)),
             ...(fetchMiddlewares<RequestHandler>(UsersController.prototype.deleteUserProfile)),
@@ -1785,11 +1785,11 @@ export function RegisterRoutes(app: Router) {
         });
         // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
         const argsUsersController_getUserPosts: Record<string, TsoaRoute.ParameterSchema> = {
-                userId: {"in":"path","name":"userId","required":true,"dataType":"string"},
+                did: {"in":"path","name":"did","required":true,"dataType":"string"},
                 limit: {"default":20,"in":"query","name":"limit","dataType":"double"},
                 cursor: {"in":"query","name":"cursor","dataType":"string"},
         };
-        app.get('/sns/users/:userId/posts',
+        app.get('/sns/users/:did/posts',
             ...(fetchMiddlewares<RequestHandler>(UsersController)),
             ...(fetchMiddlewares<RequestHandler>(UsersController.prototype.getUserPosts)),
 
