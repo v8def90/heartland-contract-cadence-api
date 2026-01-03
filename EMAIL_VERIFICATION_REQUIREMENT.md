@@ -44,6 +44,7 @@ if (!identityLink.emailVerified) {
 ```
 
 **重要なポイント**:
+
 - パスワード検証は**メール検証チェックの前**に行われます
 - パスワードが正しくても、メール検証が完了していない場合はログインできません
 - エラーコードは`EMAIL_NOT_VERIFIED`として返されます
@@ -151,11 +152,13 @@ if (!result.success) {
 ### シナリオ1: メール未検証アカウントでのログイン試行
 
 **前提条件**:
+
 - アカウントが存在する（`POST /auth/register`で登録済み）
 - メール検証が完了していない（`emailVerified: false`）
 - パスワードは正しい
 
 **リクエスト**:
+
 ```bash
 curl -X POST "https://dev-api.heart-land.io/auth/email-login" \
   -H "Content-Type: application/json" \
@@ -166,6 +169,7 @@ curl -X POST "https://dev-api.heart-land.io/auth/email-login" \
 ```
 
 **レスポンス**:
+
 ```json
 {
   "success": false,
@@ -183,11 +187,13 @@ curl -X POST "https://dev-api.heart-land.io/auth/email-login" \
 ### シナリオ2: メール検証完了後のログイン
 
 **前提条件**:
+
 - アカウントが存在する
 - メール検証が完了している（`emailVerified: true`）
 - パスワードは正しい
 
 **リクエスト**:
+
 ```bash
 curl -X POST "https://dev-api.heart-land.io/auth/email-login" \
   -H "Content-Type: application/json" \
@@ -198,6 +204,7 @@ curl -X POST "https://dev-api.heart-land.io/auth/email-login" \
 ```
 
 **レスポンス**:
+
 ```json
 {
   "success": true,
@@ -226,11 +233,11 @@ curl -X POST "https://dev-api.heart-land.io/auth/email-login" \
 
 ### 2. エラーコードの違い
 
-| エラーコード | HTTPステータス | 意味 |
-|------------|--------------|------|
-| `EMAIL_NOT_VERIFIED` | 403 Forbidden | メール検証が完了していない |
+| エラーコード           | HTTPステータス   | 意味                                                 |
+| ---------------------- | ---------------- | ---------------------------------------------------- |
+| `EMAIL_NOT_VERIFIED`   | 403 Forbidden    | メール検証が完了していない                           |
 | `AUTHENTICATION_ERROR` | 401 Unauthorized | パスワードが間違っている、またはユーザーが存在しない |
-| `VALIDATION_ERROR` | 400 Bad Request | リクエストが不正（メールまたはパスワードが未提供） |
+| `VALIDATION_ERROR`     | 400 Bad Request  | リクエストが不正（メールまたはパスワードが未提供）   |
 
 ### 3. メール検証の完了方法
 
@@ -327,4 +334,3 @@ curl -X POST "https://dev-api.heart-land.io/auth/resend-verification-email" \
 
 **最終更新**: 2026-01-03  
 **APIエンドポイント**: `https://dev-api.heart-land.io`
-

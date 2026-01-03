@@ -34,12 +34,12 @@
 
 ### 必須フィールド
 
-| フィールド | 型 | 必須 | 説明 |
-|-----------|-----|------|------|
-| `email` | string | ✅ | ユーザーのメールアドレス |
-| `password` | string | ✅ | ユーザーのパスワード |
-| `displayName` | string | ✅ | ユーザーの表示名 |
-| `handle` | string | ✅ | AT Protocolハンドル |
+| フィールド    | 型     | 必須 | 説明                     |
+| ------------- | ------ | ---- | ------------------------ |
+| `email`       | string | ✅   | ユーザーのメールアドレス |
+| `password`    | string | ✅   | ユーザーのパスワード     |
+| `displayName` | string | ✅   | ユーザーの表示名         |
+| `handle`      | string | ✅   | AT Protocolハンドル      |
 
 ---
 
@@ -58,6 +58,7 @@
 ```
 
 APIサーバー側で自動的に以下の形式に変換されます：
+
 ```
 {username}.{domain}
 ```
@@ -90,7 +91,7 @@ APIサーバー側で自動的に以下の形式に変換されます：
 
 ```json
 {
-  "handle": "johndoe.pds-dev.heart-land.io"  // 動作するが、推奨されない
+  "handle": "johndoe.pds-dev.heart-land.io" // 動作するが、推奨されない
 }
 ```
 
@@ -98,19 +99,19 @@ APIサーバー側で自動的に以下の形式に変換されます：
 
 ```json
 {
-  "handle": "@johndoe"  // @記号は不要
+  "handle": "@johndoe" // @記号は不要
 }
 ```
 
 ```json
 {
-  "handle": "john doe"  // スペースは使用不可
+  "handle": "john doe" // スペースは使用不可
 }
 ```
 
 ```json
 {
-  "handle": "john@doe"  // @記号は使用不可
+  "handle": "john@doe" // @記号は使用不可
 }
 ```
 
@@ -401,14 +402,14 @@ function generateHandle(username: string): string {
     .toLowerCase()
     .replace(/\s+/g, '-')
     .replace(/[^a-z0-9-]/g, '');
-  
+
   // ユーザー名部分のみを返す（ドメイン部分はAPIサーバー側で自動付与）
   return sanitized;
 }
 
 // 使用例
-const handle = generateHandle("John Doe"); // "john-doe"（APIサーバー側で"john-doe.pds-dev.heart-land.io"に変換）
-const handle2 = generateHandle("Alice123"); // "alice123"（APIサーバー側で"alice123.pds-dev.heart-land.io"に変換）
+const handle = generateHandle('John Doe'); // "john-doe"（APIサーバー側で"john-doe.pds-dev.heart-land.io"に変換）
+const handle2 = generateHandle('Alice123'); // "alice123"（APIサーバー側で"alice123.pds-dev.heart-land.io"に変換）
 ```
 
 ### バリデーション例
@@ -417,23 +418,23 @@ const handle2 = generateHandle("Alice123"); // "alice123"（APIサーバー側�
 function validateHandle(handle: string): { valid: boolean; error?: string } {
   // 形式チェック: {username}.pds-dev.heart-land.io
   const handlePattern = /^[a-z0-9-]+\.pds-dev\.heart-land\.io$/;
-  
+
   if (!handlePattern.test(handle)) {
     return {
       valid: false,
-      error: "Handle must be in format: {username}.pds-dev.heart-land.io"
+      error: 'Handle must be in format: {username}.pds-dev.heart-land.io',
     };
   }
-  
+
   // ユーザー名部分の長さチェック
   const username = handle.split('.')[0];
   if (username.length < 3 || username.length > 63) {
     return {
       valid: false,
-      error: "Username part must be between 3 and 63 characters"
+      error: 'Username part must be between 3 and 63 characters',
     };
   }
-  
+
   return { valid: true };
 }
 ```
@@ -458,4 +459,3 @@ function validateHandle(handle: string): { valid: boolean; error?: string } {
 
 **最終更新**: 2026-01-03  
 **APIエンドポイント**: `https://dev-api.heart-land.io`
-
