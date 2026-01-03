@@ -48,8 +48,10 @@ export class EmailService {
     this.sesClient = new SESClient({ region });
     this.fromEmail =
       process.env.SES_FROM_EMAIL || 'noreply@example.com';
-    this.frontendUrl =
+    // Remove trailing slash from frontendUrl to avoid double slashes in URLs
+    const frontendUrlRaw =
       process.env.FRONTEND_URL || 'https://app.example.com';
+    this.frontendUrl = frontendUrlRaw.replace(/\/+$/, '');
   }
 
   /**
