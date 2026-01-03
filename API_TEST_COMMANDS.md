@@ -1,7 +1,7 @@
 # メール/パスワード認証エンドポイント テストコマンド
 
 **作成日**: 2025-12-30  
-**APIエンドポイント**: `https://vmser9tk7h.execute-api.ap-northeast-1.amazonaws.com`  
+**APIエンドポイント**: `https://dev-api.heart-land.io`  
 **対象**: メール/パスワード認証機能
 
 ---
@@ -31,7 +31,7 @@
 ### ベースURL
 
 ```bash
-BASE_URL="https://vmser9tk7h.execute-api.ap-northeast-1.amazonaws.com"
+BASE_URL="https://dev-api.heart-land.io"
 ```
 
 ---
@@ -70,7 +70,7 @@ curl -X POST "${BASE_URL}/auth/register" \
 ### テスト用コマンド（変数使用）
 
 ```bash
-BASE_URL="https://vmser9tk7h.execute-api.ap-northeast-1.amazonaws.com"
+BASE_URL="https://dev-api.heart-land.io"
 EMAIL="test@example.com"
 PASSWORD="Test1234!"
 DISPLAY_NAME="Test User"
@@ -132,7 +132,7 @@ curl -X POST "${BASE_URL}/auth/email-login" \
 ### テスト用コマンド
 
 ```bash
-BASE_URL="https://vmser9tk7h.execute-api.ap-northeast-1.amazonaws.com"
+BASE_URL="https://dev-api.heart-land.io"
 EMAIL="test@example.com"
 PASSWORD="Test1234!"
 
@@ -175,7 +175,7 @@ curl -X POST "${BASE_URL}/auth/verify-email" \
 ### テスト用コマンド
 
 ```bash
-BASE_URL="https://vmser9tk7h.execute-api.ap-northeast-1.amazonaws.com"
+BASE_URL="https://dev-api.heart-land.io"
 TOKEN="verification-token-from-email"
 PRIMARY_DID="did:plc:xxx"
 
@@ -217,7 +217,7 @@ curl -X POST "${BASE_URL}/auth/resend-verification-email" \
 ### テスト用コマンド
 
 ```bash
-BASE_URL="https://vmser9tk7h.execute-api.ap-northeast-1.amazonaws.com"
+BASE_URL="https://dev-api.heart-land.io"
 PRIMARY_DID="did:plc:xxx"
 EMAIL="test@example.com"
 
@@ -236,7 +236,7 @@ curl -X POST "${BASE_URL}/auth/resend-verification-email" \
 ### Step 1: ユーザー登録
 
 ```bash
-BASE_URL="https://vmser9tk7h.execute-api.ap-northeast-1.amazonaws.com"
+BASE_URL="https://dev-api.heart-land.io"
 EMAIL="test@example.com"
 PASSWORD="Test1234!"
 DISPLAY_NAME="Test User"
@@ -432,7 +432,7 @@ aws logs tail /aws/lambda/heartland-api-v3-dev-app \
 ```bash
 #!/bin/bash
 
-BASE_URL="https://vmser9tk7h.execute-api.ap-northeast-1.amazonaws.com"
+BASE_URL="https://dev-api.heart-land.io"
 EMAIL="test@example.com"
 PASSWORD="Test1234!"
 DISPLAY_NAME="Test User"
@@ -478,4 +478,4 @@ fi
 ---
 
 **最終更新**: 2025-12-30  
-**APIエンドポイント**: `https://vmser9tk7h.execute-api.ap-northeast-1.amazonaws.com`
+**APIエンドポイント**: `https://dev-api.heart-land.io`

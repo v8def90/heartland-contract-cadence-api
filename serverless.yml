@@ -91,6 +91,7 @@ provider:
 
 plugins:
   - serverless-offline
+  - serverless-domain-manager
 
 # Lambda Layers定義 (最適化版)
 layers:
@@ -500,6 +501,19 @@ custom:
     httpPort: 3000
     noAuth: true
     resourceRoutes: true
+  # API Gateway Custom Domain Configuration
+  # Note: ACM certificate must be created in us-east-1 region
+  # Run: aws acm request-certificate --domain-name dev-api.heart-land.io --validation-method DNS --region us-east-1
+  customDomain:
+    domainName: dev-api.heart-land.io
+    basePath: ''
+    stage: ${self:provider.stage}
+    certificateName: dev-api.heart-land.io
+    certificateArn: ${env:ACM_CERTIFICATE_ARN, ''} # Set in .env file: ACM_CERTIFICATE_ARN=arn:aws:acm:us-east-1:925271162067:certificate/xxxxx
+    createRoute53Record: false # Cloudflare manages DNS
+    endpointType: regional
+    apiType: http
+    securityPolicy: TLS_1_2
 
 package:
   # 完全除外: node_modulesを含めない（Layersで提供）

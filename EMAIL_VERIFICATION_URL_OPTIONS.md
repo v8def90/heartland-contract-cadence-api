@@ -67,7 +67,7 @@ if (response.ok) {
 
 **URL形式**:
 ```
-https://vmser9tk7h.execute-api.ap-northeast-1.amazonaws.com/auth/verify-email?token=xxx&did=xxx
+https://dev-api.heart-land.io/auth/verify-email?token=xxx&did=xxx
 ```
 
 **メリット**:
@@ -88,7 +88,7 @@ public async sendVerificationEmail(
   primaryDid: string
 ): Promise<void> {
   // APIサーバーのURLを使用
-  const apiUrl = process.env.API_BASE_URL || 'https://vmser9tk7h.execute-api.ap-northeast-1.amazonaws.com';
+  const apiUrl = process.env.API_BASE_URL || 'https://dev-api.heart-land.io';
   const verificationUrl = `${apiUrl}/auth/verify-email?token=${token}&did=${primaryDid}`;
   // ...
 }
@@ -128,9 +128,9 @@ https://your-frontend.com/auth/verify-email?token=xxx&did=xxx
 **環境変数の設定**:
 ```bash
 # .env
-FRONTEND_URL=https://vmser9tk7h.execute-api.ap-northeast-1.amazonaws.com
+FRONTEND_URL=https://dev-api.heart-land.io
 # または
-API_BASE_URL=https://vmser9tk7h.execute-api.ap-northeast-1.amazonaws.com
+API_BASE_URL=https://dev-api.heart-land.io
 ```
 
 ### 本番環境: フロントエンドサーバーのURLを使用
@@ -162,7 +162,7 @@ aws lambda update-function-configuration \
       --region ap-northeast-1 \
       --query 'Environment.Variables' \
       --output json | \
-      python3 -c "import sys, json; env = json.load(sys.stdin); env['FRONTEND_URL'] = 'https://vmser9tk7h.execute-api.ap-northeast-1.amazonaws.com'; print(','.join([f'{k}={v}' for k, v in env.items()]))")
+      python3 -c "import sys, json; env = json.load(sys.stdin); env['FRONTEND_URL'] = 'https://dev-api.heart-land.io'; print(','.join([f'{k}={v}' for k, v in env.items()]))")
   }"
 ```
 
@@ -183,7 +183,7 @@ private constructor() {
 ## 📝 現在のAPIエンドポイント
 
 **検証エンドポイント**:
-- URL: `POST https://vmser9tk7h.execute-api.ap-northeast-1.amazonaws.com/auth/verify-email`
+- URL: `POST https://dev-api.heart-land.io/auth/verify-email`
 - リクエストボディ:
   ```json
   {
@@ -222,4 +222,5 @@ private constructor() {
 
 **最終更新**: 2026-01-02  
 **状態**: 選択待ち
+
 
