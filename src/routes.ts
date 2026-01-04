@@ -22,6 +22,8 @@ import { BurnController } from './controllers/transactions/BurnController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { BatchTransferController } from './controllers/transactions/BatchTransferController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { TokenController } from './controllers/tokens/TokenController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { UsersController } from './controllers/sns/UsersController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { UploadController } from './controllers/sns/UploadController';
@@ -175,6 +177,142 @@ const models: TsoaRoute.Models = {
             "memo": {"dataType":"string"},
         },
         "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "TokenBalanceData": {
+        "dataType": "refObject",
+        "properties": {
+            "primaryDid": {"dataType":"string","required":true},
+            "balance": {"dataType":"string","required":true},
+            "balanceDecimal": {"dataType":"double","required":true},
+            "formatted": {"dataType":"string","required":true},
+            "updatedAt": {"dataType":"string","required":true},
+        },
+        "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "SuccessResponse_TokenBalanceData_": {
+        "dataType": "refObject",
+        "properties": {
+            "success": {"dataType":"enum","enums":[true],"required":true},
+            "data": {"ref":"TokenBalanceData","required":true},
+            "timestamp": {"dataType":"string","required":true},
+        },
+        "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "ApiResponse_TokenBalanceData_": {
+        "dataType": "refAlias",
+        "type": {"dataType":"union","subSchemas":[{"ref":"SuccessResponse_TokenBalanceData_"},{"ref":"ErrorResponse"}],"validators":{}},
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "TransferResultData": {
+        "dataType": "refObject",
+        "properties": {
+            "transactionId": {"dataType":"string","required":true},
+            "primaryDid": {"dataType":"string","required":true},
+            "recipientDid": {"dataType":"string","required":true},
+            "amount": {"dataType":"string","required":true},
+            "taxAmount": {"dataType":"string"},
+            "netAmount": {"dataType":"string","required":true},
+            "weight": {"dataType":"double"},
+            "weightLevel": {"dataType":"double"},
+            "message": {"dataType":"string","required":true},
+            "status": {"dataType":"union","subSchemas":[{"dataType":"enum","enums":["pending"]},{"dataType":"enum","enums":["completed"]},{"dataType":"enum","enums":["failed"]},{"dataType":"enum","enums":["cancelled"]}],"required":true},
+            "senderBalance": {"dataType":"string","required":true},
+            "recipientBalance": {"dataType":"string","required":true},
+            "createdAt": {"dataType":"string","required":true},
+            "completedAt": {"dataType":"string"},
+        },
+        "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "SuccessResponse_TransferResultData_": {
+        "dataType": "refObject",
+        "properties": {
+            "success": {"dataType":"enum","enums":[true],"required":true},
+            "data": {"ref":"TransferResultData","required":true},
+            "timestamp": {"dataType":"string","required":true},
+        },
+        "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "ApiResponse_TransferResultData_": {
+        "dataType": "refAlias",
+        "type": {"dataType":"union","subSchemas":[{"ref":"SuccessResponse_TransferResultData_"},{"ref":"ErrorResponse"}],"validators":{}},
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "TransferTokenRequest": {
+        "dataType": "refObject",
+        "properties": {
+            "recipientDid": {"dataType":"string","required":true},
+            "amount": {"dataType":"string","required":true},
+            "message": {"dataType":"string","required":true},
+            "idempotencyKey": {"dataType":"string"},
+        },
+        "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "TokenTransactionData": {
+        "dataType": "refObject",
+        "properties": {
+            "transactionId": {"dataType":"string","required":true},
+            "primaryDid": {"dataType":"string","required":true},
+            "recipientDid": {"dataType":"string","required":true},
+            "amount": {"dataType":"string","required":true},
+            "amountDecimal": {"dataType":"double","required":true},
+            "taxAmount": {"dataType":"string"},
+            "taxAmountDecimal": {"dataType":"double"},
+            "taxRate": {"dataType":"double"},
+            "netAmount": {"dataType":"string","required":true},
+            "netAmountDecimal": {"dataType":"double","required":true},
+            "weight": {"dataType":"double"},
+            "weightLevel": {"dataType":"double"},
+            "message": {"dataType":"string","required":true},
+            "status": {"dataType":"union","subSchemas":[{"dataType":"enum","enums":["pending"]},{"dataType":"enum","enums":["completed"]},{"dataType":"enum","enums":["failed"]},{"dataType":"enum","enums":["cancelled"]}],"required":true},
+            "memo": {"dataType":"string"},
+            "createdAt": {"dataType":"string","required":true},
+            "updatedAt": {"dataType":"string","required":true},
+            "completedAt": {"dataType":"string"},
+            "failedAt": {"dataType":"string"},
+            "errorMessage": {"dataType":"string"},
+            "senderAddress": {"dataType":"string"},
+            "receiverAddress": {"dataType":"string"},
+            "blockchainRegistration": {"dataType":"boolean"},
+            "indicator1": {"dataType":"string"},
+            "indicator2": {"dataType":"string"},
+            "indicator3": {"dataType":"string"},
+            "indicator4": {"dataType":"string"},
+            "indicator5": {"dataType":"string"},
+            "indicator6": {"dataType":"string"},
+        },
+        "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "TransactionHistoryData": {
+        "dataType": "refObject",
+        "properties": {
+            "transactions": {"dataType":"array","array":{"dataType":"refObject","ref":"TokenTransactionData"},"required":true},
+            "cursor": {"dataType":"string"},
+            "hasMore": {"dataType":"boolean","required":true},
+            "totalCount": {"dataType":"double"},
+        },
+        "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "SuccessResponse_TransactionHistoryData_": {
+        "dataType": "refObject",
+        "properties": {
+            "success": {"dataType":"enum","enums":[true],"required":true},
+            "data": {"ref":"TransactionHistoryData","required":true},
+            "timestamp": {"dataType":"string","required":true},
+        },
+        "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "ApiResponse_TransactionHistoryData_": {
+        "dataType": "refAlias",
+        "type": {"dataType":"union","subSchemas":[{"ref":"SuccessResponse_TransactionHistoryData_"},{"ref":"ErrorResponse"}],"validators":{}},
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     "UserProfile": {
@@ -1670,6 +1808,138 @@ export function RegisterRoutes(app: Router) {
 
               await templateService.apiHandler({
                 methodName: 'batchTransferTokens',
+                controller,
+                response,
+                next,
+                validatedArgs,
+                successStatus: 200,
+              });
+            } catch (err) {
+                return next(err);
+            }
+        });
+        // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+        const argsTokenController_getBalance: Record<string, TsoaRoute.ParameterSchema> = {
+                did: {"in":"path","name":"did","required":true,"dataType":"string"},
+                requestObj: {"in":"request","name":"requestObj","required":true,"dataType":"object"},
+        };
+        app.get('/tokens/balance/:did',
+            authenticateMiddleware([{"jwt":[]}]),
+            ...(fetchMiddlewares<RequestHandler>(TokenController)),
+            ...(fetchMiddlewares<RequestHandler>(TokenController.prototype.getBalance)),
+
+            async function TokenController_getBalance(request: ExRequest, response: ExResponse, next: any) {
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({ args: argsTokenController_getBalance, request, response });
+
+                const controller = new TokenController();
+
+              await templateService.apiHandler({
+                methodName: 'getBalance',
+                controller,
+                response,
+                next,
+                validatedArgs,
+                successStatus: 200,
+              });
+            } catch (err) {
+                return next(err);
+            }
+        });
+        // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+        const argsTokenController_transferTokens: Record<string, TsoaRoute.ParameterSchema> = {
+                request: {"in":"body","name":"request","required":true,"ref":"TransferTokenRequest"},
+                requestObj: {"in":"request","name":"requestObj","required":true,"dataType":"object"},
+        };
+        app.post('/tokens/transfer',
+            authenticateMiddleware([{"jwt":[]}]),
+            ...(fetchMiddlewares<RequestHandler>(TokenController)),
+            ...(fetchMiddlewares<RequestHandler>(TokenController.prototype.transferTokens)),
+
+            async function TokenController_transferTokens(request: ExRequest, response: ExResponse, next: any) {
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({ args: argsTokenController_transferTokens, request, response });
+
+                const controller = new TokenController();
+
+              await templateService.apiHandler({
+                methodName: 'transferTokens',
+                controller,
+                response,
+                next,
+                validatedArgs,
+                successStatus: 200,
+              });
+            } catch (err) {
+                return next(err);
+            }
+        });
+        // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+        const argsTokenController_getTransactionHistory: Record<string, TsoaRoute.ParameterSchema> = {
+                did: {"in":"path","name":"did","required":true,"dataType":"string"},
+                limit: {"in":"query","name":"limit","dataType":"double"},
+                cursor: {"in":"query","name":"cursor","dataType":"string"},
+                startDate: {"in":"query","name":"startDate","dataType":"string"},
+                endDate: {"in":"query","name":"endDate","dataType":"string"},
+        };
+        app.get('/tokens/transactions/:did',
+            ...(fetchMiddlewares<RequestHandler>(TokenController)),
+            ...(fetchMiddlewares<RequestHandler>(TokenController.prototype.getTransactionHistory)),
+
+            async function TokenController_getTransactionHistory(request: ExRequest, response: ExResponse, next: any) {
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({ args: argsTokenController_getTransactionHistory, request, response });
+
+                const controller = new TokenController();
+
+              await templateService.apiHandler({
+                methodName: 'getTransactionHistory',
+                controller,
+                response,
+                next,
+                validatedArgs,
+                successStatus: 200,
+              });
+            } catch (err) {
+                return next(err);
+            }
+        });
+        // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+        const argsTokenController_getReceivedTransactionHistory: Record<string, TsoaRoute.ParameterSchema> = {
+                did: {"in":"path","name":"did","required":true,"dataType":"string"},
+                limit: {"in":"query","name":"limit","dataType":"double"},
+                cursor: {"in":"query","name":"cursor","dataType":"string"},
+                startDate: {"in":"query","name":"startDate","dataType":"string"},
+                endDate: {"in":"query","name":"endDate","dataType":"string"},
+        };
+        app.get('/tokens/transactions/received/:did',
+            ...(fetchMiddlewares<RequestHandler>(TokenController)),
+            ...(fetchMiddlewares<RequestHandler>(TokenController.prototype.getReceivedTransactionHistory)),
+
+            async function TokenController_getReceivedTransactionHistory(request: ExRequest, response: ExResponse, next: any) {
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({ args: argsTokenController_getReceivedTransactionHistory, request, response });
+
+                const controller = new TokenController();
+
+              await templateService.apiHandler({
+                methodName: 'getReceivedTransactionHistory',
                 controller,
                 response,
                 next,

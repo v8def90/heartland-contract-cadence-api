@@ -9,6 +9,9 @@
  * @since 1.0.0
  */
 
+// Token Management Request Types
+export * from './TokenRequests';
+
 /**
  * Request Models for Heart Token API
  *

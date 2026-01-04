@@ -14,6 +14,7 @@ import { EmailVerificationService } from './EmailVerificationService';
 import { EmailService } from './EmailService';
 import { PdsService } from './PdsService';
 import { SnsService, type DynamoDBIdentityLinkItem } from './SnsService';
+import { TokenService } from './TokenService';
 import { generateJwtToken } from '../middleware/passport';
 import type { AuthData } from '../models/responses';
 
@@ -60,6 +61,7 @@ export class UserAuthService {
   private emailService: EmailService;
   private pdsService: PdsService;
   private snsService: SnsService;
+  private tokenService: TokenService;
 
   /**
    * Private constructor for singleton pattern
@@ -70,6 +72,7 @@ export class UserAuthService {
     this.emailService = EmailService.getInstance();
     this.pdsService = PdsService.getInstance();
     this.snsService = new SnsService();
+    this.tokenService = new TokenService();
   }
 
   /**
@@ -433,6 +436,28 @@ export class UserAuthService {
           emailNormalized: normalizedEmail,
           emailVerified: false,
         });
+      }
+
+      // Initialize token balance for new account
+      // This should happen after account creation is successful
+      // If balance initialization fails, log the error but don't fail registration
+      try {
+        await this.tokenService.initializeBalance(primaryDid);
+        console.log(
+          `Successfully initialized token balance for ${primaryDid} with 1000 HEART`
+        );
+      } catch (error) {
+        // Log error but don't fail registration
+        // Balance can be manually initialized later if needed
+        console.error(
+          `Failed to initialize token balance for ${primaryDid}:`,
+          error
+        );
+        console.error(
+          `Account registration succeeded, but balance initialization failed. ` +
+            `Balance should be manually initialized for DID: ${primaryDid}`
+        );
+        // TODO: Send notification to administrators about failed balance initialization
       }
 
       // Generate email verification token

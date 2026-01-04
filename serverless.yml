@@ -24,6 +24,12 @@ provider:
     FRONTEND_URL: ${env:FRONTEND_URL}
     # Temporary Password Encryption Key (64 hex characters = 32 bytes for AES-256-GCM)
     TEMPORARY_PASSWORD_ENCRYPTION_KEY: ${env:TEMPORARY_PASSWORD_ENCRYPTION_KEY}
+    # Token Management Configuration
+    TAX_RATE: ${env:TAX_RATE, '0'}
+    WEIGHT_THRESHOLD_1: ${env:WEIGHT_THRESHOLD_1, '0.2'}
+    WEIGHT_THRESHOLD_2: ${env:WEIGHT_THRESHOLD_2, '0.4'}
+    WEIGHT_THRESHOLD_3: ${env:WEIGHT_THRESHOLD_3, '0.6'}
+    WEIGHT_THRESHOLD_4: ${env:WEIGHT_THRESHOLD_4, '0.8'}
     # SQS resources
     TRANSACTION_QUEUE_URL:
       Ref: TransactionQueue
@@ -374,6 +380,22 @@ resources:
             AttributeType: S
           - AttributeName: GSI8SK
             AttributeType: S
+          - AttributeName: GSI9PK
+            AttributeType: S
+          - AttributeName: GSI9SK
+            AttributeType: S
+          - AttributeName: GSI10PK
+            AttributeType: S
+          - AttributeName: GSI10SK
+            AttributeType: S
+          - AttributeName: GSI11PK
+            AttributeType: S
+          - AttributeName: GSI11SK
+            AttributeType: S
+          - AttributeName: GSI12PK
+            AttributeType: S
+          - AttributeName: GSI12SK
+            AttributeType: S
         KeySchema:
           - AttributeName: PK
             KeyType: HASH
@@ -449,6 +471,42 @@ resources:
               - AttributeName: GSI8PK
                 KeyType: HASH
               - AttributeName: GSI8SK
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+          # GSI9: Token balance sorting (TOKEN_BALANCE#ALL, {balanceDecimal}#{primaryDid})
+          - IndexName: GSI9
+            KeySchema:
+              - AttributeName: GSI9PK
+                KeyType: HASH
+              - AttributeName: GSI9SK
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+          # GSI10: Token transactions by recipient (TOKEN_TX#RECIPIENT#{recipientDid}, TX#{timestamp}#{transactionId})
+          - IndexName: GSI10
+            KeySchema:
+              - AttributeName: GSI10PK
+                KeyType: HASH
+              - AttributeName: GSI10SK
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+          # GSI11: All token transactions (TOKEN_TX#ALL, TX#{timestamp}#{transactionId})
+          - IndexName: GSI11
+            KeySchema:
+              - AttributeName: GSI11PK
+                KeyType: HASH
+              - AttributeName: GSI11SK
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+          # GSI12: Token transactions by status (TOKEN_TX#STATUS#{status}, TX#{timestamp}#{transactionId})
+          - IndexName: GSI12
+            KeySchema:
+              - AttributeName: GSI12PK
+                KeyType: HASH
+              - AttributeName: GSI12SK
                 KeyType: RANGE
             Projection:
               ProjectionType: ALL
