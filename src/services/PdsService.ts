@@ -326,15 +326,16 @@ export class PdsService {
           deleteAccountBody.password = temporaryPassword;
         }
 
-        // Use BskyAgent's xrpc method with custom headers for authentication
+        // Use BskyAgent's xrpc method with body in options (same pattern as changePassword)
         await (agent as any).xrpc.call(
           'com.atproto.server.deleteAccount',
-          deleteAccountBody,
+          {}, // Empty query parameters (POST request)
           {
             encoding: 'application/json',
             headers: {
               authorization: `Bearer ${accessJwt}`,
             },
+            body: deleteAccountBody, // Request body in options
           }
         );
 
@@ -355,13 +356,14 @@ export class PdsService {
           // Try deactivateAccount as fallback
           await (agent as any).xrpc.call(
             'com.atproto.server.deactivateAccount',
-            {
-              deleteAfter: new Date().toISOString(), // Immediate deletion
-            },
+            {}, // Empty query parameters
             {
               encoding: 'application/json',
               headers: {
                 authorization: `Bearer ${accessJwt}`,
+              },
+              body: {
+                deleteAfter: new Date().toISOString(), // Immediate deletion
               },
             }
           );
@@ -436,15 +438,16 @@ export class PdsService {
       // Change password via PDS using xrpc.call (same pattern as deleteAccount)
       await (agent as any).xrpc.call(
         'com.atproto.server.changePassword',
-        {
-          oldPassword,
-          newPassword,
-        },
+        {}, // Empty query parameters (POST request)
         {
           encoding: 'application/json',
           headers: {
             authorization: `Bearer ${accessJwt}`,
           },
+          body: {
+            oldPassword,
+            newPassword,
+          }, // Request body in options
         }
       );
 
