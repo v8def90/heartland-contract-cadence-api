@@ -100,45 +100,41 @@ export class UserAuthService {
    * Register new user with email/password
    *
    * @description Registers a new user with email/password authentication.
-   * Creates DID via PDS, stores user profile and credentials, and sends verification email.
+   * Creates DID via PDS using a temporary password, stores user profile and credentials, and sends verification email.
    * The handle should contain only the username part (e.g., "username").
    * The domain part will be automatically appended based on PDS_ENDPOINT.
+   * After email verification, user must set their password using setInitialPassword.
    *
    * @param email - User email address
-   * @param password - User password
    * @param displayName - User display name
    * @param handle - AT Protocol handle username (domain will be automatically appended)
+   * @param description - Optional user bio/description
    * @returns Registration result with DID and auth data
    *
    * @example
    * ```typescript
    * const result = await authService.registerWithEmailPassword(
    *   'user@example.com',
-   *   'password123',
    *   'John Doe',
-   *   'username'  // Domain will be automatically appended
+   *   'username',  // Domain will be automatically appended
+   *   'Optional bio'
    * );
    * ```
    */
   public async registerWithEmailPassword(
     email: string,
-    password: string,
     displayName: string,
-    handle?: string
+    handle?: string,
+    description?: string
   ): Promise<RegistrationResult> {
     try {
       // Normalize email
       const normalizedEmail = this.normalizeEmail(email);
 
-      // Validate password strength
-      const passwordValidation =
-        this.passwordService.validatePasswordStrength(password);
-      if (!passwordValidation.valid) {
-        return {
-          success: false,
-          error: `Password validation failed: ${passwordValidation.errors.join(', ')}`,
-        };
-      }
+      // Generate temporary password for PDS account creation
+      const temporaryPassword =
+        this.passwordService.generateTemporaryPassword(32);
+      console.log('Generated temporary password for account creation');
 
       // Check if email already exists (via identity lookup)
       const existingLookup = await this.snsService.getIdentityLookup(
@@ -190,9 +186,6 @@ export class UserAuthService {
         }
       }
 
-      // Hash password
-      const passwordHash = await this.passwordService.hashPassword(password);
-
       // Create account via PDS (generate DID)
       // handle is required by AT Protocol
       if (!handle) {
@@ -227,7 +220,7 @@ export class UserAuthService {
         // Use the new DID from PDS server (not the old one)
         const pdsResult = await this.pdsService.createAccount(
           normalizedEmail,
-          password,
+          temporaryPassword, // Use temporary password
           fullHandle
         );
 
@@ -275,6 +268,10 @@ export class UserAuthService {
           for (const oldLink of oldIdentityLinks) {
             // Create new IdentityLink with new DID
             // Keep old link for audit purposes
+            // Encrypt temporary password for storage
+            const encryptedTemporaryPassword =
+              this.passwordService.encryptTemporaryPassword(temporaryPassword);
+
             const newLinkData: any = {
               linkedId: oldLink.linkedId,
               kind: oldLink.kind,
@@ -283,9 +280,10 @@ export class UserAuthService {
               email: oldLink.email,
               emailNormalized: oldLink.emailNormalized,
               emailVerified: false, // Reset verification status
-              passwordHash,
-              passwordKdf: 'bcrypt',
-              passwordUpdatedAt: new Date().toISOString(),
+              // passwordHash is not set here - will be set in setInitialPassword
+              temporaryPasswordEncrypted: encryptedTemporaryPassword,
+              temporaryPasswordCreatedAt: new Date().toISOString(),
+              passwordChangedFromTemporary: false,
               kdfParams: {
                 cost: 12,
               },
@@ -340,7 +338,7 @@ export class UserAuthService {
         // Create new account via PDS
         const pdsResult = await this.pdsService.createAccount(
           normalizedEmail,
-          password,
+          temporaryPassword, // Use temporary password
           fullHandle
         );
 
@@ -367,6 +365,7 @@ export class UserAuthService {
         handle: finalHandle || '',
         ...(username && { username }),
         displayName,
+        ...(description && { bio: description }), // Map description to bio field
         followerCount: 0,
         followingCount: 0,
         postCount: 0,
@@ -386,6 +385,10 @@ export class UserAuthService {
       if (!isDeletedAccount || !existingPrimaryDid) {
         // Only create new IdentityLink if this is a new account
         // For re-registration, IdentityLinks were already migrated above
+        // Encrypt temporary password for storage
+        const encryptedTemporaryPassword =
+          this.passwordService.encryptTemporaryPassword(temporaryPassword);
+
         const identityLinkData: any = {
           linkedId: `email:${normalizedEmail}`,
           kind: 'account',
@@ -394,9 +397,10 @@ export class UserAuthService {
           email: normalizedEmail,
           emailNormalized: normalizedEmail,
           emailVerified: false,
-          passwordHash,
-          passwordKdf: 'bcrypt',
-          passwordUpdatedAt: new Date().toISOString(),
+          // passwordHash is not set here - will be set in setInitialPassword
+          temporaryPasswordEncrypted: encryptedTemporaryPassword,
+          temporaryPasswordCreatedAt: new Date().toISOString(),
+          passwordChangedFromTemporary: false,
           kdfParams: {
             cost: 12, // bcrypt rounds
           },
@@ -619,6 +623,16 @@ export class UserAuthService {
         return {
           success: false,
           error: 'EMAIL_NOT_VERIFIED',
+        };
+      }
+
+      // Check if password has been changed from temporary password
+      // If passwordChangedFromTemporary is false or undefined (for existing users), allow login
+      // Only block if explicitly false (new users who haven't set password)
+      if (identityLink.passwordChangedFromTemporary === false) {
+        return {
+          success: false,
+          error: 'PASSWORD_NOT_SET',
         };
       }
 
@@ -1001,10 +1015,28 @@ export class UserAuthService {
         };
       }
 
-      // Hash new password
+      // Update PDS-side password if pdsAccessJwt is available
+      if (identityLink.pdsAccessJwt) {
+        const pdsUpdateResult = await this.pdsService.changePassword(
+          primaryDid,
+          currentPassword, // oldPassword = current password
+          newPassword, // newPassword = new password
+          identityLink.pdsAccessJwt
+        );
+
+        if (!pdsUpdateResult.success) {
+          // Log warning but continue with API-side update
+          console.warn(
+            'PDS password update failed, continuing with API-side update:',
+            pdsUpdateResult.error
+          );
+        }
+      }
+
+      // Hash new password for API-side storage
       const passwordHash = await this.passwordService.hashPassword(newPassword);
 
-      // Update password
+      // Update API-side password
       await this.snsService.updateIdentityLink(
         primaryDid,
         identityLink.linkedId,
@@ -1042,5 +1074,159 @@ export class UserAuthService {
   }> {
     const profile = await this.snsService.getUserProfileItem(primaryDid);
     return profile?.authProviders || {};
+  }
+
+  /**
+   * Set initial password after email verification
+   *
+   * @description Sets the initial password for a user after email verification.
+   * Replaces the temporary password with a user-defined password.
+   * Updates both API-side and PDS-side passwords.
+   *
+   * @param primaryDid - User's primary DID
+   * @param token - Email verification token
+   * @param newPassword - New password to set
+   * @returns Success result
+   *
+   * @example
+   * ```typescript
+   * const result = await authService.setInitialPassword(
+   *   'did:plc:xxx',
+   *   'verification-token-123',
+   *   'NewSecurePass123!'
+   * );
+   * ```
+   */
+  public async setInitialPassword(
+    primaryDid: string,
+    token: string,
+    newPassword: string
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      // Validate password strength
+      const passwordValidation =
+        this.passwordService.validatePasswordStrength(newPassword);
+      if (!passwordValidation.valid) {
+        return {
+          success: false,
+          error: `Password validation failed: ${passwordValidation.errors.join(', ')}`,
+        };
+      }
+
+      // Get identity link to verify token and get temporary password
+      const identityLinks =
+        await this.snsService.queryIdentityLinks(primaryDid);
+      const emailLink = identityLinks.find(link =>
+        link.linkedId.startsWith('email:')
+      );
+
+      if (!emailLink) {
+        return {
+          success: false,
+          error: 'Email identity link not found',
+        };
+      }
+
+      // Verify email verification token
+      if (
+        !emailLink.emailVerifyTokenHash ||
+        !emailLink.emailVerifyTokenExpiresAt
+      ) {
+        return {
+          success: false,
+          error: 'Verification token not found',
+        };
+      }
+
+      const emailVerificationService = this.emailVerificationService;
+      const isValid = await emailVerificationService.verifyToken(
+        token,
+        emailLink.emailVerifyTokenHash,
+        emailLink.emailVerifyTokenExpiresAt
+      );
+
+      if (!isValid) {
+        return {
+          success: false,
+          error: 'Invalid or expired verification token',
+        };
+      }
+
+      // Check if email is verified
+      if (!emailLink.emailVerified) {
+        return {
+          success: false,
+          error: 'Email not verified',
+        };
+      }
+
+      // Check if password has already been changed from temporary
+      if (emailLink.passwordChangedFromTemporary) {
+        return {
+          success: false,
+          error: 'Password has already been set',
+        };
+      }
+
+      // Decrypt temporary password
+      let temporaryPassword: string | null = null;
+      if (emailLink.temporaryPasswordEncrypted) {
+        try {
+          temporaryPassword = this.passwordService.decryptTemporaryPassword(
+            emailLink.temporaryPasswordEncrypted
+          );
+        } catch (error) {
+          console.error('Failed to decrypt temporary password:', error);
+          return {
+            success: false,
+            error: 'Failed to decrypt temporary password',
+          };
+        }
+      }
+
+      // Update PDS-side password if temporary password is available
+      if (temporaryPassword && emailLink.pdsAccessJwt) {
+        const pdsUpdateResult = await this.pdsService.changePassword(
+          primaryDid,
+          temporaryPassword, // oldPassword = temporary password
+          newPassword, // newPassword = user-defined password
+          emailLink.pdsAccessJwt
+        );
+
+        if (!pdsUpdateResult.success) {
+          // Log warning but continue with API-side update
+          console.warn(
+            'PDS password update failed, continuing with API-side update:',
+            pdsUpdateResult.error
+          );
+        }
+      }
+
+      // Hash new password for API-side storage
+      const passwordHash = await this.passwordService.hashPassword(newPassword);
+
+      // Update API-side password and clear temporary password
+      await this.snsService.updateIdentityLink(
+        primaryDid,
+        emailLink.linkedId,
+        {
+          passwordHash,
+          passwordUpdatedAt: new Date().toISOString(),
+          passwordChangedFromTemporary: true,
+          failedLoginCount: 0, // Reset failed login count
+        },
+        ['temporaryPasswordEncrypted', 'temporaryPasswordCreatedAt'] // Remove temporary password fields
+      );
+
+      return {
+        success: true,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error:
+          error instanceof Error ? error.message : 'Unknown error occurred',
+      };
+    }
   }
 }

@@ -304,6 +304,7 @@ export class PdsService {
    */
   public async deleteAccount(
     did: string,
+    temporaryPassword: string | null,
     accessJwt: string
   ): Promise<{ success: boolean; error?: string }> {
     try {
@@ -312,19 +313,23 @@ export class PdsService {
         service: this.pdsEndpoint,
       });
 
-      // Delete account via PDS (admin privilege - no password required)
-      // Note: Some PDS servers may require password even with admin privilege
-      // In that case, we'll need to handle the error and potentially use deactivateAccount instead
+      // Delete account via PDS
+      // If temporary password is available, use it for deleteAccount
+      // Otherwise, try deleteAccount without password, and fall back to deactivateAccount if needed
       try {
+        // Prepare deleteAccount request body
+        const deleteAccountBody: any = { did };
+        if (temporaryPassword) {
+          // If temporary password is available, include it in the request
+          // Note: Some PDS servers may require a deletion token in addition to password
+          // For now, we'll try with just the password
+          deleteAccountBody.password = temporaryPassword;
+        }
+
         // Use BskyAgent's xrpc method with custom headers for authentication
-        // This is similar to how createAccount uses agent.createAccount()
         await (agent as any).xrpc.call(
           'com.atproto.server.deleteAccount',
-          {
-            did,
-            // Password is not required for admin privilege deletion
-            // However, if the PDS server requires it, we'll catch the error
-          },
+          deleteAccountBody,
           {
             encoding: 'application/json',
             headers: {
@@ -335,13 +340,15 @@ export class PdsService {
 
         return { success: true };
       } catch (deleteError: any) {
-        // If deleteAccount requires password, try deactivateAccount instead
+        // If deleteAccount requires password or token, try deactivateAccount instead
         if (
           deleteError?.message?.includes('password') ||
-          deleteError?.data?.error?.includes('password')
+          deleteError?.message?.includes('token') ||
+          deleteError?.data?.error?.includes('password') ||
+          deleteError?.data?.error?.includes('token')
         ) {
           console.warn(
-            'deleteAccount requires password, trying deactivateAccount instead:',
+            'deleteAccount requires password/token, trying deactivateAccount instead:',
             deleteError.message
           );
 
@@ -362,7 +369,7 @@ export class PdsService {
           return { success: true };
         }
 
-        // Re-throw if it's not a password-related error
+        // Re-throw if it's not a password/token-related error
         throw deleteError;
       }
     } catch (error: any) {
@@ -376,6 +383,83 @@ export class PdsService {
       }
 
       console.error('PDS deleteAccount error:', {
+        message: errorMessage,
+        error: error,
+        data: error?.data,
+        did,
+      });
+
+      return {
+        success: false,
+        error: errorMessage,
+      };
+    }
+  }
+
+  /**
+   * Change password on PDS server
+   *
+   * @description Changes the password for a PDS account.
+   * Uses com.atproto.server.changePassword API.
+   *
+   * @param did - User's DID
+   * @param oldPassword - Current password
+   * @param newPassword - New password
+   * @param accessJwt - Access JWT token for authentication
+   * @returns Promise with change password result
+   *
+   * @example
+   * ```typescript
+   * const result = await pdsService.changePassword(
+   *   'did:plc:xxx',
+   *   'oldPassword123',
+   *   'newPassword123',
+   *   'eyJhbGci...'
+   * );
+   * if (result.success) {
+   *   console.log('Password changed successfully');
+   * }
+   * ```
+   */
+  public async changePassword(
+    did: string,
+    oldPassword: string,
+    newPassword: string,
+    accessJwt: string
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      // Create BskyAgent instance
+      const agent = new BskyAgent({
+        service: this.pdsEndpoint,
+      });
+
+      // Change password via PDS using xrpc.call (same pattern as deleteAccount)
+      await (agent as any).xrpc.call(
+        'com.atproto.server.changePassword',
+        {
+          oldPassword,
+          newPassword,
+        },
+        {
+          encoding: 'application/json',
+          headers: {
+            authorization: `Bearer ${accessJwt}`,
+          },
+        }
+      );
+
+      return { success: true };
+    } catch (error: any) {
+      let errorMessage = 'Unknown error';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (error?.data?.error) {
+        errorMessage = error.data.error;
+      } else if (error?.data?.message) {
+        errorMessage = error.data.message;
+      }
+
+      console.error('PDS changePassword error:', {
         message: errorMessage,
         error: error,
         data: error?.data,

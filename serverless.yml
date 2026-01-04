@@ -22,6 +22,8 @@ provider:
     SES_REGION: ${env:SES_REGION, 'ap-northeast-1'}
     SES_FROM_EMAIL: ${env:SES_FROM_EMAIL}
     FRONTEND_URL: ${env:FRONTEND_URL}
+    # Temporary Password Encryption Key (64 hex characters = 32 bytes for AES-256-GCM)
+    TEMPORARY_PASSWORD_ENCRYPTION_KEY: ${env:TEMPORARY_PASSWORD_ENCRYPTION_KEY}
     # SQS resources
     TRANSACTION_QUEUE_URL:
       Ref: TransactionQueue

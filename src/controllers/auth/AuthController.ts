@@ -50,6 +50,7 @@ import type {
   ResetPasswordRequestRequest,
   ResetPasswordRequest,
   ChangePasswordRequest,
+  SetInitialPasswordRequest,
 } from '../../models/requests';
 
 /**
@@ -871,31 +872,26 @@ export class AuthController extends Controller {
   ): Promise<ApiResponse<AuthData>> {
     try {
       // Validate request
-      if (
-        !request.email ||
-        !request.password ||
-        !request.displayName ||
-        !request.handle
-      ) {
+      if (!request.email || !request.displayName || !request.handle) {
         this.setStatus(400);
         return {
           success: false,
           error: {
             code: 'VALIDATION_ERROR',
-            message: 'Email, password, displayName, and handle are required',
+            message: 'Email, displayName, and handle are required',
             details:
-              'All fields including handle are mandatory for registration',
+              'All fields including handle are mandatory for registration. Password will be set after email verification.',
           },
           timestamp: new Date().toISOString(),
         };
       }
 
-      // Register user
+      // Register user (password will be generated automatically)
       const result = await this.userAuthService.registerWithEmailPassword(
         request.email,
-        request.password,
         request.displayName,
-        request.handle
+        request.handle,
+        request.description
       );
 
       if (!result.success) {
@@ -1087,17 +1083,22 @@ export class AuthController extends Controller {
   @SuccessResponse('200', 'Email verified successfully')
   @Response<ApiResponse>('400', 'Invalid request')
   @Response<ApiResponse>('401', 'Invalid or expired token')
-  @Example<ApiResponse<{ email: string; verified: boolean }>>({
+  @Example<
+    ApiResponse<{ email: string; verified: boolean; passwordNotSet?: boolean }>
+  >({
     success: true,
     data: {
       email: 'user@example.com',
       verified: true,
+      passwordNotSet: false,
     },
     timestamp: '2024-01-01T00:00:00.000Z',
   })
   public async verifyEmail(
     @Body() request: VerifyEmailRequest
-  ): Promise<ApiResponse<{ email: string; verified: boolean }>> {
+  ): Promise<
+    ApiResponse<{ email: string; verified: boolean; passwordNotSet?: boolean }>
+  > {
     try {
       // Validate request
       if (!request.token || !request.primaryDid) {
@@ -1197,12 +1198,17 @@ export class AuthController extends Controller {
         // Update profile if needed
       }
 
+      // Check if password needs to be set
+      const passwordNotSet =
+        identityLink.passwordChangedFromTemporary === false;
+
       this.setStatus(200);
       return {
         success: true,
         data: {
           email: identityLink.email || '',
           verified: true,
+          passwordNotSet, // Indicate if password needs to be set
         },
         timestamp: new Date().toISOString(),
       };
@@ -1555,6 +1561,110 @@ export class AuthController extends Controller {
         error: {
           code: 'INTERNAL_ERROR',
           message: 'Password reset failed',
+          details:
+            error instanceof Error ? error.message : 'Unknown error occurred',
+        },
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
+
+  /**
+   * Set initial password after email verification
+   *
+   * @description Sets the initial password for a user after email verification.
+   * This endpoint replaces the temporary password with a user-defined password.
+   * Must be called after email verification is completed.
+   *
+   * @param request - Set initial password request with DID, token, and new password
+   * @returns Promise resolving to success result
+   *
+   * @example
+   * ```typescript
+   * const request: SetInitialPasswordRequest = {
+   *   primaryDid: "did:plc:xxx",
+   *   token: "verification-token-123",
+   *   newPassword: "NewSecurePass123!"
+   * };
+   * const result = await authController.setInitialPassword(request);
+   * ```
+   */
+  @Post('set-initial-password')
+  @SuccessResponse('200', 'Initial password set successfully')
+  @Response<ApiResponse>('400', 'Invalid request')
+  @Response<ApiResponse>('401', 'Invalid or expired token')
+  @Example<ApiResponse<{ set: boolean }>>({
+    success: true,
+    data: {
+      set: true,
+    },
+    timestamp: '2024-01-01T00:00:00.000Z',
+  })
+  public async setInitialPassword(
+    @Body() request: SetInitialPasswordRequest
+  ): Promise<ApiResponse<{ set: boolean }>> {
+    try {
+      // Validate request
+      if (!request.primaryDid || !request.token || !request.newPassword) {
+        this.setStatus(400);
+        return {
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'primaryDid, token, and newPassword are required',
+            details: 'All fields are mandatory for setting initial password',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      // Set initial password
+      const result = await this.userAuthService.setInitialPassword(
+        request.primaryDid,
+        request.token,
+        request.newPassword
+      );
+
+      if (!result.success) {
+        if (
+          result.error?.includes('expired') ||
+          result.error?.includes('Invalid')
+        ) {
+          this.setStatus(401);
+        } else {
+          this.setStatus(400);
+        }
+        return {
+          success: false,
+          error: {
+            code: result.error?.includes('expired')
+              ? 'TOKEN_EXPIRED'
+              : result.error?.includes('Invalid')
+                ? 'INVALID_TOKEN'
+                : 'VALIDATION_ERROR',
+            message: result.error || 'Initial password setup failed',
+            details: result.error || 'Unable to set initial password',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      this.setStatus(200);
+      return {
+        success: true,
+        data: {
+          set: true,
+        },
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      console.error('Set initial password error:', error);
+      this.setStatus(500);
+      return {
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Initial password setup failed',
           details:
             error instanceof Error ? error.message : 'Unknown error occurred',
         },

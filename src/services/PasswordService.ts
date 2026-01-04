@@ -9,6 +9,7 @@
  */
 
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 
 /**
  * Password strength validation result
@@ -208,8 +209,128 @@ export class PasswordService {
    * ```
    */
   public generateResetToken(length: number = 32): string {
-    const crypto = require('crypto');
     const randomBytes = crypto.randomBytes(length);
     return randomBytes.toString('base64url');
+  }
+
+  /**
+   * Generate temporary password for account creation
+   *
+   * @description Generates a secure random temporary password for PDS account creation.
+   * The password contains uppercase, lowercase, numbers, and symbols.
+   *
+   * @param length - Password length (default: 32)
+   * @returns Random temporary password
+   *
+   * @example
+   * ```typescript
+   * const tempPassword = passwordService.generateTemporaryPassword();
+   * // Use this password for PDS account creation
+   * ```
+   */
+  public generateTemporaryPassword(length: number = 32): string {
+    const charset =
+      'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+    const randomBytes = crypto.randomBytes(length);
+    let password = '';
+    for (let i = 0; i < length; i++) {
+      const byte = randomBytes[i];
+      if (byte !== undefined) {
+        password += charset[byte % charset.length];
+      }
+    }
+    return password;
+  }
+
+  /**
+   * Encrypt temporary password for storage
+   *
+   * @description Encrypts a temporary password using AES-256-GCM for secure storage.
+   * The encryption key is retrieved from TEMPORARY_PASSWORD_ENCRYPTION_KEY environment variable.
+   *
+   * @param password - Plain text temporary password
+   * @returns Encrypted password (format: iv:authTag:encryptedData)
+   *
+   * @example
+   * ```typescript
+   * const encrypted = passwordService.encryptTemporaryPassword('tempPassword123');
+   * // Store encrypted password in database
+   * ```
+   */
+  public encryptTemporaryPassword(password: string): string {
+    const encryptionKey = process.env.TEMPORARY_PASSWORD_ENCRYPTION_KEY;
+    if (!encryptionKey) {
+      throw new Error(
+        'TEMPORARY_PASSWORD_ENCRYPTION_KEY environment variable is not set'
+      );
+    }
+
+    const key = Buffer.from(encryptionKey, 'hex');
+    if (key.length !== 32) {
+      throw new Error(
+        'TEMPORARY_PASSWORD_ENCRYPTION_KEY must be 64 hex characters (32 bytes)'
+      );
+    }
+
+    const iv = crypto.randomBytes(16);
+    const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+
+    let encrypted = cipher.update(password, 'utf8', 'hex');
+    encrypted += cipher.final('hex');
+    const authTag = cipher.getAuthTag();
+
+    // Format: iv:authTag:encryptedData
+    return `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted}`;
+  }
+
+  /**
+   * Decrypt temporary password from storage
+   *
+   * @description Decrypts an encrypted temporary password using AES-256-GCM.
+   * The encryption key is retrieved from TEMPORARY_PASSWORD_ENCRYPTION_KEY environment variable.
+   *
+   * @param encrypted - Encrypted password (format: iv:authTag:encryptedData)
+   * @returns Decrypted plain text password
+   *
+   * @example
+   * ```typescript
+   * const decrypted = passwordService.decryptTemporaryPassword(encryptedPassword);
+   * // Use decrypted password for PDS account deletion
+   * ```
+   */
+  public decryptTemporaryPassword(encrypted: string): string {
+    const encryptionKey = process.env.TEMPORARY_PASSWORD_ENCRYPTION_KEY;
+    if (!encryptionKey) {
+      throw new Error(
+        'TEMPORARY_PASSWORD_ENCRYPTION_KEY environment variable is not set'
+      );
+    }
+
+    const key = Buffer.from(encryptionKey, 'hex');
+    if (key.length !== 32) {
+      throw new Error(
+        'TEMPORARY_PASSWORD_ENCRYPTION_KEY must be 64 hex characters (32 bytes)'
+      );
+    }
+
+    const parts = encrypted.split(':');
+    if (parts.length !== 3) {
+      throw new Error('Invalid encrypted password format');
+    }
+
+    const [ivHex, authTagHex, encryptedData] = parts;
+    if (!ivHex || !authTagHex || !encryptedData) {
+      throw new Error('Invalid encrypted password format: missing parts');
+    }
+    const iv = Buffer.from(ivHex, 'hex');
+    const authTag = Buffer.from(authTagHex, 'hex');
+
+    const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+    decipher.setAuthTag(authTag);
+
+    let decrypted = decipher.update(encryptedData, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
+
+    return decrypted;
   }
 }

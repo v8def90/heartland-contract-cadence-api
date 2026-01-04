@@ -370,26 +370,28 @@ export interface TransactionJobRequest {
  * @description Request to register a new user with email/password authentication.
  * The handle field should contain only the username part (e.g., "username").
  * The domain part (e.g., "pds-dev.heart-land.io") will be automatically appended by the API server.
+ * Password is not required at registration - a temporary password will be generated automatically.
+ * After email verification, user must set their password using POST /auth/set-initial-password.
  *
  * @example
  * ```typescript
  * const request: EmailPasswordRegisterRequest = {
  *   email: "user@example.com",
- *   password: "password123",
  *   displayName: "John Doe",
- *   handle: "username"  // Domain will be automatically appended
+ *   handle: "username",  // Domain will be automatically appended
+ *   description: "Optional user bio/description"
  * };
  * ```
  */
 export interface EmailPasswordRegisterRequest {
   /** User email address */
   email: string;
-  /** User password */
-  password: string;
   /** User display name */
   displayName: string;
   /** AT Protocol handle username (required, domain will be automatically appended by API server) */
   handle: string;
+  /** Optional user bio/description */
+  description?: string;
 }
 
 /**
@@ -509,5 +511,30 @@ export interface ChangePasswordRequest {
   /** Current password */
   currentPassword: string;
   /** New password */
+  newPassword: string;
+}
+
+/**
+ * Set initial password request payload
+ *
+ * @description Request to set initial password after email verification.
+ * This endpoint is called after email verification to replace the temporary password
+ * with a user-defined password.
+ *
+ * @example
+ * ```typescript
+ * const request: SetInitialPasswordRequest = {
+ *   primaryDid: "did:plc:xxx",
+ *   token: "verification-token-123",
+ *   newPassword: "NewSecurePass123!"
+ * };
+ * ```
+ */
+export interface SetInitialPasswordRequest {
+  /** User's primary DID */
+  primaryDid: string;
+  /** Email verification token */
+  token: string;
+  /** New password to set */
   newPassword: string;
 }

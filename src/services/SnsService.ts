@@ -230,6 +230,10 @@ export interface DynamoDBIdentityLinkItem {
   pdsAccessJwt?: string; // Access JWT for PDS operations (e.g., account deletion)
   pdsRefreshJwt?: string; // Refresh JWT for PDS operations
   pdsTokensUpdatedAt?: string; // Timestamp when PDS tokens were last updated
+  // Temporary password for PDS account deletion
+  temporaryPasswordEncrypted?: string; // Encrypted temporary password used for PDS account creation
+  temporaryPasswordCreatedAt?: string; // Timestamp when temporary password was created
+  passwordChangedFromTemporary?: boolean; // Whether password has been changed from temporary password
 }
 
 /**
@@ -698,12 +702,31 @@ export class SnsService {
       );
 
       if (emailLink && emailLink.pdsAccessJwt) {
-        // Import PdsService dynamically to avoid circular dependency
+        // Import PdsService and PasswordService dynamically to avoid circular dependency
         const { PdsService } = await import('./PdsService');
+        const { PasswordService } = await import('./PasswordService');
         const pdsService = PdsService.getInstance();
+        const passwordService = PasswordService.getInstance();
+
+        // Decrypt temporary password if available
+        let temporaryPassword: string | null = null;
+        if (emailLink.temporaryPasswordEncrypted) {
+          try {
+            temporaryPassword = passwordService.decryptTemporaryPassword(
+              emailLink.temporaryPasswordEncrypted
+            );
+          } catch (error) {
+            console.warn(
+              'Failed to decrypt temporary password for PDS deletion:',
+              error
+            );
+            // Continue without temporary password - will use deactivateAccount fallback
+          }
+        }
 
         const deleteResult = await pdsService.deleteAccount(
           userId,
+          temporaryPassword,
           emailLink.pdsAccessJwt
         );
 
