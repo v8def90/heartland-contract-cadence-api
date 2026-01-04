@@ -22,6 +22,7 @@ import {
   SuccessResponse,
   Response,
   Request,
+  Hidden,
 } from 'tsoa';
 import type { ApiResponse } from '../../models/responses';
 import type {
@@ -181,8 +182,10 @@ export class UsersController extends Controller {
    * @returns Promise resolving to created user profile
    *
    * @security JWT authentication required
+   * @hidden This endpoint is hidden from Swagger documentation as it's only for internal use
    */
   @Post('{did}')
+  @Hidden()
   @Security('jwt')
   @SuccessResponse('201', 'User profile created successfully')
   @Response<ApiResponse>('400', 'Invalid profile data')

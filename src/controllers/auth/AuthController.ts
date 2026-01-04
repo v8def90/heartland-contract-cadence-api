@@ -1178,7 +1178,7 @@ export class AuthController extends Controller {
         };
       }
 
-      // Update email verification status
+      // Update email verification status in identity link
       await this.userAuthService['snsService'].updateIdentityLink(
         request.primaryDid,
         identityLink.linkedId,
@@ -1190,13 +1190,15 @@ export class AuthController extends Controller {
         }
       );
 
-      // Update user profile
-      const profile = await this.userAuthService[
-        'snsService'
-      ].getUserProfileItem(request.primaryDid);
-      if (profile) {
-        // Update profile if needed
-      }
+      // Update email verification status in identity lookup (LINK#email record)
+      // This ensures data consistency across all records
+      await this.userAuthService['snsService'].updateIdentityLookup(
+        identityLink.linkedId, // email:v8def90@gmail.com
+        {
+          emailVerified: true,
+          status: 'verified',
+        }
+      );
 
       // Check if password needs to be set
       const passwordNotSet =
