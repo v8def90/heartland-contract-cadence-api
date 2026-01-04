@@ -972,6 +972,8 @@ export class AuthController extends Controller {
       expiresIn: 86400,
       email: 'user@example.com',
       did: 'did:plc:lld5wgybmddzz32guiotcpce',
+      displayName: 'John Doe',
+      handle: 'johndoe.pds-dev.heart-land.io',
       role: 'user',
       issuedAt: '2024-01-01T00:00:00.000Z',
     },

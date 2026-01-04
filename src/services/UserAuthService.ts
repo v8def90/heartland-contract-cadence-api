@@ -507,11 +507,16 @@ export class UserAuthService {
       );
       const expiresIn = payload ? payload.exp - payload.iat : 86400;
 
+      // Get user profile for displayName and handle
+      const userProfile = await this.snsService.getUserProfileItem(primaryDid);
+
       const authData: AuthData = {
         token: jwtToken,
         expiresIn,
         email: normalizedEmail,
         did: primaryDid,
+        ...(userProfile?.displayName && { displayName: userProfile.displayName }),
+        ...(userProfile?.handle && { handle: userProfile.handle }),
         role: 'user',
         issuedAt: new Date(payload.iat * 1000).toISOString(),
       };
@@ -686,11 +691,16 @@ export class UserAuthService {
       );
       const expiresIn = payload ? payload.exp - payload.iat : 86400;
 
+      // Get user profile for displayName and handle
+      const userProfile = profile || (await this.snsService.getUserProfileItem(primaryDid));
+
       const authData: AuthData = {
         token: jwtToken,
         expiresIn,
         email: normalizedEmail,
         did: primaryDid,
+        ...(userProfile?.displayName && { displayName: userProfile.displayName }),
+        ...(userProfile?.handle && { handle: userProfile.handle }),
         role: 'user',
         issuedAt: new Date(payload.iat * 1000).toISOString(),
       };

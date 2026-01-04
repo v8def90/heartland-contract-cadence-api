@@ -464,6 +464,10 @@ export interface AuthData {
   email?: string;
   /** User's primary DID (did:plc:...) */
   did?: string;
+  /** User display name */
+  displayName?: string;
+  /** User handle (AT Protocol handle) */
+  handle?: string;
   /** User role */
   role: 'user' | 'admin' | 'minter' | 'pauser';
   /** Token issued timestamp */
