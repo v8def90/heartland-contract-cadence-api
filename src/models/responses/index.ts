@@ -462,6 +462,8 @@ export interface AuthData {
   address?: string;
   /** Authenticated user email (for email/password auth) */
   email?: string;
+  /** User's primary DID (did:plc:...) */
+  did?: string;
   /** User role */
   role: 'user' | 'admin' | 'minter' | 'pauser';
   /** Token issued timestamp */

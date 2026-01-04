@@ -971,6 +971,7 @@ export class AuthController extends Controller {
       token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
       expiresIn: 86400,
       email: 'user@example.com',
+      did: 'did:plc:lld5wgybmddzz32guiotcpce',
       role: 'user',
       issuedAt: '2024-01-01T00:00:00.000Z',
     },

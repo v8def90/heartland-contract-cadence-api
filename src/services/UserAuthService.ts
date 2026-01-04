@@ -511,6 +511,7 @@ export class UserAuthService {
         token: jwtToken,
         expiresIn,
         email: normalizedEmail,
+        did: primaryDid,
         role: 'user',
         issuedAt: new Date(payload.iat * 1000).toISOString(),
       };
@@ -689,6 +690,7 @@ export class UserAuthService {
         token: jwtToken,
         expiresIn,
         email: normalizedEmail,
+        did: primaryDid,
         role: 'user',
         issuedAt: new Date(payload.iat * 1000).toISOString(),
       };
