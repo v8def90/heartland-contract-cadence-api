@@ -62,6 +62,7 @@ interface TransferParams {
 interface HistoryParams {
   did: string;
   type: 'sender' | 'recipient';
+  recipientDid?: string; // Optional: filter by recipient DID (only used when type is 'sender')
   limit?: number;
   cursor?: string;
   startDate?: string;
@@ -866,27 +867,32 @@ export class TokenService {
         });
       }
 
+      // Add filtering if provided
+      const filterExpressions: string[] = [];
+      const expressionAttributeValues: Record<string, any> = {
+        ...command.input.ExpressionAttributeValues,
+      };
+
+      // Filter by recipient DID if provided (only when querying by sender)
+      if (params.type === 'sender' && params.recipientDid) {
+        filterExpressions.push('recipientDid = :recipientDid');
+        expressionAttributeValues[':recipientDid'] = params.recipientDid;
+      }
+
       // Add date filtering if provided
-      if (params.startDate || params.endDate) {
-        const filterExpressions: string[] = [];
-        const expressionAttributeValues: Record<string, any> = {
-          ...command.input.ExpressionAttributeValues,
-        };
+      if (params.startDate) {
+        filterExpressions.push('createdAt >= :startDate');
+        expressionAttributeValues[':startDate'] = params.startDate;
+      }
 
-        if (params.startDate) {
-          filterExpressions.push('createdAt >= :startDate');
-          expressionAttributeValues[':startDate'] = params.startDate;
-        }
+      if (params.endDate) {
+        filterExpressions.push('createdAt <= :endDate');
+        expressionAttributeValues[':endDate'] = params.endDate;
+      }
 
-        if (params.endDate) {
-          filterExpressions.push('createdAt <= :endDate');
-          expressionAttributeValues[':endDate'] = params.endDate;
-        }
-
-        if (filterExpressions.length > 0) {
-          command.input.FilterExpression = filterExpressions.join(' AND ');
-          command.input.ExpressionAttributeValues = expressionAttributeValues;
-        }
+      if (filterExpressions.length > 0) {
+        command.input.FilterExpression = filterExpressions.join(' AND ');
+        command.input.ExpressionAttributeValues = expressionAttributeValues;
       }
 
       // Handle cursor (pagination)

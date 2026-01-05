@@ -1965,6 +1965,41 @@ export function RegisterRoutes(app: Router) {
             }
         });
         // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+        const argsTokenController_getTransactionHistoryBySenderAndRecipient: Record<string, TsoaRoute.ParameterSchema> = {
+                senderDid: {"in":"path","name":"senderDid","required":true,"dataType":"string"},
+                recipientDid: {"in":"path","name":"recipientDid","required":true,"dataType":"string"},
+                limit: {"in":"query","name":"limit","dataType":"double"},
+                cursor: {"in":"query","name":"cursor","dataType":"string"},
+                startDate: {"in":"query","name":"startDate","dataType":"string"},
+                endDate: {"in":"query","name":"endDate","dataType":"string"},
+        };
+        app.get('/tokens/transactions/:senderDid/to/:recipientDid',
+            ...(fetchMiddlewares<RequestHandler>(TokenController)),
+            ...(fetchMiddlewares<RequestHandler>(TokenController.prototype.getTransactionHistoryBySenderAndRecipient)),
+
+            async function TokenController_getTransactionHistoryBySenderAndRecipient(request: ExRequest, response: ExResponse, next: any) {
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({ args: argsTokenController_getTransactionHistoryBySenderAndRecipient, request, response });
+
+                const controller = new TokenController();
+
+              await templateService.apiHandler({
+                methodName: 'getTransactionHistoryBySenderAndRecipient',
+                controller,
+                response,
+                next,
+                validatedArgs,
+                successStatus: 200,
+              });
+            } catch (err) {
+                return next(err);
+            }
+        });
+        // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
         const argsUsersController_getUserProfile: Record<string, TsoaRoute.ParameterSchema> = {
                 did: {"in":"path","name":"did","required":true,"dataType":"string"},
         };

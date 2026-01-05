@@ -515,4 +515,136 @@ export class TokenController extends Controller {
       });
     }
   }
+
+  /**
+   * Get transaction history filtered by sender and recipient
+   *
+   * @description Retrieves transaction history between a specific sender and recipient.
+   * This endpoint does not require authentication and is publicly accessible.
+   * Supports pagination and date filtering.
+   *
+   * @param senderDid - Sender's primary DID (did:plc:...)
+   * @param recipientDid - Recipient's primary DID (did:plc:...)
+   * @param limit - Maximum number of results to return (default: 20, max: 100)
+   * @param cursor - Cursor for pagination (base64-encoded LastEvaluatedKey)
+   * @param startDate - Start date for filtering (ISO 8601 format, UTC)
+   * @param endDate - End date for filtering (ISO 8601 format, UTC)
+   * @returns Promise resolving to transaction history
+   */
+  @Get('transactions/{senderDid}/to/{recipientDid}')
+  @SuccessResponse('200', 'Transaction history retrieved successfully')
+  @Response<ErrorResponse>('400', 'Invalid DID format or query parameters')
+  @Response<ErrorResponse>('500', 'Failed to retrieve transaction history')
+  @Example({
+    success: true,
+    data: {
+      transactions: [
+        {
+          transactionId: 'abc123-def456-ghi789',
+          primaryDid: 'did:plc:lld5wgybmddzz32guiotcpce',
+          recipientDid: 'did:plc:abc123...',
+          amount: '100.00000000',
+          amountDecimal: 100.0,
+          netAmount: '100.00000000',
+          netAmountDecimal: 100.0,
+          message: 'Thank you!',
+          status: 'completed',
+          senderDisplayName: 'John Doe',
+          senderHandle: 'johndoe',
+          recipientDisplayName: 'Jane Smith',
+          recipientHandle: 'janesmith',
+          unit: 'HEART',
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-01T00:00:00.000Z',
+          completedAt: '2024-01-01T00:00:00.000Z',
+        },
+      ],
+      cursor: '1234567890#abc123',
+      hasMore: true,
+    },
+    timestamp: '2024-01-01T00:00:00.000Z',
+  })
+  public async getTransactionHistoryBySenderAndRecipient(
+    @Path() senderDid: string,
+    @Path() recipientDid: string,
+    @Query() limit?: number,
+    @Query() cursor?: string,
+    @Query() startDate?: string,
+    @Query() endDate?: string
+  ): Promise<ApiResponse<TransactionHistoryData>> {
+    try {
+      // Validate DID formats
+      if (!senderDid || senderDid.trim().length === 0) {
+        this.setStatus(400);
+        return createErrorResponse({
+          code: API_ERROR_CODES.VALIDATION_ERROR,
+          message: 'Sender DID is required',
+          details: 'The senderDid parameter cannot be empty',
+        });
+      }
+
+      if (!recipientDid || recipientDid.trim().length === 0) {
+        this.setStatus(400);
+        return createErrorResponse({
+          code: API_ERROR_CODES.VALIDATION_ERROR,
+          message: 'Recipient DID is required',
+          details: 'The recipientDid parameter cannot be empty',
+        });
+      }
+
+      // Validate limit if provided
+      if (limit !== undefined) {
+        const limitNum = Number(limit);
+        if (isNaN(limitNum) || limitNum < 1 || limitNum > 100) {
+          this.setStatus(400);
+          return createErrorResponse({
+            code: API_ERROR_CODES.VALIDATION_ERROR,
+            message: 'Invalid limit parameter',
+            details: 'Limit must be between 1 and 100',
+          });
+        }
+      }
+
+      // Get transaction history filtered by sender and recipient
+      const historyParams: any = {
+        did: senderDid,
+        type: 'sender' as const,
+        recipientDid,
+      };
+      if (limit !== undefined) {
+        historyParams.limit = limit;
+      }
+      if (cursor) {
+        historyParams.cursor = cursor;
+      }
+      if (startDate) {
+        historyParams.startDate = startDate;
+      }
+      if (endDate) {
+        historyParams.endDate = endDate;
+      }
+      const historyResponse =
+        await this.tokenService.getTransactionHistory(historyParams);
+
+      if (!historyResponse.success) {
+        this.setStatus(500);
+        return historyResponse;
+      }
+
+      this.setStatus(200);
+      return historyResponse;
+    } catch (error) {
+      console.error(
+        'TokenController.getTransactionHistoryBySenderAndRecipient error:',
+        error
+      );
+      this.setStatus(500);
+      return createErrorResponse({
+        code: API_ERROR_CODES.INTERNAL_SERVER_ERROR,
+        message: 'Failed to retrieve transaction history',
+        details:
+          error instanceof Error ? error.message : 'Unknown error occurred',
+      });
+    }
+  }
 }
