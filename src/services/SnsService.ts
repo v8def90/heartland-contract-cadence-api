@@ -462,10 +462,16 @@ export class SnsService {
     const walletAddress = walletLink?.linkedId || '';
 
     // Convert DynamoDBUserProfileItem to UserProfile (AT Protocol Lexicon compliant)
+    // Extract username from handle (remove domain part)
+    const handleValue = profileItem.handle || profileItem.primaryDid;
+    const username = handleValue.includes('.')
+      ? this.extractUsername(handleValue)
+      : handleValue;
+
     return {
       did: profileItem.primaryDid, // AT Protocol standard: did
       displayName: profileItem.displayName, // AT Protocol standard
-      handle: profileItem.handle || profileItem.primaryDid, // AT Protocol standard: handle
+      handle: username, // AT Protocol standard: handle (domain removed)
       description: profileItem.bio, // AT Protocol standard: description (previously bio)
       avatar: profileItem.avatarUrl, // AT Protocol standard: avatar (previously avatarUrl)
       banner: profileItem.bannerUrl, // AT Protocol standard: banner (previously backgroundImageUrl)
@@ -1995,10 +2001,16 @@ export class SnsService {
           isFollowing = false;
         }
 
+        // Extract username from handle (remove domain part)
+        const handleValue = userItem.handle || userItem.primaryDid;
+        const extractedHandle = handleValue.includes('.')
+          ? this.extractUsername(handleValue)
+          : handleValue;
+
         users.push({
           did: userItem.primaryDid, // AT Protocol standard: did
           displayName: userItem.displayName, // AT Protocol standard
-          handle: userItem.handle, // AT Protocol standard: handle
+          handle: extractedHandle, // AT Protocol standard: handle (domain removed)
           description: userItem.bio || undefined, // AT Protocol standard: description (previously bio)
           avatar: userItem.avatarUrl || undefined, // AT Protocol standard: avatar (previously avatarUrl)
           banner: userItem.bannerUrl || undefined, // AT Protocol standard: banner (previously backgroundImageUrl)
