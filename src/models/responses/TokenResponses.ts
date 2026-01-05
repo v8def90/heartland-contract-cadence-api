@@ -89,6 +89,16 @@ export interface TokenTransactionData {
   indicator5?: string;
   /** Indicator 6 (optional) */
   indicator6?: string;
+  /** Sender's display name (optional) */
+  senderDisplayName?: string;
+  /** Sender's handle (optional) */
+  senderHandle?: string;
+  /** Recipient's display name (optional) */
+  recipientDisplayName?: string;
+  /** Recipient's handle (optional) */
+  recipientHandle?: string;
+  /** Token unit (always "HEART") */
+  unit: string;
 }
 
 /**

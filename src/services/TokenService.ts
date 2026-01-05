@@ -957,47 +957,103 @@ export class TokenService {
         }
       }
 
+      // Collect unique DIDs to fetch user profiles
+      const uniqueDids = new Set<string>();
+      transactions.forEach(item => {
+        uniqueDids.add(item.primaryDid);
+        uniqueDids.add(item.recipientDid);
+      });
+
+      // Fetch user profiles for all unique DIDs
+      const profileMap = new Map<string, { displayName?: string; handle?: string }>();
+      await Promise.all(
+        Array.from(uniqueDids).map(async did => {
+          try {
+            const profile = await this.snsService.getUserProfileItem(did);
+            if (profile) {
+              profileMap.set(did, {
+                displayName: profile.displayName,
+                handle: profile.handle,
+              });
+            }
+          } catch (error) {
+            console.error(
+              `TokenService.getTransactionHistory: Failed to fetch profile for ${did}:`,
+              error
+            );
+          }
+        })
+      );
+
+      /**
+       * Extract username from handle (remove domain part)
+       * @param handle - Full handle (e.g., "johndoe.pds-dev.heart-land.io")
+       * @returns Username part (e.g., "johndoe")
+       */
+      const extractUsername = (handle: string): string => {
+        const parts = handle.split('.');
+        return parts[0] || handle;
+      };
+
       // Convert to response format
       const transactionData: TokenTransactionData[] = transactions.map(
-        item => ({
-          transactionId: item.transactionId,
-          primaryDid: item.primaryDid,
-          recipientDid: item.recipientDid,
-          amount: item.amount,
-          amountDecimal: item.amountDecimal,
-          ...(item.taxAmount && { taxAmount: item.taxAmount }),
-          ...(item.taxAmountDecimal !== undefined && {
-            taxAmountDecimal: item.taxAmountDecimal,
-          }),
-          ...(item.taxRate !== undefined && { taxRate: item.taxRate }),
-          netAmount: item.netAmount,
-          netAmountDecimal: item.netAmountDecimal,
-          ...(item.weight !== undefined && { weight: item.weight }),
-          ...(item.weightLevel !== undefined && {
-            weightLevel: item.weightLevel,
-          }),
-          message: item.message,
-          status: item.status,
-          ...(item.memo && { memo: item.memo }),
-          createdAt: item.createdAt,
-          updatedAt: item.updatedAt,
-          ...(item.completedAt && { completedAt: item.completedAt }),
-          ...(item.failedAt && { failedAt: item.failedAt }),
-          ...(item.errorMessage && { errorMessage: item.errorMessage }),
-          ...(item.senderAddress && { senderAddress: item.senderAddress }),
-          ...(item.receiverAddress && {
-            receiverAddress: item.receiverAddress,
-          }),
-          ...(item.blockchainRegistration !== undefined && {
-            blockchainRegistration: item.blockchainRegistration,
-          }),
-          ...(item.indicator1 && { indicator1: item.indicator1 }),
-          ...(item.indicator2 && { indicator2: item.indicator2 }),
-          ...(item.indicator3 && { indicator3: item.indicator3 }),
-          ...(item.indicator4 && { indicator4: item.indicator4 }),
-          ...(item.indicator5 && { indicator5: item.indicator5 }),
-          ...(item.indicator6 && { indicator6: item.indicator6 }),
-        })
+        item => {
+          const senderProfile = profileMap.get(item.primaryDid);
+          const recipientProfile = profileMap.get(item.recipientDid);
+
+          return {
+            transactionId: item.transactionId,
+            primaryDid: item.primaryDid,
+            recipientDid: item.recipientDid,
+            amount: item.amount,
+            amountDecimal: item.amountDecimal,
+            ...(item.taxAmount && { taxAmount: item.taxAmount }),
+            ...(item.taxAmountDecimal !== undefined && {
+              taxAmountDecimal: item.taxAmountDecimal,
+            }),
+            ...(item.taxRate !== undefined && { taxRate: item.taxRate }),
+            netAmount: item.netAmount,
+            netAmountDecimal: item.netAmountDecimal,
+            ...(item.weight !== undefined && { weight: item.weight }),
+            ...(item.weightLevel !== undefined && {
+              weightLevel: item.weightLevel,
+            }),
+            message: item.message,
+            status: item.status,
+            ...(item.memo && { memo: item.memo }),
+            createdAt: item.createdAt,
+            updatedAt: item.updatedAt,
+            ...(item.completedAt && { completedAt: item.completedAt }),
+            ...(item.failedAt && { failedAt: item.failedAt }),
+            ...(item.errorMessage && { errorMessage: item.errorMessage }),
+            ...(item.senderAddress && { senderAddress: item.senderAddress }),
+            ...(item.receiverAddress && {
+              receiverAddress: item.receiverAddress,
+            }),
+            ...(item.blockchainRegistration !== undefined && {
+              blockchainRegistration: item.blockchainRegistration,
+            }),
+            ...(item.indicator1 && { indicator1: item.indicator1 }),
+            ...(item.indicator2 && { indicator2: item.indicator2 }),
+            ...(item.indicator3 && { indicator3: item.indicator3 }),
+            ...(item.indicator4 && { indicator4: item.indicator4 }),
+            ...(item.indicator5 && { indicator5: item.indicator5 }),
+            ...(item.indicator6 && { indicator6: item.indicator6 }),
+            ...(senderProfile?.displayName && {
+              senderDisplayName: senderProfile.displayName,
+            }),
+            ...(senderProfile?.handle && {
+              senderHandle: extractUsername(senderProfile.handle),
+            }),
+            ...(recipientProfile?.displayName && {
+              recipientDisplayName: recipientProfile.displayName,
+            }),
+            ...(recipientProfile?.handle && {
+              recipientHandle: extractUsername(recipientProfile.handle),
+            }),
+            unit: 'HEART',
+          };
+        }
       );
 
       return createSuccessResponse<TransactionHistoryData>({
