@@ -26,6 +26,18 @@ import type {
   SearchUserData,
   PaginatedData,
 } from '../models/responses/SnsResponses';
+import type {
+  DynamoDBBskyPostRecordItem,
+  ReplyRef,
+  SimplifiedEmbedImage,
+  SimplifiedFacet,
+} from '../models/dynamodb/AtProtocolPostModels';
+import { generateRkey } from '../utils/rkeyGenerator';
+import {
+  generatePostAtUri,
+  parsePostAtUri,
+  extractRkeyFromUri,
+} from '../utils/atUri';
 
 /**
  * DynamoDB Item Types
@@ -779,54 +791,66 @@ export class SnsService {
     // If you want to delete all identity links, you would need to query and delete them separately
   }
 
-  // ===== POST OPERATIONS =====
+  // ===== POST OPERATIONS (AT Protocol) =====
 
   /**
-   * Create post
+   * Create post (AT Protocol compliant)
+   *
+   * @description Creates a new post using AT Protocol data model.
+   * Uses rkey (TID format) and AT URI for identification.
+   *
+   * @param ownerDid - Repository owner DID (did:plc:...)
+   * @param text - Post text content
+   * @param embed - Embed images (optional)
+   * @param facets - Facets for rich text (optional)
+   * @returns Promise resolving to created post AT URI
    */
   async createPost(
-    postId: string,
-    authorId: string,
-    authorName: string,
-    authorUsername: string,
-    content: string,
-    images?: string[],
-    tags?: string[]
-  ): Promise<void> {
+    ownerDid: string,
+    text: string,
+    embed?: { images?: SimplifiedEmbedImage[] },
+    facets?: SimplifiedFacet[]
+  ): Promise<string> {
     if (!this.client) {
       // For local development, just log the operation
+      const mockRkey = generateRkey();
+      const mockUri = generatePostAtUri(ownerDid, mockRkey);
       console.log('Mock createPost:', {
-        postId,
-        authorId,
-        authorName,
-        authorUsername,
-        content,
-        images,
-        tags,
+        ownerDid,
+        text,
+        embed,
+        facets,
+        rkey: mockRkey,
+        uri: mockUri,
       });
-      return;
+      return mockUri;
     }
 
+    // Generate rkey (TID format)
+    const rkey = generateRkey();
+    const uri = generatePostAtUri(ownerDid, rkey);
     const now = new Date().toISOString();
-    const item: DynamoDBPostItem = {
-      PK: `POST#${postId}`,
-      SK: 'META',
-      GSI1PK: `USER#${authorId}`,
-      GSI1SK: `POST#${now}#${postId}`,
-      GSI2PK: `POST#${postId}`,
-      GSI2SK: 'META',
-      postId,
-      authorId,
-      authorName,
-      authorUsername,
-      content,
-      images,
-      tags,
-      likeCount: 0,
-      commentCount: 0,
+
+    // Build AT Protocol compliant post item
+    const item: DynamoDBBskyPostRecordItem = {
+      PK: `REPO#${ownerDid}`,
+      SK: `REC#app.bsky.feed.post#${rkey}`,
+      ownerDid,
+      collection: 'app.bsky.feed.post',
+      rkey,
+      uri,
+      text,
       createdAt: now,
-      updatedAt: now,
+      createdAtIso: now,
+      updatedAtIso: now,
+      ...(embed && { embed }),
+      ...(facets && facets.length > 0 && { facets }),
       ttl: this.getTTL(),
+      // GSI Keys
+      GSI1PK: `REPO#${ownerDid}`,
+      GSI1SK: `REC#app.bsky.feed.post#${rkey}`,
+      GSI2PK: 'POST#ALL',
+      GSI2SK: `REC#app.bsky.feed.post#${rkey}`,
     };
 
     const command = new PutCommand({
@@ -835,60 +859,108 @@ export class SnsService {
     });
 
     await this.client.send(command);
+    return uri;
   }
 
   /**
-   * Get post by ID
+   * Get post by AT URI or rkey
+   *
+   * @description Retrieves a post by AT URI or rkey (AT Protocol compliant).
+   *
+   * @param uriOrRkey - Post AT URI or rkey
+   * @param ownerDid - Repository owner DID (required if rkey is provided)
+   * @returns Promise resolving to post data or null if not found
    */
-  async getPost(postId: string): Promise<PostData | null> {
+  async getPost(
+    uriOrRkey: string,
+    ownerDid?: string
+  ): Promise<PostData | null> {
     if (!this.client) {
       // Return mock data for local development
+      const mockRkey = uriOrRkey.includes('at://')
+        ? extractRkeyFromUri(uriOrRkey) || generateRkey()
+        : uriOrRkey;
+      const mockOwnerDid = ownerDid || 'did:plc:mock';
+      const mockUri = generatePostAtUri(mockOwnerDid, mockRkey);
       return {
-        postId,
-        authorId: 'mock-author',
+        uri: mockUri,
+        rkey: mockRkey,
+        ownerDid: mockOwnerDid,
         authorName: 'Mock Author',
         authorUsername: 'mockauthor',
-        content: 'This is a mock post for local development',
-        images: [],
-        tags: [],
-        likeCount: 0,
-        commentCount: 0,
+        text: 'This is a mock post for local development',
         isLiked: false,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
     }
 
+    // Parse URI or use provided rkey
+    let rkey: string;
+    let resolvedOwnerDid: string;
+
+    if (uriOrRkey.includes('at://')) {
+      const parsed = parsePostAtUri(uriOrRkey);
+      if (!parsed) return null;
+      rkey = parsed.rkey;
+      resolvedOwnerDid = parsed.ownerDid;
+    } else {
+      if (!ownerDid) return null;
+      rkey = uriOrRkey;
+      resolvedOwnerDid = ownerDid;
+    }
+
     const command = new GetCommand({
       TableName: this.tableName,
       Key: {
-        PK: `POST#${postId}`,
-        SK: 'META',
+        PK: `REPO#${resolvedOwnerDid}`,
+        SK: `REC#app.bsky.feed.post#${rkey}`,
       },
     });
 
     const result = await this.client.send(command);
     if (!result.Item) return null;
 
-    const item = result.Item as DynamoDBPostItem;
+    const item = result.Item as DynamoDBBskyPostRecordItem;
+
+    // Get author profile for display name and username
+    const authorProfile = await this.getUserProfileItem(item.ownerDid);
+    const authorName = authorProfile?.displayName || '';
+    const authorUsername = authorProfile
+      ? this.extractUsername(authorProfile.handle || item.ownerDid)
+      : '';
+
+    // embed.images is already SimplifiedEmbedImage format
+    const embedImages: SimplifiedEmbedImage[] | undefined = item.embed?.images;
+
+    // facets is already SimplifiedFacet format
+    const facets: SimplifiedFacet[] | undefined = item.facets;
+
+    // Calculate like count and comment count (AppView pattern)
+    const likeCount = await this.getPostLikeCount(item.uri);
+    const commentCount = await this.getPostCommentCount(item.uri);
+
     return {
-      postId: item.postId,
-      authorId: item.authorId,
-      authorName: '', // Will be populated by controller
-      authorUsername: '', // Will be populated by controller
-      content: item.content,
-      images: item.images,
-      tags: item.tags,
-      likeCount: item.likeCount,
-      commentCount: item.commentCount,
+      uri: item.uri,
+      rkey: item.rkey,
+      ownerDid: item.ownerDid,
+      authorName,
+      authorUsername,
+      text: item.text,
+      ...(embedImages &&
+        embedImages.length > 0 && { embed: { images: embedImages } }),
+      ...(facets && facets.length > 0 && { facets }),
       isLiked: false, // Will be populated by controller
       createdAt: item.createdAt,
-      updatedAt: item.updatedAt,
+      updatedAt: item.updatedAtIso,
     };
   }
 
   /**
-   * Get all posts (global feed)
+   * Get all posts (global feed) - AT Protocol compliant
+   *
+   * @description Retrieves all posts using GSI2 (POST#ALL → REC#app.bsky.feed.post#{rkey}).
+   * Posts are sorted by creation time descending (newest first).
    *
    * @param limit - Number of posts to return
    * @param cursor - Pagination cursor
@@ -903,47 +975,50 @@ export class SnsService {
     error?: string;
   }> {
     try {
-      // For local development, return mock data
-      console.log('NODE_ENV:', process.env.NODE_ENV);
-      console.log('AWS_REGION:', process.env.AWS_REGION);
-      console.log(
-        'Should use mock data:',
-        process.env.NODE_ENV === 'development' || !process.env.AWS_REGION
-      );
-      console.log('Client is null:', this.client === null);
-      if (
-        this.client === null ||
-        process.env.NODE_ENV === 'development' ||
-        !process.env.AWS_REGION
-      ) {
+      if (!this.client) {
+        // Return mock data for local development
+        const mockRkey1 = generateRkey();
+        const mockRkey2 = generateRkey();
+        const mockOwnerDid1 = 'did:plc:mock1';
+        const mockOwnerDid2 = 'did:plc:mock2';
         const mockPosts: PostData[] = [
           {
-            postId: 'post-1',
-            authorId: 'user-1',
+            uri: generatePostAtUri(mockOwnerDid1, mockRkey1),
+            rkey: mockRkey1,
+            ownerDid: mockOwnerDid1,
             authorName: 'John Doe',
             authorUsername: 'johndoe',
-            content: 'Hello, world! This is a test post.',
-            images: ['https://example.com/image1.jpg'],
-            tags: ['hello', 'world', 'test'],
-            likeCount: 5,
-            commentCount: 2,
+            text: 'Hello, world! This is a test post.',
+            embed: {
+              images: [
+                {
+                  url: 'https://example.com/image1.jpg',
+                  alt: 'Test image',
+                },
+              ],
+            },
+            facets: [
+              {
+                type: 'tag',
+                value: 'hello',
+                startIndex: 0,
+                endIndex: 5,
+              },
+            ],
             isLiked: false,
-            createdAt: '2024-01-01T00:00:00.000Z',
-            updatedAt: '2024-01-01T00:00:00.000Z',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
           },
           {
-            postId: 'post-2',
-            authorId: 'user-2',
+            uri: generatePostAtUri(mockOwnerDid2, mockRkey2),
+            rkey: mockRkey2,
+            ownerDid: mockOwnerDid2,
             authorName: 'Jane Smith',
             authorUsername: 'janesmith',
-            content: 'Another test post for the SNS API.',
-            images: [],
-            tags: ['test', 'api'],
-            likeCount: 3,
-            commentCount: 1,
+            text: 'Another test post for the SNS API.',
             isLiked: false,
-            createdAt: '2024-01-01T01:00:00.000Z',
-            updatedAt: '2024-01-01T01:00:00.000Z',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
           },
         ];
 
@@ -959,14 +1034,15 @@ export class SnsService {
 
       const exclusiveStartKey = cursor ? this.decodeCursor(cursor) : undefined;
 
-      // Use Scan to get all posts from the main table
-      const command = new ScanCommand({
+      // Use GSI2 to get all posts (POST#ALL → REC#app.bsky.feed.post#{rkey})
+      const command = new QueryCommand({
         TableName: this.tableName,
-        FilterExpression: 'begins_with(PK, :postPrefix) AND SK = :metaSuffix',
+        IndexName: 'GSI2',
+        KeyConditionExpression: 'GSI2PK = :gsi2pk',
         ExpressionAttributeValues: {
-          ':postPrefix': 'POST#',
-          ':metaSuffix': 'META',
+          ':gsi2pk': 'POST#ALL',
         },
+        ScanIndexForward: false, // Sort by creation time descending
         Limit: limit,
         ExclusiveStartKey: exclusiveStartKey,
       });
@@ -976,29 +1052,44 @@ export class SnsService {
       const posts: PostData[] = [];
       if (result.Items) {
         for (const item of result.Items) {
-          const postItem = item as DynamoDBPostItem;
+          const postItem = item as DynamoDBBskyPostRecordItem;
+
+          // Get author profile for display name and username
+          const authorProfile = await this.getUserProfileItem(
+            postItem.ownerDid
+          );
+          const authorName = authorProfile?.displayName || '';
+          const authorUsername = authorProfile
+            ? this.extractUsername(authorProfile.handle || postItem.ownerDid)
+            : '';
+
+          // embed.images is already SimplifiedEmbedImage format
+          const embedImages: SimplifiedEmbedImage[] | undefined =
+            postItem.embed?.images;
+
+          // facets is already SimplifiedFacet format
+          const facets: SimplifiedFacet[] | undefined = postItem.facets;
+
+          // Calculate like count and comment count (AppView pattern)
+          const likeCount = await this.getPostLikeCount(postItem.uri);
+          const commentCount = await this.getPostCommentCount(postItem.uri);
+
           posts.push({
-            postId: postItem.postId,
-            authorId: postItem.authorId,
-            authorName: postItem.authorName,
-            authorUsername: postItem.authorUsername,
-            content: postItem.content,
-            images: postItem.images,
-            tags: postItem.tags,
-            likeCount: postItem.likeCount,
-            commentCount: postItem.commentCount,
-            isLiked: false, // TODO: Check if current user liked this post
+            uri: postItem.uri,
+            rkey: postItem.rkey,
+            ownerDid: postItem.ownerDid,
+            authorName,
+            authorUsername,
+            text: postItem.text,
+            ...(embedImages &&
+              embedImages.length > 0 && { embed: { images: embedImages } }),
+            ...(facets && facets.length > 0 && { facets }),
+            isLiked: false, // Will be populated by controller
             createdAt: postItem.createdAt,
-            updatedAt: postItem.updatedAt,
+            updatedAt: postItem.updatedAtIso,
           });
         }
       }
-
-      // Sort posts by creation time descending (newest first)
-      posts.sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
 
       const nextCursor = result.LastEvaluatedKey
         ? this.encodeCursor(result.LastEvaluatedKey)
@@ -1010,7 +1101,6 @@ export class SnsService {
           items: posts,
           nextCursor,
           hasMore: !!result.LastEvaluatedKey,
-          // totalCount is optional and not provided by DynamoDB efficiently
         },
       };
     } catch (error) {
@@ -1024,26 +1114,32 @@ export class SnsService {
   }
 
   /**
-   * Get user posts with pagination
+   * Get user posts with pagination - AT Protocol compliant
+   *
+   * @description Retrieves user posts using GSI1 (REPO#{ownerDid} → REC#app.bsky.feed.post#{rkey}).
+   * Posts are sorted by creation time descending (newest first).
+   *
+   * @param ownerDid - Repository owner DID (did:plc:...)
+   * @param limit - Number of posts to return
+   * @param cursor - Pagination cursor
+   * @returns Promise resolving to paginated posts
    */
   async getUserPosts(
-    userId: string,
+    ownerDid: string,
     limit: number = 20,
     cursor?: string
   ): Promise<PaginatedData<PostData>> {
     if (!this.client) {
       // Return mock data for local development
+      const mockRkey = generateRkey();
       const mockPosts: PostData[] = [
         {
-          postId: 'mock-post-1',
-          authorId: userId,
+          uri: generatePostAtUri(ownerDid, mockRkey),
+          rkey: mockRkey,
+          ownerDid,
           authorName: 'Mock User',
           authorUsername: 'mockuser',
-          content: 'This is a mock post for local development',
-          images: [],
-          tags: [],
-          likeCount: 0,
-          commentCount: 0,
+          text: 'This is a mock post for local development',
           isLiked: false,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
@@ -1059,12 +1155,18 @@ export class SnsService {
 
     const exclusiveStartKey = cursor ? this.decodeCursor(cursor) : undefined;
 
+    // Use GSI1 to get user posts (REPO#{ownerDid} → REC#app.bsky.feed.post#{rkey})
     const command = new QueryCommand({
       TableName: this.tableName,
       IndexName: 'GSI1',
       KeyConditionExpression: 'GSI1PK = :gsi1pk',
+      FilterExpression: '#col = :collection',
+      ExpressionAttributeNames: {
+        '#col': 'collection',
+      },
       ExpressionAttributeValues: {
-        ':gsi1pk': `USER#${userId}`,
+        ':gsi1pk': `REPO#${ownerDid}`,
+        ':collection': 'app.bsky.feed.post',
       },
       ScanIndexForward: false, // Sort by creation time descending
       Limit: limit,
@@ -1073,23 +1175,40 @@ export class SnsService {
 
     const result = await this.client.send(command);
 
-    const items = (result.Items || []).map(item => {
-      const postItem = item as DynamoDBPostItem;
-      return {
-        postId: postItem.postId,
-        authorId: postItem.authorId,
-        authorName: '', // Will be populated by controller
-        authorUsername: '', // Will be populated by controller
-        content: postItem.content,
-        images: postItem.images,
-        tags: postItem.tags,
-        likeCount: postItem.likeCount,
-        commentCount: postItem.commentCount,
-        isLiked: false, // Will be populated by controller
-        createdAt: postItem.createdAt,
-        updatedAt: postItem.updatedAt,
-      };
-    });
+    // Get author profile once
+    const authorProfile = await this.getUserProfileItem(ownerDid);
+    const authorName = authorProfile?.displayName || '';
+    const authorUsername = authorProfile
+      ? this.extractUsername(authorProfile.handle || ownerDid)
+      : '';
+
+    const items = await Promise.all(
+      (result.Items || []).map(async item => {
+        const postItem = item as DynamoDBBskyPostRecordItem;
+
+        // embed.images is already SimplifiedEmbedImage format
+        const embedImages: SimplifiedEmbedImage[] | undefined =
+          postItem.embed?.images;
+
+        // facets is already SimplifiedFacet format
+        const facets: SimplifiedFacet[] | undefined = postItem.facets;
+
+        return {
+          uri: postItem.uri,
+          rkey: postItem.rkey,
+          ownerDid: postItem.ownerDid,
+          authorName,
+          authorUsername,
+          text: postItem.text,
+          ...(embedImages &&
+            embedImages.length > 0 && { embed: { images: embedImages } }),
+          ...(facets && facets.length > 0 && { facets }),
+          isLiked: false, // Will be populated by controller
+          createdAt: postItem.createdAt,
+          updatedAt: postItem.updatedAtIso,
+        };
+      })
+    );
 
     return {
       items,
@@ -1101,33 +1220,56 @@ export class SnsService {
   }
 
   /**
-   * Delete post
+   * Delete post (AT Protocol compliant)
+   *
+   * @description Deletes a post by AT URI or rkey. Also deletes related reply posts
+   * (comments) and likes.
+   *
+   * @param uriOrRkey - Post AT URI or rkey
+   * @param ownerDid - Repository owner DID (required if rkey is provided)
    */
-  async deletePost(postId: string): Promise<void> {
+  async deletePost(uriOrRkey: string, ownerDid?: string): Promise<void> {
     if (!this.client) {
-      // For local development, just log the operation
-      console.log('Mock deletePost:', { postId });
+      console.log('Mock deletePost:', { uriOrRkey, ownerDid });
       return;
     }
 
-    // First, get all related items (comments, likes)
+    // Parse URI or use provided rkey
+    let rkey: string;
+    let resolvedOwnerDid: string;
+
+    if (uriOrRkey.includes('at://')) {
+      const parsed = parsePostAtUri(uriOrRkey);
+      if (!parsed) return;
+      rkey = parsed.rkey;
+      resolvedOwnerDid = parsed.ownerDid;
+    } else {
+      if (!ownerDid) return;
+      rkey = uriOrRkey;
+      resolvedOwnerDid = ownerDid;
+    }
+
+    const postUri = generatePostAtUri(resolvedOwnerDid, rkey);
+
+    // Get all reply posts (comments) for this post using GSI13
     const commentsResult = await this.client.send(
       new QueryCommand({
         TableName: this.tableName,
-        KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+        IndexName: 'GSI13',
+        KeyConditionExpression: 'GSI13PK = :gsi13pk',
         ExpressionAttributeValues: {
-          ':pk': `POST#${postId}`,
-          ':sk': 'COMMENT#',
+          ':gsi13pk': `REPLY#ROOT#${postUri}`,
         },
       })
     );
 
+    // Get all likes for this post (using old LIKE structure for now)
     const likesResult = await this.client.send(
       new QueryCommand({
         TableName: this.tableName,
         KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
         ExpressionAttributeValues: {
-          ':pk': `POST#${postId}`,
+          ':pk': `POST#${rkey}`, // Simplified: use rkey as postId for now
           ':sk': 'LIKE#',
         },
       })
@@ -1135,9 +1277,21 @@ export class SnsService {
 
     // Delete all related items
     const deleteRequests = [
-      { DeleteRequest: { Key: { PK: `POST#${postId}`, SK: 'META' } } },
+      {
+        DeleteRequest: {
+          Key: {
+            PK: `REPO#${resolvedOwnerDid}`,
+            SK: `REC#app.bsky.feed.post#${rkey}`,
+          },
+        },
+      },
       ...(commentsResult.Items || []).map(item => ({
-        DeleteRequest: { Key: { PK: item.PK, SK: item.SK } },
+        DeleteRequest: {
+          Key: {
+            PK: (item as DynamoDBBskyPostRecordItem).PK,
+            SK: (item as DynamoDBBskyPostRecordItem).SK,
+          },
+        },
       })),
       ...(likesResult.Items || []).map(item => ({
         DeleteRequest: { Key: { PK: item.PK, SK: item.SK } },
@@ -1156,44 +1310,84 @@ export class SnsService {
     }
   }
 
-  // ===== COMMENT OPERATIONS =====
+  // ===== COMMENT OPERATIONS (Reply Post) =====
 
   /**
-   * Create comment
+   * Create comment (Reply Post) - AT Protocol compliant
+   *
+   * @description Creates a comment as a Reply Post in AT Protocol.
+   * Comments are stored as posts with a reply reference to the parent post.
+   *
+   * @param ownerDid - Repository owner DID (comment author)
+   * @param text - Comment text content
+   * @param rootPostUri - Root post AT URI
+   * @param parentPostUri - Parent post AT URI (usually same as rootPostUri for direct comments)
+   * @returns Promise resolving to created comment AT URI
    */
   async createComment(
-    commentId: string,
-    postId: string,
-    authorId: string,
-    content: string
-  ): Promise<void> {
+    ownerDid: string,
+    text: string,
+    rootPostUri: string,
+    parentPostUri: string
+  ): Promise<string> {
     if (!this.client) {
-      // For local development, just log the operation
+      const mockRkey = generateRkey();
+      const mockUri = generatePostAtUri(ownerDid, mockRkey);
       console.log('Mock createComment:', {
-        commentId,
-        postId,
-        authorId,
-        content,
+        ownerDid,
+        text,
+        rootPostUri,
+        parentPostUri,
+        rkey: mockRkey,
+        uri: mockUri,
       });
-      return;
+      return mockUri;
     }
 
+    // Generate rkey (TID format)
+    const rkey = generateRkey();
+    const uri = generatePostAtUri(ownerDid, rkey);
     const now = new Date().toISOString();
-    const item: DynamoDBCommentItem = {
-      PK: `POST#${postId}`,
-      SK: `COMMENT#${commentId}`,
-      GSI1PK: `POST#${postId}`,
-      GSI1SK: `COMMENT#${now}#${commentId}`,
-      GSI2PK: `USER#${authorId}`,
-      GSI2SK: `COMMENT#${now}#${commentId}`,
-      commentId,
-      postId,
-      authorId,
-      content,
-      likeCount: 0,
+
+    // Parse parent and root post URIs to get their rkeys
+    const parentParsed = parsePostAtUri(parentPostUri);
+    const rootParsed = parsePostAtUri(rootPostUri);
+    if (!parentParsed || !rootParsed) {
+      throw new Error('Invalid parent or root post URI');
+    }
+
+    // Build reply reference
+    const reply: ReplyRef = {
+      root: {
+        uri: rootPostUri,
+      },
+      parent: {
+        uri: parentPostUri,
+      },
+    };
+
+    // Build AT Protocol compliant reply post item
+    const item: DynamoDBBskyPostRecordItem = {
+      PK: `REPO#${ownerDid}`,
+      SK: `REC#app.bsky.feed.post#${rkey}`,
+      ownerDid,
+      collection: 'app.bsky.feed.post',
+      rkey,
+      uri,
+      text,
+      reply,
       createdAt: now,
-      updatedAt: now,
+      createdAtIso: now,
+      updatedAtIso: now,
       ttl: this.getTTL(),
+      // GSI Keys
+      GSI1PK: `REPO#${ownerDid}`,
+      GSI1SK: `REC#app.bsky.feed.post#${rkey}`,
+      GSI2PK: 'POST#ALL',
+      GSI2SK: `REC#app.bsky.feed.post#${rkey}`,
+      // GSI13 for reply posts
+      GSI13PK: `REPLY#ROOT#${rootPostUri}`,
+      GSI13SK: `REC#app.bsky.feed.post#${rkey}`,
     };
 
     const command = new PutCommand({
@@ -1202,30 +1396,39 @@ export class SnsService {
     });
 
     await this.client.send(command);
-
-    // Update post comment count
-    await this.updatePostCommentCount(postId, 1);
+    return uri;
   }
 
   /**
-   * Get post comments with pagination
+   * Get post comments (Reply Posts) with pagination - AT Protocol compliant
+   *
+   * @description Retrieves comments (reply posts) for a post using GSI13
+   * (REPLY#ROOT#{rootPostUri} → REC#app.bsky.feed.post#{rkey}).
+   *
+   * @param rootPostUri - Root post AT URI
+   * @param limit - Number of comments to return
+   * @param cursor - Pagination cursor
+   * @returns Promise resolving to paginated comments
    */
   async getPostComments(
-    postId: string,
+    rootPostUri: string,
     limit: number = 20,
     cursor?: string
   ): Promise<PaginatedData<CommentData>> {
     if (!this.client) {
       // Return mock data for local development
+      const mockRkey = generateRkey();
+      const mockOwnerDid = 'did:plc:mock';
       const mockComments: CommentData[] = [
         {
-          commentId: 'mock-comment-1',
-          postId,
-          authorId: 'mock-author',
+          uri: generatePostAtUri(mockOwnerDid, mockRkey),
+          rkey: mockRkey,
+          ownerDid: mockOwnerDid,
+          rootPostUri,
+          parentPostUri: rootPostUri,
           authorName: 'Mock Author',
           authorUsername: 'mockauthor',
-          content: 'This is a mock comment for local development',
-          likeCount: 0,
+          text: 'This is a mock comment for local development',
           isLiked: false,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
@@ -1241,12 +1444,13 @@ export class SnsService {
 
     const exclusiveStartKey = cursor ? this.decodeCursor(cursor) : undefined;
 
+    // Use GSI13 to get reply posts (REPLY#ROOT#{rootPostUri} → REC#app.bsky.feed.post#{rkey})
     const command = new QueryCommand({
       TableName: this.tableName,
-      IndexName: 'GSI1',
-      KeyConditionExpression: 'GSI1PK = :gsi1pk',
+      IndexName: 'GSI13',
+      KeyConditionExpression: 'GSI13PK = :gsi13pk',
       ExpressionAttributeValues: {
-        ':gsi1pk': `POST#${postId}`,
+        ':gsi13pk': `REPLY#ROOT#${rootPostUri}`,
       },
       ScanIndexForward: false, // Sort by creation time descending
       Limit: limit,
@@ -1255,21 +1459,39 @@ export class SnsService {
 
     const result = await this.client.send(command);
 
-    const items = (result.Items || []).map(item => {
-      const commentItem = item as DynamoDBCommentItem;
-      return {
-        commentId: commentItem.commentId,
-        postId: commentItem.postId,
-        authorId: commentItem.authorId,
-        authorName: '', // Will be populated by controller
-        authorUsername: '', // Will be populated by controller
-        content: commentItem.content,
-        likeCount: commentItem.likeCount,
-        isLiked: false, // Will be populated by controller
-        createdAt: commentItem.createdAt,
-        updatedAt: commentItem.updatedAt,
-      };
-    });
+    const items = await Promise.all(
+      (result.Items || []).map(async item => {
+        const replyPostItem = item as DynamoDBBskyPostRecordItem;
+
+        // Get author profile for display name and username
+        const authorProfile = await this.getUserProfileItem(
+          replyPostItem.ownerDid
+        );
+        const authorName = authorProfile?.displayName || '';
+        const authorUsername = authorProfile
+          ? this.extractUsername(authorProfile.handle || replyPostItem.ownerDid)
+          : '';
+
+        // Extract root and parent URIs from reply reference
+        const rootPostUriFromReply = replyPostItem.reply?.root.uri || '';
+        const parentPostUriFromReply = replyPostItem.reply?.parent.uri || '';
+
+        return {
+          uri: replyPostItem.uri,
+          rkey: replyPostItem.rkey,
+          ownerDid: replyPostItem.ownerDid,
+          rootPostUri: rootPostUriFromReply,
+          parentPostUri: parentPostUriFromReply,
+          authorName,
+          authorUsername,
+          text: replyPostItem.text,
+          reply: replyPostItem.reply,
+          isLiked: false, // Will be populated by controller
+          createdAt: replyPostItem.createdAt,
+          updatedAt: replyPostItem.updatedAtIso,
+        };
+      })
+    );
 
     return {
       items,
@@ -1281,27 +1503,43 @@ export class SnsService {
   }
 
   /**
-   * Delete comment
+   * Delete comment (Reply Post) - AT Protocol compliant
+   *
+   * @description Deletes a comment (reply post) by AT URI or rkey.
+   *
+   * @param uriOrRkey - Comment AT URI or rkey
+   * @param ownerDid - Repository owner DID (required if rkey is provided)
    */
-  async deleteComment(postId: string, commentId: string): Promise<void> {
+  async deleteComment(uriOrRkey: string, ownerDid?: string): Promise<void> {
     if (!this.client) {
-      // For local development, just log the operation
-      console.log('Mock deleteComment:', { postId, commentId });
+      console.log('Mock deleteComment:', { uriOrRkey, ownerDid });
       return;
+    }
+
+    // Parse URI or use provided rkey
+    let rkey: string;
+    let resolvedOwnerDid: string;
+
+    if (uriOrRkey.includes('at://')) {
+      const parsed = parsePostAtUri(uriOrRkey);
+      if (!parsed) return;
+      rkey = parsed.rkey;
+      resolvedOwnerDid = parsed.ownerDid;
+    } else {
+      if (!ownerDid) return;
+      rkey = uriOrRkey;
+      resolvedOwnerDid = ownerDid;
     }
 
     const command = new DeleteCommand({
       TableName: this.tableName,
       Key: {
-        PK: `POST#${postId}`,
-        SK: `COMMENT#${commentId}`,
+        PK: `REPO#${resolvedOwnerDid}`,
+        SK: `REC#app.bsky.feed.post#${rkey}`,
       },
     });
 
     await this.client.send(command);
-
-    // Update post comment count
-    await this.updatePostCommentCount(postId, -1);
   }
 
   // ===== LIKE OPERATIONS =====
@@ -1756,6 +1994,83 @@ export class SnsService {
     });
 
     await this.client.send(command);
+  }
+
+  /**
+   * Get post like count (AppView pattern)
+   *
+   * @description Calculates the number of likes for a post by querying like items.
+   * This follows the AT Protocol AppView pattern where aggregated data is computed
+   * rather than stored directly in the repository.
+   *
+   * @param postUri - Post AT URI
+   * @returns Promise resolving to like count
+   */
+  private async getPostLikeCount(postUri: string): Promise<number> {
+    if (!this.client) {
+      return 0;
+    }
+
+    try {
+      // Extract rkey from URI
+      const rkey = extractRkeyFromUri(postUri);
+      if (!rkey) return 0;
+
+      // Query likes for this post
+      // Note: This uses the old LIKE structure. In AT Protocol, likes would be
+      // stored differently, but for now we use the existing structure.
+      const command = new QueryCommand({
+        TableName: this.tableName,
+        KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+        ExpressionAttributeValues: {
+          ':pk': `POST#${rkey}`, // Simplified: use rkey as postId for now
+          ':sk': 'LIKE#',
+        },
+        Select: 'COUNT',
+      });
+
+      const result = await this.client.send(command);
+      return result.Count || 0;
+    } catch (error) {
+      console.error('Error getting post like count:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Get post comment count (AppView pattern)
+   *
+   * @description Calculates the number of comments (reply posts) for a post by querying
+   * reply posts using GSI13. This follows the AT Protocol AppView pattern where
+   * aggregated data is computed rather than stored directly in the repository.
+   *
+   * @param postUri - Post AT URI
+   * @returns Promise resolving to comment count
+   */
+  private async getPostCommentCount(postUri: string): Promise<number> {
+    if (!this.client) {
+      return 0;
+    }
+
+    try {
+      // Query reply posts for this post using GSI13
+      // GSI13PK: REPLY#ROOT#{rootPostUri}
+      const command = new QueryCommand({
+        TableName: this.tableName,
+        IndexName: 'GSI13',
+        KeyConditionExpression: 'GSI13PK = :gsi13pk',
+        ExpressionAttributeValues: {
+          ':gsi13pk': `REPLY#ROOT#${postUri}`,
+        },
+        Select: 'COUNT',
+      });
+
+      const result = await this.client.send(command);
+      return result.Count || 0;
+    } catch (error) {
+      console.error('Error getting post comment count:', error);
+      return 0;
+    }
   }
 
   /**

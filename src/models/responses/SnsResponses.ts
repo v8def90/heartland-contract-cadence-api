@@ -145,8 +145,8 @@ export interface CommentData {
   authorUsername: string;
   /** Comment text content (AT Protocol standard, previously content) */
   text: string;
-  /** Reply reference (AT Protocol standard) */
-  reply?: ReplyRef;
+  /** Reply reference (AT Protocol standard, optional) */
+  reply?: ReplyRef | undefined;
   /** Is liked by current user */
   isLiked: boolean;
   /** Created timestamp (AT Protocol standard) */

@@ -104,15 +104,15 @@ export class LikesController extends Controller {
 
       const userId = user.id;
 
-      // Validate postId matches
-      if (request.postId !== postId) {
+      // Validate uri matches (if provided in request)
+      if (request.uri && request.uri !== postId) {
         this.setStatus(400);
         return {
           success: false,
           error: {
-            code: 'POST_ID_MISMATCH',
-            message: 'Post ID in path does not match request body',
-            details: `Path: ${postId}, Body: ${request.postId}`,
+            code: 'POST_URI_MISMATCH',
+            message: 'Post URI in path does not match request body',
+            details: `Path: ${postId}, Body: ${request.uri}`,
           },
           timestamp: new Date().toISOString(),
         };

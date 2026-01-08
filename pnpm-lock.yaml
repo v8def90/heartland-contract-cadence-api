@@ -11,6 +11,9 @@ importers:
       '@atproto/api':
         specifier: ^0.18.9
         version: 0.18.9
+      '@atproto/syntax':
+        specifier: ^0.4.2
+        version: 0.4.2
       '@aws-sdk/client-s3':
         specifier: ^3.901.0
         version: 3.901.0

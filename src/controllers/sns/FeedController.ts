@@ -70,29 +70,55 @@ export class FeedController extends Controller {
     data: {
       items: [
         {
-          postId: 'post-123',
-          authorId: 'user-456',
+          uri: 'at://did:plc:xxx/app.bsky.feed.post/3k2abc123def456',
+          rkey: '3k2abc123def456',
+          ownerDid: 'did:plc:xxx',
           authorName: 'John Doe',
           authorUsername: 'johndoe',
-          content: 'Just finished a great workout! 💪',
-          images: ['https://example.com/workout.jpg'],
-          tags: ['fitness', 'motivation'],
-          likeCount: 15,
-          commentCount: 3,
+          text: 'Just finished a great workout! 💪',
+          embed: {
+            images: [
+              {
+                url: 'https://example.com/workout.jpg',
+                alt: 'Workout image',
+              },
+            ],
+          },
+          facets: [
+            {
+              type: 'tag',
+              value: 'fitness',
+              startIndex: 0,
+              endIndex: 7,
+            },
+          ],
           isLiked: false,
           createdAt: '2024-01-01T00:00:00.000Z',
           updatedAt: '2024-01-01T00:00:00.000Z',
         },
         {
-          postId: 'post-789',
-          authorId: 'user-101',
+          uri: 'at://did:plc:yyy/app.bsky.feed.post/3k2def456ghi789',
+          rkey: '3k2def456ghi789',
+          ownerDid: 'did:plc:yyy',
           authorName: 'Jane Smith',
           authorUsername: 'janesmith',
-          content: 'Beautiful sunset today 🌅',
-          images: ['https://example.com/sunset.jpg'],
-          tags: ['nature', 'photography'],
-          likeCount: 8,
-          commentCount: 1,
+          text: 'Beautiful sunset today 🌅',
+          embed: {
+            images: [
+              {
+                url: 'https://example.com/sunset.jpg',
+                alt: 'Sunset image',
+              },
+            ],
+          },
+          facets: [
+            {
+              type: 'tag',
+              value: 'nature',
+              startIndex: 0,
+              endIndex: 6,
+            },
+          ],
           isLiked: true,
           createdAt: '2024-01-01T01:00:00.000Z',
           updatedAt: '2024-01-01T01:00:00.000Z',
@@ -175,22 +201,12 @@ export class FeedController extends Controller {
         cursor
       );
 
-      // Get author profiles for all posts
-      const postsWithAuthorInfo: PostData[] = [];
-      for (const post of feedResult.items) {
-        const userProfile = await this.snsService.getUserProfile(post.authorId);
-        if (userProfile) {
-          // TODO: Check if current user liked this post
-          const isLiked = false; // This should come from JWT middleware
-
-          postsWithAuthorInfo.push({
-            ...post,
-            authorName: userProfile.displayName,
-            authorUsername: userProfile.handle, // AT Protocol standard: handle (previously username)
-            isLiked,
-          });
-        }
-      }
+      // Posts already have author information from SnsService
+      const postsWithAuthorInfo: PostData[] = feedResult.items.map(post => ({
+        ...post,
+        // TODO: Check if current user liked this post
+        isLiked: false, // This should come from JWT middleware
+      }));
 
       return {
         success: true,
@@ -234,15 +250,28 @@ export class FeedController extends Controller {
     data: {
       items: [
         {
-          postId: 'post-456',
-          authorId: 'user-789',
+          uri: 'at://did:plc:zzz/app.bsky.feed.post/3k2ghi789jkl012',
+          rkey: '3k2ghi789jkl012',
+          ownerDid: 'did:plc:zzz',
           authorName: 'Alice Johnson',
           authorUsername: 'alicej',
-          content: 'Excited to share my latest project! 🚀',
-          images: ['https://example.com/project.jpg'],
-          tags: ['project', 'excited'],
-          likeCount: 25,
-          commentCount: 7,
+          text: 'Excited to share my latest project! 🚀',
+          embed: {
+            images: [
+              {
+                url: 'https://example.com/project.jpg',
+                alt: 'Project image',
+              },
+            ],
+          },
+          facets: [
+            {
+              type: 'tag',
+              value: 'project',
+              startIndex: 0,
+              endIndex: 7,
+            },
+          ],
           isLiked: false,
           createdAt: '2024-01-01T02:00:00.000Z',
           updatedAt: '2024-01-01T02:00:00.000Z',

@@ -696,15 +696,28 @@ export class UsersController extends Controller {
     data: {
       items: [
         {
-          postId: 'post-123',
-          authorId: 'user-123',
+          uri: 'at://did:plc:xxx/app.bsky.feed.post/3k2abc123def456',
+          rkey: '3k2abc123def456',
+          ownerDid: 'did:plc:xxx',
           authorName: 'John Doe',
           authorUsername: 'johndoe',
-          content: 'Just finished a great workout! 💪',
-          images: ['https://example.com/workout.jpg'],
-          tags: ['fitness', 'motivation'],
-          likeCount: 15,
-          commentCount: 3,
+          text: 'Just finished a great workout! 💪',
+          embed: {
+            images: [
+              {
+                url: 'https://example.com/workout.jpg',
+                alt: 'Workout image',
+              },
+            ],
+          },
+          facets: [
+            {
+              type: 'tag',
+              value: 'fitness',
+              startIndex: 0,
+              endIndex: 7,
+            },
+          ],
           isLiked: false,
           createdAt: '2024-01-01T00:00:00.000Z',
           updatedAt: '2024-01-01T00:00:00.000Z',
@@ -752,23 +765,15 @@ export class UsersController extends Controller {
         };
       }
 
-      // Get user posts
+      // Get user posts (AT Protocol compliant - ownerDid based)
       const result = await this.snsService.getUserPosts(did, limit, cursor);
 
-      // Get author profiles for all posts
-      const postsWithAuthorInfo: any[] = [];
-      for (const post of result.items) {
-        const userProfile = await this.snsService.getUserProfile(post.authorId);
-        if (userProfile) {
-          postsWithAuthorInfo.push({
-            ...post,
-            authorName: userProfile.displayName,
-            authorUsername: userProfile.handle, // AT Protocol standard: handle (previously username)
-            // TODO: Check if current user liked this post
-            isLiked: false, // This should come from JWT middleware
-          });
-        }
-      }
+      // Posts already have author information from SnsService
+      const postsWithAuthorInfo: any[] = result.items.map(post => ({
+        ...post,
+        // TODO: Check if current user liked this post
+        isLiked: false, // This should come from JWT middleware
+      }));
 
       return {
         success: true,

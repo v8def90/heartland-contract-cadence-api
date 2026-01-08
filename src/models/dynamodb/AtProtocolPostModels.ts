@@ -32,9 +32,9 @@ export interface DynamoDBBskyPostRecordItem {
   langs?: string[]; // 言語コード
   reply?: ReplyRef; // 返信構造（Commentの場合）
   embed?: {
-    images?: EmbedImage[]; // images → embed.images
+    images?: SimplifiedEmbedImage[]; // images → embed.images (簡易版を使用)
   };
-  facets?: Facet[]; // tags → facets
+  facets?: SimplifiedFacet[]; // tags → facets (簡易版を使用)
 
   // タイムスタンプ
   createdAtIso: string; // ISO 8601形式（ソート用）
@@ -48,8 +48,8 @@ export interface DynamoDBBskyPostRecordItem {
   GSI1SK?: string; // REC#app.bsky.feed.post#{rkey}
   GSI2PK?: string; // POST#ALL（フィード取得用）
   GSI2SK?: string; // REC#app.bsky.feed.post#{rkey}
-  GSI3PK?: string; // REPLY#ROOT#{rootPostUri}（Reply Post取得用）
-  GSI3SK?: string; // REC#app.bsky.feed.post#{rkey}
+  GSI13PK?: string; // REPLY#ROOT#{rootPostUri}（Reply Post取得用）
+  GSI13SK?: string; // REC#app.bsky.feed.post#{rkey}
 }
 
 /**

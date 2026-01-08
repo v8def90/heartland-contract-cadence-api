@@ -22,7 +22,6 @@ import {
   Response,
   Request,
 } from 'tsoa';
-import { v4 as uuidv4 } from 'uuid';
 import type { ApiResponse } from '../../models/responses/ApiResponse';
 import type {
   CommentData,
@@ -35,6 +34,7 @@ import type {
   GetCommentsQuery,
 } from '../../models/requests/SnsRequests';
 import { SnsService } from '../../services/SnsService';
+import { parsePostAtUri, extractRkeyFromUri } from '../../utils/atUri';
 
 /**
  * SNS Comments Controller
@@ -48,7 +48,7 @@ import { SnsService } from '../../services/SnsService';
  * const comments = await controller.getPostComments("post123", { limit: 10 });
  * ```
  */
-@Route('sns/posts/{postId}/comments')
+@Route('sns/posts/comments')
 @Tags('SNS Comments')
 export class CommentsController extends Controller {
   private snsService: SnsService;
@@ -80,13 +80,14 @@ export class CommentsController extends Controller {
   @Example<CommentResponse>({
     success: true,
     data: {
-      commentId: 'comment-123',
-      postId: 'post-456',
-      authorId: 'user-789',
+      uri: 'at://did:plc:xxx/app.bsky.feed.post/3k2abc123def456',
+      rkey: '3k2abc123def456',
+      ownerDid: 'did:plc:xxx',
+      rootPostUri: 'at://did:plc:yyy/app.bsky.feed.post/3k2def456ghi789',
+      parentPostUri: 'at://did:plc:yyy/app.bsky.feed.post/3k2def456ghi789',
       authorName: 'John Doe',
       authorUsername: 'johndoe',
-      content: 'Great post!',
-      likeCount: 0,
+      text: 'Great post!',
       isLiked: false,
       createdAt: '2024-01-01T00:00:00.000Z',
       updatedAt: '2024-01-01T00:00:00.000Z',
@@ -94,7 +95,7 @@ export class CommentsController extends Controller {
     timestamp: '2024-01-01T00:00:00.000Z',
   })
   public async createComment(
-    @Path() postId: string,
+    @Query() rootPostUri: string,
     @Body() request: CreateCommentRequest,
     @Request() requestObj: any
   ): Promise<CommentResponse> {
@@ -115,66 +116,81 @@ export class CommentsController extends Controller {
         };
       }
 
-      const userId = user.id;
+      const userId = user.id; // ownerDid
 
-      // Validate content length
-      if (request.content.length > 500) {
+      // Validate text length
+      if (request.text.length > 500) {
         this.setStatus(400);
         return {
           success: false,
           error: {
             code: 'CONTENT_TOO_LONG',
-            message: 'Comment content must be 500 characters or less',
-            details: `Received ${request.content.length} characters`,
+            message: 'Comment text must be 500 characters or less',
+            details: `Received ${request.text.length} characters`,
           },
           timestamp: new Date().toISOString(),
         };
       }
 
-      // Check if post exists
-      const post = await this.snsService.getPost(postId);
-      if (!post) {
+      // Validate root post URI
+      const rootParsed = parsePostAtUri(rootPostUri);
+      if (!rootParsed) {
+        this.setStatus(400);
+        return {
+          success: false,
+          error: {
+            code: 'INVALID_URI',
+            message: 'Invalid root post URI format',
+            details: `Invalid URI: ${rootPostUri}`,
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      // Check if root post exists
+      const rootPost = await this.snsService.getPost(rootPostUri);
+      if (!rootPost) {
         this.setStatus(404);
         return {
           success: false,
           error: {
             code: 'POST_NOT_FOUND',
-            message: 'Post not found',
-            details: `No post found with ID: ${postId}`,
+            message: 'Root post not found',
+            details: `No post found with URI: ${rootPostUri}`,
           },
           timestamp: new Date().toISOString(),
         };
       }
 
-      // Generate comment ID
-      const commentId = `comment-${uuidv4()}`;
+      // For direct comments, parentPostUri is the same as rootPostUri
+      const parentPostUri = rootPostUri;
 
-      // Create comment in database
-      await this.snsService.createComment(
-        commentId,
-        postId,
-        userId,
-        request.content
+      // Create comment (Reply Post) in database (AT Protocol compliant)
+      const commentUri = await this.snsService.createComment(
+        userId, // ownerDid
+        request.text, // text (previously content)
+        rootPostUri, // rootPostUri
+        parentPostUri // parentPostUri
       );
 
-      // Get user profile for author info
-      const userProfile = await this.snsService.getUserProfile(userId);
-      if (!userProfile) {
+      // Get created comment by URI
+      const commentRkey = extractRkeyFromUri(commentUri);
+      if (!commentRkey) {
         this.setStatus(500);
         return {
           success: false,
           error: {
-            code: 'USER_NOT_FOUND',
-            message: 'User profile not found',
-            details: 'Unable to retrieve author information',
+            code: 'COMMENT_CREATION_FAILED',
+            message: 'Failed to extract rkey from created comment URI',
+            details: 'Comment was created but could not be retrieved',
           },
           timestamp: new Date().toISOString(),
         };
       }
 
       // Get created comment
-      const comments = await this.snsService.getPostComments(postId, 1);
-      const comment = comments.items.find(c => c.commentId === commentId);
+      const comments = await this.snsService.getPostComments(rootPostUri, 1000);
+      const comment = comments.items.find(c => c.uri === commentUri);
       if (!comment) {
         this.setStatus(500);
         return {
@@ -188,12 +204,8 @@ export class CommentsController extends Controller {
         };
       }
 
-      // Populate author information
-      const commentData: CommentData = {
-        ...comment,
-        authorName: userProfile.displayName,
-        authorUsername: userProfile.handle, // AT Protocol standard: handle (previously username)
-      };
+      // Comment already has author information from SnsService
+      const commentData: CommentData = comment;
 
       this.setStatus(201);
       return {
@@ -236,13 +248,14 @@ export class CommentsController extends Controller {
     data: {
       items: [
         {
-          commentId: 'comment-123',
-          postId: 'post-456',
-          authorId: 'user-789',
+          uri: 'at://did:plc:xxx/app.bsky.feed.post/3k2abc123def456',
+          rkey: '3k2abc123def456',
+          ownerDid: 'did:plc:xxx',
+          rootPostUri: 'at://did:plc:yyy/app.bsky.feed.post/3k2def456ghi789',
+          parentPostUri: 'at://did:plc:yyy/app.bsky.feed.post/3k2def456ghi789',
           authorName: 'John Doe',
           authorUsername: 'johndoe',
-          content: 'Great post!',
-          likeCount: 3,
+          text: 'Great post!',
           isLiked: false,
           createdAt: '2024-01-01T00:00:00.000Z',
           updatedAt: '2024-01-01T00:00:00.000Z',
@@ -256,7 +269,7 @@ export class CommentsController extends Controller {
     timestamp: '2024-01-01T00:00:00.000Z',
   })
   public async getPostComments(
-    @Path() postId: string,
+    @Query() rootPostUri: string,
     @Query() limit: number = 20,
     @Query() cursor?: string
   ): Promise<CommentListResponse> {
@@ -275,42 +288,45 @@ export class CommentsController extends Controller {
         };
       }
 
-      // Check if post exists
-      const post = await this.snsService.getPost(postId);
-      if (!post) {
-        this.setStatus(404);
+      // Validate root post URI
+      const rootParsed = parsePostAtUri(rootPostUri);
+      if (!rootParsed) {
+        this.setStatus(400);
         return {
           success: false,
           error: {
-            code: 'POST_NOT_FOUND',
-            message: 'Post not found',
-            details: `No post found with ID: ${postId}`,
+            code: 'INVALID_URI',
+            message: 'Invalid root post URI format',
+            details: `Invalid URI: ${rootPostUri}`,
           },
           timestamp: new Date().toISOString(),
         };
       }
 
-      // Get comments
+      // Check if root post exists
+      const rootPost = await this.snsService.getPost(rootPostUri);
+      if (!rootPost) {
+        this.setStatus(404);
+        return {
+          success: false,
+          error: {
+            code: 'POST_NOT_FOUND',
+            message: 'Root post not found',
+            details: `No post found with URI: ${rootPostUri}`,
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      // Get comments (Reply Posts) using rootPostUri
       const result = await this.snsService.getPostComments(
-        postId,
+        rootPostUri,
         limit,
         cursor
       );
 
-      // Get author profiles for all comments
-      const commentsWithAuthorInfo: CommentData[] = [];
-      for (const comment of result.items) {
-        const userProfile = await this.snsService.getUserProfile(
-          comment.authorId
-        );
-        if (userProfile) {
-          commentsWithAuthorInfo.push({
-            ...comment,
-            authorName: userProfile.displayName,
-            authorUsername: userProfile.handle, // AT Protocol standard: handle (previously username)
-          });
-        }
-      }
+      // Comments already have author information from SnsService
+      const commentsWithAuthorInfo: CommentData[] = result.items;
 
       return {
         success: true,
@@ -346,9 +362,10 @@ export class CommentsController extends Controller {
    *
    * @security JWT authentication required
    */
-  @Delete('{commentId}')
+  @Delete()
   @Security('jwt')
   @SuccessResponse('200', 'Comment deleted successfully')
+  @Response<ApiResponse>('400', 'Invalid URI or missing ownerDid')
   @Response<ApiResponse>('401', 'Authentication required')
   @Response<ApiResponse>('403', 'Not authorized to delete this comment')
   @Response<ApiResponse>('404', 'Comment not found')
@@ -359,9 +376,11 @@ export class CommentsController extends Controller {
     timestamp: '2024-01-01T00:00:00.000Z',
   })
   public async deleteComment(
-    @Path() postId: string,
-    @Path() commentId: string,
-    @Request() requestObj: any
+    @Query() rootPostUri: string,
+    @Query() uri?: string,
+    @Query() rkey?: string,
+    @Query() ownerDid?: string,
+    @Request() requestObj?: any
   ): Promise<EmptyResponse> {
     try {
       // Extract user ID from JWT token
@@ -382,9 +401,27 @@ export class CommentsController extends Controller {
 
       const userId = user.id;
 
-      // Get comment to check ownership
-      const comments = await this.snsService.getPostComments(postId, 1000);
-      const comment = comments.items.find(c => c.commentId === commentId);
+      // Use uri if provided, otherwise use rkey with ownerDid
+      const commentUri =
+        uri ||
+        (rkey && ownerDid ? `at://${ownerDid}/app.bsky.feed.post/${rkey}` : '');
+      if (!commentUri) {
+        this.setStatus(400);
+        return {
+          success: false,
+          error: {
+            code: 'INVALID_REQUEST',
+            message: 'Either uri or (rkey and ownerDid) must be provided',
+            details:
+              'Provide either uri query parameter or both rkey and ownerDid query parameters',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      // Get comment from root post's comments
+      const comments = await this.snsService.getPostComments(rootPostUri, 1000);
+      const comment = comments.items.find(c => c.uri === commentUri);
 
       if (!comment) {
         this.setStatus(404);
@@ -393,14 +430,14 @@ export class CommentsController extends Controller {
           error: {
             code: 'COMMENT_NOT_FOUND',
             message: 'Comment not found',
-            details: `No comment found with ID: ${commentId}`,
+            details: `No comment found with URI: ${commentUri}`,
           },
           timestamp: new Date().toISOString(),
         };
       }
 
       // Check if user is the author
-      if (comment.authorId !== userId) {
+      if (comment.ownerDid !== userId) {
         this.setStatus(403);
         return {
           success: false,
@@ -413,8 +450,8 @@ export class CommentsController extends Controller {
         };
       }
 
-      // Delete comment
-      await this.snsService.deleteComment(postId, commentId);
+      // Delete comment (Reply Post)
+      await this.snsService.deleteComment(comment.uri, comment.ownerDid);
 
       return {
         success: true,

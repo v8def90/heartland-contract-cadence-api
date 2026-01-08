@@ -22,7 +22,6 @@ import {
   Response,
   Request,
 } from 'tsoa';
-import { v4 as uuidv4 } from 'uuid';
 import type { ApiResponse } from '../../models/responses/ApiResponse';
 import type {
   PostData,
@@ -35,6 +34,7 @@ import type {
   UpdatePostRequest,
 } from '../../models/requests/SnsRequests';
 import { SnsService } from '../../services/SnsService';
+import { parsePostAtUri, extractRkeyFromUri } from '../../utils/atUri';
 
 /**
  * SNS Posts Controller
@@ -67,7 +67,7 @@ export class PostsController extends Controller {
    * @param query - Query parameters for pagination and filtering
    * @returns Promise resolving to paginated post list
    */
-  @Get()
+  @Get('list')
   @SuccessResponse('200', 'Posts retrieved successfully')
   @Response<ApiResponse>('400', 'Invalid query parameters')
   @Response<ApiResponse>('500', 'Failed to retrieve posts')
@@ -76,15 +76,28 @@ export class PostsController extends Controller {
     data: {
       items: [
         {
-          postId: 'post-123',
-          authorId: 'user-456',
+          uri: 'at://did:plc:xxx/app.bsky.feed.post/3k2abc123def456',
+          rkey: '3k2abc123def456',
+          ownerDid: 'did:plc:xxx',
           authorName: 'John Doe',
           authorUsername: 'johndoe',
-          content: 'Hello, world!',
-          images: ['https://example.com/image.jpg'],
-          tags: ['hello', 'world'],
-          likeCount: 5,
-          commentCount: 2,
+          text: 'Hello, world!',
+          embed: {
+            images: [
+              {
+                url: 'https://example.com/image.jpg',
+                alt: 'Example image',
+              },
+            ],
+          },
+          facets: [
+            {
+              type: 'tag',
+              value: 'hello',
+              startIndex: 0,
+              endIndex: 5,
+            },
+          ],
           isLiked: false,
           createdAt: '2024-01-01T00:00:00.000Z',
           updatedAt: '2024-01-01T00:00:00.000Z',
@@ -174,15 +187,28 @@ export class PostsController extends Controller {
   @Example<PostResponse>({
     success: true,
     data: {
-      postId: 'post-123',
-      authorId: 'user-456',
+      uri: 'at://did:plc:xxx/app.bsky.feed.post/3k2abc123def456',
+      rkey: '3k2abc123def456',
+      ownerDid: 'did:plc:xxx',
       authorName: 'John Doe',
       authorUsername: 'johndoe',
-      content: 'Hello, world!',
-      images: ['https://example.com/image.jpg'],
-      tags: ['hello', 'world'],
-      likeCount: 0,
-      commentCount: 0,
+      text: 'Hello, world!',
+      embed: {
+        images: [
+          {
+            url: 'https://example.com/image.jpg',
+            alt: 'Example image',
+          },
+        ],
+      },
+      facets: [
+        {
+          type: 'tag',
+          value: 'hello',
+          startIndex: 0,
+          endIndex: 5,
+        },
+      ],
       isLiked: false,
       createdAt: '2024-01-01T00:00:00.000Z',
       updatedAt: '2024-01-01T00:00:00.000Z',
@@ -216,22 +242,19 @@ export class PostsController extends Controller {
 
       const userId = user.id;
 
-      // Validate content length
-      if (request.content.length > 1000) {
+      // Validate text length
+      if (request.text.length > 1000) {
         this.setStatus(400);
         return {
           success: false,
           error: {
             code: 'CONTENT_TOO_LONG',
-            message: 'Post content must be 1000 characters or less',
-            details: `Received ${request.content.length} characters`,
+            message: 'Post text must be 1000 characters or less',
+            details: `Received ${request.text.length} characters`,
           },
           timestamp: new Date().toISOString(),
         };
       }
-
-      // Generate post ID
-      const postId = `post-${uuidv4()}`;
 
       // Get user profile for author info
       const userProfile = await this.snsService.getUserProfile(userId);
@@ -248,19 +271,16 @@ export class PostsController extends Controller {
         };
       }
 
-      // Create post in database
-      await this.snsService.createPost(
-        postId,
-        userId,
-        userProfile.displayName,
-        userProfile.handle, // AT Protocol standard: handle (previously username)
-        request.content,
-        request.images,
-        request.tags
+      // Create post in database (AT Protocol compliant)
+      const postUri = await this.snsService.createPost(
+        userId, // ownerDid
+        request.text, // text (previously content)
+        request.embed, // embed (previously images)
+        request.facets // facets (previously tags)
       );
 
-      // Get created post
-      const post = await this.snsService.getPost(postId);
+      // Get created post by URI
+      const post = await this.snsService.getPost(postUri, userId);
       if (!post) {
         this.setStatus(500);
         return {
@@ -274,12 +294,8 @@ export class PostsController extends Controller {
         };
       }
 
-      // Populate author information
-      const postData: PostData = {
-        ...post,
-        authorName: userProfile.displayName,
-        authorUsername: userProfile.handle, // AT Protocol standard: handle (previously username)
-      };
+      // Post already has author information from SnsService
+      const postData: PostData = post;
 
       this.setStatus(201);
       return {
@@ -302,38 +318,76 @@ export class PostsController extends Controller {
   }
 
   /**
-   * Get a specific post by ID
+   * Get a specific post by URI or rkey
    *
-   * @description Retrieves a single post by its ID along with author information.
+   * @description Retrieves a single post by its AT URI or rkey along with author information.
    *
-   * @param postId - The unique identifier of the post
+   * @param uriOrRkey - Post AT URI or rkey
    * @returns Promise resolving to the post data
    */
-  @Get('{postId}')
+  @Get()
   @SuccessResponse('200', 'Post retrieved successfully')
+  @Response<ApiResponse>(
+    '400',
+    'Invalid request - uri or (rkey and ownerDid) required'
+  )
   @Response<ApiResponse>('404', 'Post not found')
   @Response<ApiResponse>('500', 'Failed to retrieve post')
   @Example<PostResponse>({
     success: true,
     data: {
-      postId: 'post-123',
-      authorId: 'user-456',
+      uri: 'at://did:plc:xxx/app.bsky.feed.post/3k2abc123def456',
+      rkey: '3k2abc123def456',
+      ownerDid: 'did:plc:xxx',
       authorName: 'John Doe',
       authorUsername: 'johndoe',
-      content: 'Hello, world!',
-      images: ['https://example.com/image.jpg'],
-      tags: ['hello', 'world'],
-      likeCount: 5,
-      commentCount: 2,
+      text: 'Hello, world!',
+      embed: {
+        images: [
+          {
+            url: 'https://example.com/image.jpg',
+            alt: 'Example image',
+          },
+        ],
+      },
+      facets: [
+        {
+          type: 'tag',
+          value: 'hello',
+          startIndex: 0,
+          endIndex: 5,
+        },
+      ],
       isLiked: false,
       createdAt: '2024-01-01T00:00:00.000Z',
       updatedAt: '2024-01-01T00:00:00.000Z',
     },
     timestamp: '2024-01-01T00:00:00.000Z',
   })
-  public async getPost(@Path() postId: string): Promise<PostResponse> {
+  public async getPost(
+    @Query() uri?: string,
+    @Query() rkey?: string,
+    @Query() ownerDid?: string
+  ): Promise<PostResponse> {
     try {
-      const post = await this.snsService.getPost(postId);
+      // Use uri if provided, otherwise use rkey with ownerDid
+      const postUri =
+        uri ||
+        (rkey && ownerDid ? `at://${ownerDid}/app.bsky.feed.post/${rkey}` : '');
+      if (!postUri) {
+        this.setStatus(400);
+        return {
+          success: false,
+          error: {
+            code: 'INVALID_REQUEST',
+            message: 'Either uri or (rkey and ownerDid) must be provided',
+            details:
+              'Provide either uri query parameter or both rkey and ownerDid query parameters',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+      const post = await this.snsService.getPost(postUri, ownerDid);
       if (!post) {
         this.setStatus(404);
         return {
@@ -341,35 +395,17 @@ export class PostsController extends Controller {
           error: {
             code: 'POST_NOT_FOUND',
             message: 'Post not found',
-            details: `No post found with ID: ${postId}`,
+            details: `No post found with URI: ${postUri}`,
           },
           timestamp: new Date().toISOString(),
         };
       }
 
-      // Get author profile
-      const userProfile = await this.snsService.getUserProfile(post.authorId);
-      if (!userProfile) {
-        this.setStatus(500);
-        return {
-          success: false,
-          error: {
-            code: 'AUTHOR_NOT_FOUND',
-            message: 'Author profile not found',
-            details: 'Unable to retrieve author information',
-          },
-          timestamp: new Date().toISOString(),
-        };
-      }
-
+      // Post already has author information from SnsService
       // TODO: Check if current user liked this post
-      const isLiked = false; // This should come from JWT middleware
-
       const postData: PostData = {
         ...post,
-        authorName: userProfile.displayName,
-        authorUsername: userProfile.handle, // AT Protocol standard: handle (previously username)
-        isLiked,
+        isLiked: false, // This should come from JWT middleware
       };
 
       return {
@@ -402,9 +438,10 @@ export class PostsController extends Controller {
    *
    * @security JWT authentication required
    */
-  @Delete('{postId}')
+  @Delete()
   @Security('jwt')
   @SuccessResponse('200', 'Post deleted successfully')
+  @Response<ApiResponse>('400', 'Invalid URI or missing ownerDid')
   @Response<ApiResponse>('401', 'Authentication required')
   @Response<ApiResponse>('403', 'Not authorized to delete this post')
   @Response<ApiResponse>('404', 'Post not found')
@@ -415,8 +452,10 @@ export class PostsController extends Controller {
     timestamp: '2024-01-01T00:00:00.000Z',
   })
   public async deletePost(
-    @Path() postId: string,
-    @Request() requestObj: any
+    @Query() uri?: string,
+    @Query() rkey?: string,
+    @Query() ownerDid?: string,
+    @Request() requestObj?: any
   ): Promise<EmptyResponse> {
     try {
       // Extract user ID from JWT token
@@ -437,8 +476,26 @@ export class PostsController extends Controller {
 
       const userId = user.id;
 
+      // Use uri if provided, otherwise use rkey with ownerDid
+      const postUri =
+        uri ||
+        (rkey && ownerDid ? `at://${ownerDid}/app.bsky.feed.post/${rkey}` : '');
+      if (!postUri) {
+        this.setStatus(400);
+        return {
+          success: false,
+          error: {
+            code: 'INVALID_REQUEST',
+            message: 'Either uri or (rkey and ownerDid) must be provided',
+            details:
+              'Provide either uri query parameter or both rkey and ownerDid query parameters',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
       // Get post to check ownership
-      const post = await this.snsService.getPost(postId);
+      const post = await this.snsService.getPost(postUri, ownerDid);
       if (!post) {
         this.setStatus(404);
         return {
@@ -446,14 +503,14 @@ export class PostsController extends Controller {
           error: {
             code: 'POST_NOT_FOUND',
             message: 'Post not found',
-            details: `No post found with ID: ${postId}`,
+            details: `No post found with URI: ${postUri}`,
           },
           timestamp: new Date().toISOString(),
         };
       }
 
       // Check if user is the author
-      if (post.authorId !== userId) {
+      if (post.ownerDid !== userId) {
         this.setStatus(403);
         return {
           success: false,
@@ -467,7 +524,7 @@ export class PostsController extends Controller {
       }
 
       // Delete post and all related data
-      await this.snsService.deletePost(postId);
+      await this.snsService.deletePost(postUri, ownerDid);
 
       return {
         success: true,
@@ -491,15 +548,15 @@ export class PostsController extends Controller {
   /**
    * Get user posts with pagination
    *
-   * @description Retrieves posts by a specific user with pagination support.
+   * @description Retrieves posts by a specific user (ownerDid) with pagination support.
    * Posts are returned in reverse chronological order (newest first).
    *
-   * @param userId - The user ID whose posts to retrieve
+   * @param ownerDid - The repository owner DID (did:plc:...)
    * @param limit - Number of posts to return (max 50, default 20)
    * @param cursor - Pagination cursor for next page
    * @returns Promise resolving to paginated posts data
    */
-  @Get('users/{userId}')
+  @Get('users/{ownerDid}')
   @SuccessResponse('200', 'User posts retrieved successfully')
   @Response<ApiResponse>('400', 'Invalid query parameters')
   @Response<ApiResponse>('500', 'Failed to retrieve user posts')
@@ -508,15 +565,28 @@ export class PostsController extends Controller {
     data: {
       items: [
         {
-          postId: 'post-123',
-          authorId: 'user-456',
+          uri: 'at://did:plc:xxx/app.bsky.feed.post/3k2abc123def456',
+          rkey: '3k2abc123def456',
+          ownerDid: 'did:plc:xxx',
           authorName: 'John Doe',
           authorUsername: 'johndoe',
-          content: 'Hello, world!',
-          images: ['https://example.com/image.jpg'],
-          tags: ['hello', 'world'],
-          likeCount: 5,
-          commentCount: 2,
+          text: 'Hello, world!',
+          embed: {
+            images: [
+              {
+                url: 'https://example.com/image.jpg',
+                alt: 'Example image',
+              },
+            ],
+          },
+          facets: [
+            {
+              type: 'tag',
+              value: 'hello',
+              startIndex: 0,
+              endIndex: 5,
+            },
+          ],
           isLiked: false,
           createdAt: '2024-01-01T00:00:00.000Z',
           updatedAt: '2024-01-01T00:00:00.000Z',
@@ -530,7 +600,7 @@ export class PostsController extends Controller {
     timestamp: '2024-01-01T00:00:00.000Z',
   })
   public async getUserPosts(
-    @Path() userId: string,
+    @Path() ownerDid: string,
     @Query() limit: number = 20,
     @Query() cursor?: string
   ): Promise<PostListResponse> {
@@ -549,21 +619,15 @@ export class PostsController extends Controller {
         };
       }
 
-      // Get user posts
-      const result = await this.snsService.getUserPosts(userId, limit, cursor);
+      // Get user posts (AT Protocol compliant - ownerDid based)
+      const result = await this.snsService.getUserPosts(
+        ownerDid,
+        limit,
+        cursor
+      );
 
-      // Get author profiles for all posts
-      const postsWithAuthorInfo: PostData[] = [];
-      for (const post of result.items) {
-        const userProfile = await this.snsService.getUserProfile(post.authorId);
-        if (userProfile) {
-          postsWithAuthorInfo.push({
-            ...post,
-            authorName: userProfile.displayName,
-            authorUsername: userProfile.handle, // AT Protocol standard: handle (previously username)
-          });
-        }
-      }
+      // Posts already have author information from SnsService
+      const postsWithAuthorInfo: PostData[] = result.items;
 
       return {
         success: true,

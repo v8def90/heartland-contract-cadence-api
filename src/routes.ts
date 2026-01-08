@@ -413,18 +413,39 @@ const models: TsoaRoute.Models = {
         "type": {"dataType":"union","subSchemas":[{"ref":"SuccessResponse_null_"},{"ref":"ErrorResponse"}],"validators":{}},
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "SimplifiedEmbedImage": {
+        "dataType": "refObject",
+        "properties": {
+            "url": {"dataType":"string","required":true},
+            "alt": {"dataType":"string"},
+            "mimeType": {"dataType":"string"},
+            "size": {"dataType":"double"},
+        },
+        "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "SimplifiedFacet": {
+        "dataType": "refObject",
+        "properties": {
+            "type": {"dataType":"union","subSchemas":[{"dataType":"enum","enums":["mention"]},{"dataType":"enum","enums":["link"]},{"dataType":"enum","enums":["tag"]}],"required":true},
+            "value": {"dataType":"string","required":true},
+            "startIndex": {"dataType":"double","required":true},
+            "endIndex": {"dataType":"double","required":true},
+        },
+        "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     "PostData": {
         "dataType": "refObject",
         "properties": {
-            "postId": {"dataType":"string","required":true},
-            "authorId": {"dataType":"string","required":true},
+            "uri": {"dataType":"string","required":true},
+            "rkey": {"dataType":"string","required":true},
+            "ownerDid": {"dataType":"string","required":true},
             "authorName": {"dataType":"string","required":true},
             "authorUsername": {"dataType":"string","required":true},
-            "content": {"dataType":"string","required":true},
-            "images": {"dataType":"union","subSchemas":[{"dataType":"array","array":{"dataType":"string"}},{"dataType":"undefined"}]},
-            "tags": {"dataType":"union","subSchemas":[{"dataType":"array","array":{"dataType":"string"}},{"dataType":"undefined"}]},
-            "likeCount": {"dataType":"double","required":true},
-            "commentCount": {"dataType":"double","required":true},
+            "text": {"dataType":"string","required":true},
+            "embed": {"dataType":"nestedObjectLiteral","nestedProperties":{"images":{"dataType":"array","array":{"dataType":"refObject","ref":"SimplifiedEmbedImage"}}}},
+            "facets": {"dataType":"array","array":{"dataType":"refObject","ref":"SimplifiedFacet"}},
             "isLiked": {"dataType":"boolean","required":true},
             "createdAt": {"dataType":"string","required":true},
             "updatedAt": {"dataType":"string","required":true},
@@ -626,9 +647,9 @@ const models: TsoaRoute.Models = {
     "CreatePostRequest": {
         "dataType": "refObject",
         "properties": {
-            "content": {"dataType":"string","required":true},
-            "images": {"dataType":"array","array":{"dataType":"string"}},
-            "tags": {"dataType":"array","array":{"dataType":"string"}},
+            "text": {"dataType":"string","required":true},
+            "embed": {"dataType":"nestedObjectLiteral","nestedProperties":{"images":{"dataType":"array","array":{"dataType":"refObject","ref":"SimplifiedEmbedImage"}}}},
+            "facets": {"dataType":"array","array":{"dataType":"refObject","ref":"SimplifiedFacet"}},
         },
         "additionalProperties": false,
     },
@@ -641,7 +662,7 @@ const models: TsoaRoute.Models = {
     "LikePostRequest": {
         "dataType": "refObject",
         "properties": {
-            "postId": {"dataType":"string","required":true},
+            "uri": {"dataType":"string","required":true},
         },
         "additionalProperties": false,
     },
@@ -845,16 +866,36 @@ const models: TsoaRoute.Models = {
         "type": {"ref":"ApiResponse_PaginatedData_FollowData__","validators":{}},
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "StrongRef": {
+        "dataType": "refObject",
+        "properties": {
+            "uri": {"dataType":"string","required":true},
+            "cid": {"dataType":"string"},
+        },
+        "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "ReplyRef": {
+        "dataType": "refObject",
+        "properties": {
+            "root": {"ref":"StrongRef","required":true},
+            "parent": {"ref":"StrongRef","required":true},
+        },
+        "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     "CommentData": {
         "dataType": "refObject",
         "properties": {
-            "commentId": {"dataType":"string","required":true},
-            "postId": {"dataType":"string","required":true},
-            "authorId": {"dataType":"string","required":true},
+            "uri": {"dataType":"string","required":true},
+            "rkey": {"dataType":"string","required":true},
+            "ownerDid": {"dataType":"string","required":true},
+            "rootPostUri": {"dataType":"string","required":true},
+            "parentPostUri": {"dataType":"string","required":true},
             "authorName": {"dataType":"string","required":true},
             "authorUsername": {"dataType":"string","required":true},
-            "content": {"dataType":"string","required":true},
-            "likeCount": {"dataType":"double","required":true},
+            "text": {"dataType":"string","required":true},
+            "reply": {"dataType":"union","subSchemas":[{"ref":"ReplyRef"},{"dataType":"undefined"}]},
             "isLiked": {"dataType":"boolean","required":true},
             "createdAt": {"dataType":"string","required":true},
             "updatedAt": {"dataType":"string","required":true},
@@ -885,7 +926,7 @@ const models: TsoaRoute.Models = {
     "CreateCommentRequest": {
         "dataType": "refObject",
         "properties": {
-            "content": {"dataType":"string","required":true},
+            "text": {"dataType":"string","required":true},
         },
         "additionalProperties": false,
     },
@@ -2264,7 +2305,7 @@ export function RegisterRoutes(app: Router) {
                 limit: {"in":"query","name":"limit","dataType":"double"},
                 cursor: {"in":"query","name":"cursor","dataType":"string"},
         };
-        app.get('/sns/posts',
+        app.get('/sns/posts/list',
             ...(fetchMiddlewares<RequestHandler>(PostsController)),
             ...(fetchMiddlewares<RequestHandler>(PostsController.prototype.getPosts)),
 
@@ -2324,9 +2365,11 @@ export function RegisterRoutes(app: Router) {
         });
         // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
         const argsPostsController_getPost: Record<string, TsoaRoute.ParameterSchema> = {
-                postId: {"in":"path","name":"postId","required":true,"dataType":"string"},
+                uri: {"in":"query","name":"uri","dataType":"string"},
+                rkey: {"in":"query","name":"rkey","dataType":"string"},
+                ownerDid: {"in":"query","name":"ownerDid","dataType":"string"},
         };
-        app.get('/sns/posts/:postId',
+        app.get('/sns/posts',
             ...(fetchMiddlewares<RequestHandler>(PostsController)),
             ...(fetchMiddlewares<RequestHandler>(PostsController.prototype.getPost)),
 
@@ -2354,10 +2397,12 @@ export function RegisterRoutes(app: Router) {
         });
         // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
         const argsPostsController_deletePost: Record<string, TsoaRoute.ParameterSchema> = {
-                postId: {"in":"path","name":"postId","required":true,"dataType":"string"},
-                requestObj: {"in":"request","name":"requestObj","required":true,"dataType":"object"},
+                uri: {"in":"query","name":"uri","dataType":"string"},
+                rkey: {"in":"query","name":"rkey","dataType":"string"},
+                ownerDid: {"in":"query","name":"ownerDid","dataType":"string"},
+                requestObj: {"in":"request","name":"requestObj","dataType":"object"},
         };
-        app.delete('/sns/posts/:postId',
+        app.delete('/sns/posts',
             authenticateMiddleware([{"jwt":[]}]),
             ...(fetchMiddlewares<RequestHandler>(PostsController)),
             ...(fetchMiddlewares<RequestHandler>(PostsController.prototype.deletePost)),
@@ -2386,11 +2431,11 @@ export function RegisterRoutes(app: Router) {
         });
         // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
         const argsPostsController_getUserPosts: Record<string, TsoaRoute.ParameterSchema> = {
-                userId: {"in":"path","name":"userId","required":true,"dataType":"string"},
+                ownerDid: {"in":"path","name":"ownerDid","required":true,"dataType":"string"},
                 limit: {"default":20,"in":"query","name":"limit","dataType":"double"},
                 cursor: {"in":"query","name":"cursor","dataType":"string"},
         };
-        app.get('/sns/posts/users/:userId',
+        app.get('/sns/posts/users/:ownerDid',
             ...(fetchMiddlewares<RequestHandler>(PostsController)),
             ...(fetchMiddlewares<RequestHandler>(PostsController.prototype.getUserPosts)),
 
@@ -2833,11 +2878,11 @@ export function RegisterRoutes(app: Router) {
         });
         // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
         const argsCommentsController_createComment: Record<string, TsoaRoute.ParameterSchema> = {
-                postId: {"in":"path","name":"postId","required":true,"dataType":"string"},
+                rootPostUri: {"in":"query","name":"rootPostUri","required":true,"dataType":"string"},
                 request: {"in":"body","name":"request","required":true,"ref":"CreateCommentRequest"},
                 requestObj: {"in":"request","name":"requestObj","required":true,"dataType":"object"},
         };
-        app.post('/sns/posts/:postId/comments',
+        app.post('/sns/posts/comments',
             authenticateMiddleware([{"jwt":[]}]),
             ...(fetchMiddlewares<RequestHandler>(CommentsController)),
             ...(fetchMiddlewares<RequestHandler>(CommentsController.prototype.createComment)),
@@ -2866,11 +2911,11 @@ export function RegisterRoutes(app: Router) {
         });
         // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
         const argsCommentsController_getPostComments: Record<string, TsoaRoute.ParameterSchema> = {
-                postId: {"in":"path","name":"postId","required":true,"dataType":"string"},
+                rootPostUri: {"in":"query","name":"rootPostUri","required":true,"dataType":"string"},
                 limit: {"default":20,"in":"query","name":"limit","dataType":"double"},
                 cursor: {"in":"query","name":"cursor","dataType":"string"},
         };
-        app.get('/sns/posts/:postId/comments',
+        app.get('/sns/posts/comments',
             ...(fetchMiddlewares<RequestHandler>(CommentsController)),
             ...(fetchMiddlewares<RequestHandler>(CommentsController.prototype.getPostComments)),
 
@@ -2898,11 +2943,13 @@ export function RegisterRoutes(app: Router) {
         });
         // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
         const argsCommentsController_deleteComment: Record<string, TsoaRoute.ParameterSchema> = {
-                postId: {"in":"path","name":"postId","required":true,"dataType":"string"},
-                commentId: {"in":"path","name":"commentId","required":true,"dataType":"string"},
-                requestObj: {"in":"request","name":"requestObj","required":true,"dataType":"object"},
+                rootPostUri: {"in":"query","name":"rootPostUri","required":true,"dataType":"string"},
+                uri: {"in":"query","name":"uri","dataType":"string"},
+                rkey: {"in":"query","name":"rkey","dataType":"string"},
+                ownerDid: {"in":"query","name":"ownerDid","dataType":"string"},
+                requestObj: {"in":"request","name":"requestObj","dataType":"object"},
         };
-        app.delete('/sns/posts/:postId/comments/:commentId',
+        app.delete('/sns/posts/comments',
             authenticateMiddleware([{"jwt":[]}]),
             ...(fetchMiddlewares<RequestHandler>(CommentsController)),
             ...(fetchMiddlewares<RequestHandler>(CommentsController.prototype.deleteComment)),
