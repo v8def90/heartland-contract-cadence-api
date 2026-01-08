@@ -7,6 +7,11 @@
  */
 
 import type { ApiResponse } from './ApiResponse';
+import type {
+  ReplyRef,
+  SimplifiedEmbedImage,
+  SimplifiedFacet,
+} from '../dynamodb/AtProtocolPostModels';
 
 /**
  * User Profile Data
@@ -46,29 +51,32 @@ export interface UserProfile {
 
 /**
  * Post Data
+ *
+ * @description Post data following AT Protocol Lexicon conventions.
+ * Standard fields follow AT Protocol naming, while extended fields are custom extensions.
  */
 export interface PostData {
-  /** Post ID */
-  postId: string;
-  /** Author user ID */
-  authorId: string;
+  /** AT URI (AT Protocol standard) */
+  uri: string;
+  /** Record key (rkey, TID format) */
+  rkey: string;
+  /** Repository owner DID (AT Protocol standard) */
+  ownerDid: string;
   /** Author display name */
   authorName: string;
-  /** Author username */
+  /** Author handle (AT Protocol standard, without domain) */
   authorUsername: string;
-  /** Post content */
-  content: string;
-  /** Image URLs */
-  images?: string[] | undefined;
-  /** Tags */
-  tags?: string[] | undefined;
-  /** Like count */
-  likeCount: number;
-  /** Comment count */
-  commentCount: number;
+  /** Post text content (AT Protocol standard, previously content) */
+  text: string;
+  /** Embed images (AT Protocol standard, previously images) */
+  embed?: {
+    images?: SimplifiedEmbedImage[];
+  };
+  /** Facets (AT Protocol standard, previously tags) */
+  facets?: SimplifiedFacet[];
   /** Is liked by current user */
   isLiked: boolean;
-  /** Created timestamp */
+  /** Created timestamp (AT Protocol standard) */
   createdAt: string;
   /** Updated timestamp */
   updatedAt: string;
@@ -116,25 +124,32 @@ export interface UpdateUserProfileRequest {
 
 /**
  * Comment Data
+ *
+ * @description Comment data following AT Protocol Lexicon conventions.
+ * Comments are treated as Reply Posts in AT Protocol.
  */
 export interface CommentData {
-  /** Comment ID */
-  commentId: string;
-  /** Post ID */
-  postId: string;
-  /** Author user ID */
-  authorId: string;
+  /** AT URI (AT Protocol standard) */
+  uri: string;
+  /** Record key (rkey, TID format) */
+  rkey: string;
+  /** Repository owner DID (AT Protocol standard) */
+  ownerDid: string;
+  /** Root post AT URI (AT Protocol standard) */
+  rootPostUri: string;
+  /** Parent post AT URI (AT Protocol standard) */
+  parentPostUri: string;
   /** Author display name */
   authorName: string;
-  /** Author username */
+  /** Author handle (AT Protocol standard, without domain) */
   authorUsername: string;
-  /** Comment content */
-  content: string;
-  /** Like count */
-  likeCount: number;
+  /** Comment text content (AT Protocol standard, previously content) */
+  text: string;
+  /** Reply reference (AT Protocol standard) */
+  reply?: ReplyRef;
   /** Is liked by current user */
   isLiked: boolean;
-  /** Created timestamp */
+  /** Created timestamp (AT Protocol standard) */
   createdAt: string;
   /** Updated timestamp */
   updatedAt: string;

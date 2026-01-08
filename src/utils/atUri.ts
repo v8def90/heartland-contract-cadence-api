@@ -133,3 +133,68 @@ export function validateAtUri(uri: string): boolean {
 export function generateProfileAtUri(did: string): string {
   return `at://${did}/app.bsky.actor.profile/self`;
 }
+
+/**
+ * Generate Post AT URI
+ *
+ * @description Generates an AT Protocol URI for a post record.
+ *
+ * @param ownerDid - Repository owner's DID
+ * @param rkey - Record key (TID format)
+ * @returns Post AT URI
+ *
+ * @example
+ * ```typescript
+ * const postUri = generatePostAtUri('did:plc:xxx', '3k2abc123def456');
+ * // Returns: 'at://did:plc:xxx/app.bsky.feed.post/3k2abc123def456'
+ * ```
+ */
+export function generatePostAtUri(ownerDid: string, rkey: string): string {
+  return generateAtUri(ownerDid, 'app.bsky.feed.post', rkey);
+}
+
+/**
+ * Parse Post AT URI
+ *
+ * @description Parses a Post AT URI into its components.
+ *
+ * @param uri - Post AT URI string
+ * @returns Parsed URI components or null if invalid
+ *
+ * @example
+ * ```typescript
+ * const components = parsePostAtUri('at://did:plc:xxx/app.bsky.feed.post/3k2abc123def456');
+ * // Returns: { ownerDid: 'did:plc:xxx', rkey: '3k2abc123def456' }
+ * ```
+ */
+export function parsePostAtUri(
+  uri: string
+): { ownerDid: string; rkey: string } | null {
+  const components = parseAtUri(uri);
+  if (!components || components.collection !== 'app.bsky.feed.post' || !components.rkey) {
+    return null;
+  }
+  return {
+    ownerDid: components.did,
+    rkey: components.rkey,
+  };
+}
+
+/**
+ * Extract rkey from AT URI
+ *
+ * @description Extracts the rkey from an AT URI string.
+ *
+ * @param uri - AT URI string
+ * @returns rkey string or null if invalid
+ *
+ * @example
+ * ```typescript
+ * const rkey = extractRkeyFromUri('at://did:plc:xxx/app.bsky.feed.post/3k2abc123def456');
+ * // Returns: '3k2abc123def456'
+ * ```
+ */
+export function extractRkeyFromUri(uri: string): string | null {
+  const components = parseAtUri(uri);
+  return components?.rkey || null;
+}

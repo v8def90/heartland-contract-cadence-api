@@ -7,37 +7,52 @@
  */
 
 import type { ApiResponse } from '../responses/ApiResponse';
+import type {
+  SimplifiedEmbedImage,
+  SimplifiedFacet,
+} from '../dynamodb/AtProtocolPostModels';
 
 /**
  * Create Post Request
+ *
+ * @description Post creation request following AT Protocol Lexicon conventions.
  */
 export interface CreatePostRequest {
-  /** Post content (max 1000 characters) */
-  content: string;
-  /** Optional image URLs */
-  images?: string[];
-  /** Optional tags */
-  tags?: string[];
+  /** Post text content (AT Protocol standard, max 1000 characters, previously content) */
+  text: string;
+  /** Embed images (AT Protocol standard, previously images) */
+  embed?: {
+    images?: SimplifiedEmbedImage[];
+  };
+  /** Facets (AT Protocol standard, previously tags) */
+  facets?: SimplifiedFacet[];
 }
 
 /**
  * Update Post Request
+ *
+ * @description Post update request following AT Protocol Lexicon conventions.
  */
 export interface UpdatePostRequest {
-  /** Post content (max 1000 characters) */
-  content: string;
-  /** Optional image URLs */
-  images?: string[];
-  /** Optional tags */
-  tags?: string[];
+  /** Post text content (AT Protocol standard, max 1000 characters, previously content) */
+  text: string;
+  /** Embed images (AT Protocol standard, previously images) */
+  embed?: {
+    images?: SimplifiedEmbedImage[];
+  };
+  /** Facets (AT Protocol standard, previously tags) */
+  facets?: SimplifiedFacet[];
 }
 
 /**
  * Create Comment Request
+ *
+ * @description Comment creation request following AT Protocol Lexicon conventions.
+ * Comments are treated as Reply Posts in AT Protocol.
  */
 export interface CreateCommentRequest {
-  /** Comment content (max 500 characters) */
-  content: string;
+  /** Comment text content (AT Protocol standard, max 500 characters, previously content) */
+  text: string;
 }
 
 /**
@@ -62,10 +77,12 @@ export interface SearchUsersRequest {
 
 /**
  * Like Post Request
+ *
+ * @description Like post request following AT Protocol Lexicon conventions.
  */
 export interface LikePostRequest {
-  /** Post ID to like */
-  postId: string;
+  /** Post AT URI to like (AT Protocol standard, previously postId) */
+  uri: string;
 }
 
 /**

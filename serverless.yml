@@ -396,13 +396,18 @@ resources:
             AttributeType: S
           - AttributeName: GSI12SK
             AttributeType: S
+          - AttributeName: GSI13PK
+            AttributeType: S
+          - AttributeName: GSI13SK
+            AttributeType: S
         KeySchema:
           - AttributeName: PK
             KeyType: HASH
           - AttributeName: SK
             KeyType: RANGE
         GlobalSecondaryIndexes:
-          # GSI1: User posts (USER#{userId}#POSTS, createdAt)
+          # GSI1: User posts (AT Protocol) - REPO#{ownerDid} → REC#app.bsky.feed.post#{rkey}
+          # Note: This replaces the old USER#{userId}#POSTS structure for AT Protocol posts
           - IndexName: GSI1
             KeySchema:
               - AttributeName: GSI1PK
@@ -411,7 +416,8 @@ resources:
                 KeyType: RANGE
             Projection:
               ProjectionType: ALL
-          # GSI2: Post comments (POST#{postId}#COMMENTS, createdAt)
+          # GSI2: All posts feed (AT Protocol) - POST#ALL → REC#app.bsky.feed.post#{rkey}
+          # Note: This replaces the old POST#{postId}#COMMENTS structure for AT Protocol feed
           - IndexName: GSI2
             KeySchema:
               - AttributeName: GSI2PK
@@ -507,6 +513,16 @@ resources:
               - AttributeName: GSI12PK
                 KeyType: HASH
               - AttributeName: GSI12SK
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+          # GSI13: Reply posts (AT Protocol) - REPLY#ROOT#{rootPostUri} → REC#app.bsky.feed.post#{rkey}
+          # Note: Used for retrieving reply posts (comments) for a specific root post
+          - IndexName: GSI13
+            KeySchema:
+              - AttributeName: GSI13PK
+                KeyType: HASH
+              - AttributeName: GSI13SK
                 KeyType: RANGE
             Projection:
               ProjectionType: ALL
