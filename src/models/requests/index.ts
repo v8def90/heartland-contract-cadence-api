@@ -12,6 +12,9 @@
 // Token Management Request Types
 export * from './TokenRequests';
 
+// LINE Account Linking Request Types
+export * from './LineRequests';
+
 /**
  * Request Models for Heart Token API
  *

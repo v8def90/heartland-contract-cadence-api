@@ -175,7 +175,9 @@ export interface DynamoDBUserProfileItem {
     atproto?: boolean;
     eip155?: boolean;
     flow?: boolean;
+    line?: boolean; // LINEアカウント連携
   };
+  lineUserId?: string; // LINEユーザーID（検索用）
   accountStatus?: 'active' | 'suspended' | 'deleted';
   suspendedAt?: string;
   deletedAt?: string;

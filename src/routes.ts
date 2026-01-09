@@ -48,6 +48,8 @@ import { BalanceController } from './controllers/queries/BalanceController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { AdminController } from './controllers/queries/AdminController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { LineController } from './controllers/line/LineController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { AuthController } from './controllers/auth/AuthController';
 import { expressAuthentication } from './middleware/auth';
 // @ts-ignore - no great way to install types from subpackage
@@ -1182,6 +1184,126 @@ const models: TsoaRoute.Models = {
     "ApiResponse_AdminCapabilitiesData_": {
         "dataType": "refAlias",
         "type": {"dataType":"union","subSchemas":[{"ref":"SuccessResponse_AdminCapabilitiesData_"},{"ref":"ErrorResponse"}],"validators":{}},
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "LineLinkResponse": {
+        "dataType": "refObject",
+        "properties": {
+            "success": {"dataType":"boolean","required":true},
+            "redirectUrl": {"dataType":"string","required":true},
+            "nonce": {"dataType":"string","required":true},
+            "expiresAt": {"dataType":"string","required":true},
+        },
+        "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "SuccessResponse_LineLinkResponse_": {
+        "dataType": "refObject",
+        "properties": {
+            "success": {"dataType":"enum","enums":[true],"required":true},
+            "data": {"ref":"LineLinkResponse","required":true},
+            "timestamp": {"dataType":"string","required":true},
+        },
+        "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "ApiResponse_LineLinkResponse_": {
+        "dataType": "refAlias",
+        "type": {"dataType":"union","subSchemas":[{"ref":"SuccessResponse_LineLinkResponse_"},{"ref":"ErrorResponse"}],"validators":{}},
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "LineLinkRequest": {
+        "dataType": "refObject",
+        "properties": {
+            "email": {"dataType":"string"},
+            "password": {"dataType":"string"},
+        },
+        "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "LineCompleteLinkResponse": {
+        "dataType": "refObject",
+        "properties": {
+            "success": {"dataType":"boolean","required":true},
+            "lineUserId": {"dataType":"string","required":true},
+            "primaryDid": {"dataType":"string","required":true},
+            "linkedAt": {"dataType":"string","required":true},
+        },
+        "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "SuccessResponse_LineCompleteLinkResponse_": {
+        "dataType": "refObject",
+        "properties": {
+            "success": {"dataType":"enum","enums":[true],"required":true},
+            "data": {"ref":"LineCompleteLinkResponse","required":true},
+            "timestamp": {"dataType":"string","required":true},
+        },
+        "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "ApiResponse_LineCompleteLinkResponse_": {
+        "dataType": "refAlias",
+        "type": {"dataType":"union","subSchemas":[{"ref":"SuccessResponse_LineCompleteLinkResponse_"},{"ref":"ErrorResponse"}],"validators":{}},
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "LineCompleteLinkRequest": {
+        "dataType": "refObject",
+        "properties": {
+            "lineUserId": {"dataType":"string","required":true},
+            "nonce": {"dataType":"string","required":true},
+        },
+        "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "LineLinkStatus": {
+        "dataType": "refObject",
+        "properties": {
+            "isLinked": {"dataType":"boolean","required":true},
+            "lineUserId": {"dataType":"string"},
+            "linkedAt": {"dataType":"string"},
+            "primaryDid": {"dataType":"string"},
+        },
+        "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "SuccessResponse_LineLinkStatus_": {
+        "dataType": "refObject",
+        "properties": {
+            "success": {"dataType":"enum","enums":[true],"required":true},
+            "data": {"ref":"LineLinkStatus","required":true},
+            "timestamp": {"dataType":"string","required":true},
+        },
+        "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "ApiResponse_LineLinkStatus_": {
+        "dataType": "refAlias",
+        "type": {"dataType":"union","subSchemas":[{"ref":"SuccessResponse_LineLinkStatus_"},{"ref":"ErrorResponse"}],"validators":{}},
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "LineUnlinkResponse": {
+        "dataType": "refObject",
+        "properties": {
+            "success": {"dataType":"boolean","required":true},
+            "unlinkedAt": {"dataType":"string","required":true},
+        },
+        "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "SuccessResponse_LineUnlinkResponse_": {
+        "dataType": "refObject",
+        "properties": {
+            "success": {"dataType":"enum","enums":[true],"required":true},
+            "data": {"ref":"LineUnlinkResponse","required":true},
+            "timestamp": {"dataType":"string","required":true},
+        },
+        "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "ApiResponse_LineUnlinkResponse_": {
+        "dataType": "refAlias",
+        "type": {"dataType":"union","subSchemas":[{"ref":"SuccessResponse_LineUnlinkResponse_"},{"ref":"ErrorResponse"}],"validators":{}},
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     "AuthData": {
@@ -3262,6 +3384,131 @@ export function RegisterRoutes(app: Router) {
 
               await templateService.apiHandler({
                 methodName: 'getAdminCapabilities',
+                controller,
+                response,
+                next,
+                validatedArgs,
+                successStatus: 200,
+              });
+            } catch (err) {
+                return next(err);
+            }
+        });
+        // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+        const argsLineController_linkAccount: Record<string, TsoaRoute.ParameterSchema> = {
+                request: {"in":"body","name":"request","required":true,"ref":"LineLinkRequest"},
+                linkToken: {"in":"query","name":"linkToken","required":true,"dataType":"string"},
+                requestObj: {"in":"request","name":"requestObj","required":true,"dataType":"object"},
+        };
+        app.post('/line/link',
+            ...(fetchMiddlewares<RequestHandler>(LineController)),
+            ...(fetchMiddlewares<RequestHandler>(LineController.prototype.linkAccount)),
+
+            async function LineController_linkAccount(request: ExRequest, response: ExResponse, next: any) {
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({ args: argsLineController_linkAccount, request, response });
+
+                const controller = new LineController();
+
+              await templateService.apiHandler({
+                methodName: 'linkAccount',
+                controller,
+                response,
+                next,
+                validatedArgs,
+                successStatus: 200,
+              });
+            } catch (err) {
+                return next(err);
+            }
+        });
+        // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+        const argsLineController_completeLink: Record<string, TsoaRoute.ParameterSchema> = {
+                request: {"in":"body","name":"request","required":true,"ref":"LineCompleteLinkRequest"},
+        };
+        app.post('/line/complete-link',
+            ...(fetchMiddlewares<RequestHandler>(LineController)),
+            ...(fetchMiddlewares<RequestHandler>(LineController.prototype.completeLink)),
+
+            async function LineController_completeLink(request: ExRequest, response: ExResponse, next: any) {
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({ args: argsLineController_completeLink, request, response });
+
+                const controller = new LineController();
+
+              await templateService.apiHandler({
+                methodName: 'completeLink',
+                controller,
+                response,
+                next,
+                validatedArgs,
+                successStatus: 200,
+              });
+            } catch (err) {
+                return next(err);
+            }
+        });
+        // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+        const argsLineController_getLinkStatus: Record<string, TsoaRoute.ParameterSchema> = {
+                lineUserId: {"in":"query","name":"lineUserId","dataType":"string"},
+                primaryDid: {"in":"query","name":"primaryDid","dataType":"string"},
+        };
+        app.get('/line/link-status',
+            ...(fetchMiddlewares<RequestHandler>(LineController)),
+            ...(fetchMiddlewares<RequestHandler>(LineController.prototype.getLinkStatus)),
+
+            async function LineController_getLinkStatus(request: ExRequest, response: ExResponse, next: any) {
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({ args: argsLineController_getLinkStatus, request, response });
+
+                const controller = new LineController();
+
+              await templateService.apiHandler({
+                methodName: 'getLinkStatus',
+                controller,
+                response,
+                next,
+                validatedArgs,
+                successStatus: 200,
+              });
+            } catch (err) {
+                return next(err);
+            }
+        });
+        // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+        const argsLineController_unlinkAccount: Record<string, TsoaRoute.ParameterSchema> = {
+                lineUserId: {"in":"query","name":"lineUserId","dataType":"string"},
+                primaryDid: {"in":"query","name":"primaryDid","dataType":"string"},
+        };
+        app.delete('/line/unlink',
+            authenticateMiddleware([{"jwt":[]}]),
+            ...(fetchMiddlewares<RequestHandler>(LineController)),
+            ...(fetchMiddlewares<RequestHandler>(LineController.prototype.unlinkAccount)),
+
+            async function LineController_unlinkAccount(request: ExRequest, response: ExResponse, next: any) {
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({ args: argsLineController_unlinkAccount, request, response });
+
+                const controller = new LineController();
+
+              await templateService.apiHandler({
+                methodName: 'unlinkAccount',
                 controller,
                 response,
                 next,
