@@ -42,11 +42,19 @@ export class JobController extends Controller {
 
   /**
    * Create a new job
+   *
+   * @description Creates a new job for tracking asynchronous operations such as image uploads.
+   * The userId in the request must be the user's primary DID (did:plc:...).
+   *
+   * @param request - Job creation request containing userId (primaryDid), jobType, and metadata
+   * @param requestObj - Express request object for authentication
+   * @returns Promise resolving to created job data
    */
   @Post()
   @SuccessResponse(201, 'Job created successfully')
   @Response<ApiResponse>('400', 'Invalid request data')
   @Response<ApiResponse>('401', 'Authentication required')
+  @Response<ApiResponse>('403', 'Not authorized to create job for this user')
   @Response<ApiResponse>('500', 'Failed to create job')
   @Example<JobResponse>({
     success: true,
@@ -74,7 +82,7 @@ export class JobController extends Controller {
     @Request() requestObj: any
   ): Promise<JobResponse> {
     try {
-      // Extract user ID from JWT token
+      // Extract primaryDid from JWT token
       const user = requestObj?.user;
       if (!user || !user.id) {
         this.setStatus(401);
@@ -89,10 +97,11 @@ export class JobController extends Controller {
         };
       }
 
-      const authenticatedUserId = user.id;
+      const authenticatedPrimaryDid = user.id; // JWT payloadのsubフィールドにprimaryDidが含まれる
 
       // Check authorization - users can only create jobs for themselves
-      if (authenticatedUserId !== request.userId) {
+      // request.userIdはprimaryDid（did:plc:...形式）である必要がある
+      if (authenticatedPrimaryDid !== request.userId) {
         this.setStatus(403);
         return {
           success: false,
@@ -145,6 +154,12 @@ export class JobController extends Controller {
 
   /**
    * Get job by ID
+   *
+   * @description Retrieves a job by its unique identifier.
+   * This endpoint does not require authentication as job IDs are UUIDs.
+   *
+   * @param jobId - Unique job identifier (UUID)
+   * @returns Promise resolving to job data
    */
   @Get('{jobId}')
   @SuccessResponse(200, 'Job retrieved successfully')
@@ -218,6 +233,13 @@ export class JobController extends Controller {
 
   /**
    * Update job status
+   *
+   * @description Updates the status and progress of a job.
+   * Typically used by background workers to update job progress.
+   *
+   * @param jobId - Unique job identifier (UUID)
+   * @param request - Job update request containing status, progress, and optional message/error
+   * @returns Promise resolving to updated job data
    */
   @Put('{jobId}')
   @SuccessResponse(200, 'Job updated successfully')
@@ -284,10 +306,23 @@ export class JobController extends Controller {
 
   /**
    * Get user's jobs
+   *
+   * @description Retrieves a list of jobs for a specific user.
+   * Supports filtering by jobType and status, with pagination support.
+   *
+   * @param userId - User's primary DID (did:plc:...)
+   * @param requestObj - Express request object for authentication
+   * @param jobType - Optional filter by job type
+   * @param status - Optional filter by job status
+   * @param limit - Number of jobs to return (default: 20)
+   * @param cursor - Pagination cursor for next page
+   * @returns Promise resolving to paginated job list
    */
   @Get('user/{userId}')
   @SuccessResponse(200, 'User jobs retrieved successfully')
   @Response<ApiResponse>('400', 'Invalid request parameters')
+  @Response<ApiResponse>('401', 'Authentication required')
+  @Response<ApiResponse>('403', 'Not authorized to view jobs for this user')
   @Response<ApiResponse>('500', 'Failed to retrieve user jobs')
   @Example<JobListResponse>({
     success: true,
@@ -321,7 +356,7 @@ export class JobController extends Controller {
     @Query() cursor?: string
   ): Promise<JobListResponse> {
     try {
-      // Extract user ID from JWT token
+      // Extract primaryDid from JWT token
       const user = requestObj?.user;
       if (!user || !user.id) {
         this.setStatus(401);
@@ -336,10 +371,11 @@ export class JobController extends Controller {
         };
       }
 
-      const authenticatedUserId = user.id;
+      const authenticatedPrimaryDid = user.id; // JWT payloadのsubフィールドにprimaryDidが含まれる
 
       // Check authorization - users can only view their own jobs
-      if (authenticatedUserId !== userId) {
+      // userIdパラメータはprimaryDid（did:plc:...形式）である必要がある
+      if (authenticatedPrimaryDid !== userId) {
         this.setStatus(403);
         return {
           success: false,

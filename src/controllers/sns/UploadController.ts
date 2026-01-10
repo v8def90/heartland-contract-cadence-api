@@ -61,7 +61,7 @@ export class UploadController extends Controller {
    * @description Generates a presigned URL for direct S3 upload of user images.
    * Supports avatar and background images with rate limiting and validation.
    *
-   * @param userId - User ID for the upload
+   * @param userId - User's primary DID (did:plc:...) for the upload
    * @param imageType - Type of image (avatar or background)
    * @param request - Upload request containing file details
    * @param requestObj - Express request object for authentication
@@ -119,7 +119,7 @@ export class UploadController extends Controller {
     @Request() requestObj: any
   ): Promise<PresignedUrlResponse> {
     try {
-      // Extract user ID from JWT token
+      // Extract primaryDid from JWT token
       const user = requestObj?.user;
       if (!user || !user.id) {
         this.setStatus(401);
@@ -134,10 +134,11 @@ export class UploadController extends Controller {
         };
       }
 
-      const authenticatedUserId = user.id;
+      const authenticatedPrimaryDid = user.id; // JWT payloadのsubフィールドにprimaryDidが含まれる
 
       // Check authorization - users can only upload for themselves
-      if (authenticatedUserId !== userId) {
+      // userIdパラメータはprimaryDid（did:plc:...形式）である必要がある
+      if (authenticatedPrimaryDid !== userId) {
         this.setStatus(403);
         return {
           success: false,
@@ -257,7 +258,7 @@ export class UploadController extends Controller {
    * @description Retrieves the current status of an image upload operation.
    * Useful for tracking upload progress and handling completion.
    *
-   * @param userId - User ID
+   * @param userId - User's primary DID (did:plc:...)
    * @param uploadId - Upload ID to check status for
    * @param requestObj - Express request object for authentication
    * @returns Promise resolving to upload status data
@@ -297,7 +298,7 @@ export class UploadController extends Controller {
     @Request() requestObj: any
   ): Promise<UploadStatusResponse> {
     try {
-      // Extract user ID from JWT token
+      // Extract primaryDid from JWT token
       const user = requestObj?.user;
       if (!user || !user.id) {
         this.setStatus(401);
@@ -312,10 +313,11 @@ export class UploadController extends Controller {
         };
       }
 
-      const authenticatedUserId = user.id;
+      const authenticatedPrimaryDid = user.id; // JWT payloadのsubフィールドにprimaryDidが含まれる
 
       // Check authorization - users can only check their own uploads
-      if (authenticatedUserId !== userId) {
+      // userIdパラメータはprimaryDid（did:plc:...形式）である必要がある
+      if (authenticatedPrimaryDid !== userId) {
         this.setStatus(403);
         return {
           success: false,

@@ -15,13 +15,20 @@ export const handler = async (
 
   try {
     // Extract path parameters and method
-    const method = event.httpMethod || (event.requestContext as any)?.http?.method;
+    const method =
+      event.httpMethod || (event.requestContext as any)?.http?.method;
     const path = event.path || (event as any).rawPath;
     const pathParameters = event.pathParameters || {};
 
     // Authenticate JWT token for protected endpoints
+    // Note: PUT /sns/jobs/{jobId} is for background workers and does not require authentication
     let authenticatedUser = null;
-    if (method !== 'GET' || path.includes('/jobs/user/')) {
+    const isPutJobUpdate =
+      method === 'PUT' && path.includes('/jobs/') && pathParameters.jobId;
+    const requiresAuth =
+      (method !== 'GET' || path.includes('/jobs/user/')) && !isPutJobUpdate;
+
+    if (requiresAuth) {
       const authHeader =
         event.headers.authorization || event.headers.Authorization;
       if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -148,14 +155,14 @@ export const handler = async (
     ) {
       // Get user jobs
       const queryParams = event.queryStringParameters || {};
-        result = await controller.getUserJobs(
-          pathParameters.userId,
-          requestObj,
-          queryParams.jobType,
-          queryParams.status,
-          queryParams.limit ? parseInt(queryParams.limit) : undefined,
-          queryParams.cursor
-        );
+      result = await controller.getUserJobs(
+        pathParameters.userId,
+        requestObj,
+        queryParams.jobType,
+        queryParams.status,
+        queryParams.limit ? parseInt(queryParams.limit) : undefined,
+        queryParams.cursor
+      );
     } else {
       return {
         statusCode: 404,
