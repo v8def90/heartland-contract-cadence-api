@@ -2939,6 +2939,7 @@ export function RegisterRoutes(app: Router) {
         const argsFeedController_getFeed: Record<string, TsoaRoute.ParameterSchema> = {
                 limit: {"default":20,"in":"query","name":"limit","dataType":"double"},
                 cursor: {"in":"query","name":"cursor","dataType":"string"},
+                requestObj: {"in":"request","name":"requestObj","dataType":"object"},
         };
         app.get('/sns/feed',
             authenticateMiddleware([{"jwt":[]}]),

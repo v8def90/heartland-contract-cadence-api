@@ -16,6 +16,7 @@ import {
   Example,
   SuccessResponse,
   Response,
+  Request,
 } from 'tsoa';
 import type { ApiResponse } from '../../models/responses/ApiResponse';
 import type {
@@ -24,6 +25,7 @@ import type {
 } from '../../models/responses/SnsResponses';
 import type { GetFeedQuery } from '../../models/requests/SnsRequests';
 import { SnsService } from '../../services/SnsService';
+import { verifyJwtToken, type JwtPayload } from '../../middleware/passport';
 
 /**
  * SNS Feed Controller
@@ -133,11 +135,42 @@ export class FeedController extends Controller {
   })
   public async getFeed(
     @Query() limit: number = 20,
-    @Query() cursor?: string
+    @Query() cursor?: string,
+    @Request() requestObj?: any
   ): Promise<PostListResponse> {
     try {
-      // TODO: Extract user ID from JWT token
-      const userId = 'temp-user-id'; // This should come from JWT middleware
+      // Extract primaryDid from JWT token
+      let primaryDid: string | undefined;
+
+      // Try to get user from request object (set by JWT middleware)
+      if (requestObj?.user?.id) {
+        primaryDid = requestObj.user.id;
+      }
+      // If not available, try to extract from Authorization header
+      else if (requestObj?.headers?.authorization) {
+        const authHeader = requestObj.headers.authorization;
+        if (authHeader.startsWith('Bearer ')) {
+          const jwtToken = authHeader.substring(7);
+          const payload = verifyJwtToken(jwtToken);
+          if (payload) {
+            primaryDid = payload.sub; // JWT payloadのsubフィールドにprimaryDidが含まれる
+          }
+        }
+      }
+
+      if (!primaryDid) {
+        this.setStatus(401);
+        return {
+          success: false,
+          error: {
+            code: 'AUTHENTICATION_REQUIRED',
+            message: 'Authentication required',
+            details:
+              'Valid JWT token is required to retrieve personalized feed',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
 
       // Validate limit
       if (limit > 50) {
@@ -155,7 +188,7 @@ export class FeedController extends Controller {
 
       // Get user's following list
       const followingResult = await this.snsService.getUserFollowing(
-        userId,
+        primaryDid,
         1000
       ); // Get all following
       const followingIds = followingResult.items.map(follow => follow.userId);
@@ -173,47 +206,70 @@ export class FeedController extends Controller {
         };
       }
 
-      // TODO: Implement feed aggregation logic
-      // This is a simplified implementation that gets posts from all followed users
-      // In a real implementation, you would want to:
-      // 1. Aggregate posts from all followed users
-      // 2. Sort by creation time
-      // 3. Apply pagination
-      // 4. Cache frequently accessed data
+      // Aggregate posts from all followed users
+      // Get posts from each followed user and combine them
+      const allPosts: PostData[] = [];
+      const maxPostsPerUser = Math.ceil(limit / followingIds.length) || limit;
 
-      // For now, we'll get posts from the first followed user as a placeholder
-      const firstFollowingId = followingIds[0];
-      if (!firstFollowingId) {
-        return {
-          success: true,
-          data: {
-            items: [],
-            nextCursor: undefined,
-            hasMore: false,
-          },
-          timestamp: new Date().toISOString(),
-        };
-      }
-
-      const feedResult = await this.snsService.getUserPosts(
-        firstFollowingId,
-        limit,
-        cursor
+      // Fetch posts from each followed user in parallel
+      const postPromises = followingIds.map(followingId =>
+        this.snsService.getUserPosts(
+          followingId,
+          maxPostsPerUser * 2,
+          undefined
+        )
       );
 
-      // Posts already have author information from SnsService
-      const postsWithAuthorInfo: PostData[] = feedResult.items.map(post => ({
+      const postResults = await Promise.all(postPromises);
+
+      // Combine all posts
+      for (const result of postResults) {
+        if (result.items) {
+          allPosts.push(...result.items);
+        }
+      }
+
+      // Sort by creation time (newest first)
+      allPosts.sort((a, b) => {
+        const timeA = new Date(a.createdAt).getTime();
+        const timeB = new Date(b.createdAt).getTime();
+        return timeB - timeA; // Descending order
+      });
+
+      // Apply pagination
+      let startIndex = 0;
+      if (cursor) {
+        // Decode cursor to get start index (simplified implementation)
+        try {
+          const decoded = JSON.parse(Buffer.from(cursor, 'base64').toString());
+          startIndex = decoded.startIndex || 0;
+        } catch {
+          // Invalid cursor, start from beginning
+          startIndex = 0;
+        }
+      }
+
+      const paginatedPosts = allPosts.slice(startIndex, startIndex + limit);
+      const hasMore = startIndex + limit < allPosts.length;
+      const nextCursor = hasMore
+        ? Buffer.from(
+            JSON.stringify({ startIndex: startIndex + limit })
+          ).toString('base64')
+        : undefined;
+
+      // TODO: Check if current user liked each post
+      // For now, set isLiked to false (will be implemented later)
+      const postsWithLikeStatus: PostData[] = paginatedPosts.map(post => ({
         ...post,
-        // TODO: Check if current user liked this post
-        isLiked: false, // This should come from JWT middleware
+        isLiked: false, // TODO: Implement like status check
       }));
 
       return {
         success: true,
         data: {
-          items: postsWithAuthorInfo,
-          nextCursor: feedResult.nextCursor,
-          hasMore: feedResult.hasMore,
+          items: postsWithLikeStatus,
+          nextCursor,
+          hasMore,
         },
         timestamp: new Date().toISOString(),
       };
