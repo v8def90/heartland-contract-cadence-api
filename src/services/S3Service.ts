@@ -34,7 +34,7 @@ export class S3Service {
    * Generate presigned URL for image upload
    *
    * @param userId - User ID
-   * @param imageType - Type of image (avatar or background)
+   * @param imageType - Type of image (avatar, background, or post)
    * @param fileType - File extension
    * @param contentType - MIME type
    * @returns Presigned URL data

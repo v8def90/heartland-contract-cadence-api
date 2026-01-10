@@ -145,6 +145,12 @@ export interface CommentData {
   authorUsername: string;
   /** Comment text content (AT Protocol standard, previously content) */
   text: string;
+  /** Embed images (AT Protocol standard, optional) */
+  embed?: {
+    images?: SimplifiedEmbedImage[];
+  };
+  /** Facets (AT Protocol standard, optional) */
+  facets?: SimplifiedFacet[];
   /** Reply reference (AT Protocol standard, optional) */
   reply?: ReplyRef | undefined;
   /** Is liked by current user */

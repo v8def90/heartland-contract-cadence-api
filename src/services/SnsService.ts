@@ -1324,13 +1324,17 @@ export class SnsService {
    * @param text - Comment text content
    * @param rootPostUri - Root post AT URI
    * @param parentPostUri - Parent post AT URI (usually same as rootPostUri for direct comments)
+   * @param embed - Embed images (optional)
+   * @param facets - Facets for rich text (optional)
    * @returns Promise resolving to created comment AT URI
    */
   async createComment(
     ownerDid: string,
     text: string,
     rootPostUri: string,
-    parentPostUri: string
+    parentPostUri: string,
+    embed?: { images?: SimplifiedEmbedImage[] },
+    facets?: SimplifiedFacet[]
   ): Promise<string> {
     if (!this.client) {
       const mockRkey = generateRkey();
@@ -1381,6 +1385,8 @@ export class SnsService {
       createdAt: now,
       createdAtIso: now,
       updatedAtIso: now,
+      ...(embed && { embed }),
+      ...(facets && facets.length > 0 && { facets }),
       ttl: this.getTTL(),
       // GSI Keys
       GSI1PK: `REPO#${ownerDid}`,
@@ -1478,6 +1484,13 @@ export class SnsService {
         const rootPostUriFromReply = replyPostItem.reply?.root.uri || '';
         const parentPostUriFromReply = replyPostItem.reply?.parent.uri || '';
 
+        // embed.images is already SimplifiedEmbedImage format
+        const embedImages: SimplifiedEmbedImage[] | undefined =
+          replyPostItem.embed?.images;
+
+        // facets is already SimplifiedFacet format
+        const facets: SimplifiedFacet[] | undefined = replyPostItem.facets;
+
         return {
           uri: replyPostItem.uri,
           rkey: replyPostItem.rkey,
@@ -1487,6 +1500,9 @@ export class SnsService {
           authorName,
           authorUsername,
           text: replyPostItem.text,
+          ...(embedImages &&
+            embedImages.length > 0 && { embed: { images: embedImages } }),
+          ...(facets && facets.length > 0 && { facets }),
           reply: replyPostItem.reply,
           isLiked: false, // Will be populated by controller
           createdAt: replyPostItem.createdAt,

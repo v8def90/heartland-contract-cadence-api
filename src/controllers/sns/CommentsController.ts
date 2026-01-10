@@ -63,9 +63,10 @@ export class CommentsController extends Controller {
    *
    * @description Creates a new comment on the specified post with the provided content.
    * The comment will be associated with the authenticated user.
+   * Supports embedding images and facets (rich text) following AT Protocol standards.
    *
-   * @param postId - The ID of the post to comment on
-   * @param request - Comment creation request containing content
+   * @param rootPostUri - The AT URI of the root post to comment on (query parameter)
+   * @param request - Comment creation request containing text, optional embed images, and optional facets
    * @returns Promise resolving to the created comment data
    *
    * @security JWT authentication required
@@ -88,6 +89,16 @@ export class CommentsController extends Controller {
       authorName: 'John Doe',
       authorUsername: 'johndoe',
       text: 'Great post!',
+      embed: {
+        images: [
+          {
+            url: 'https://example.com/image.jpg',
+            alt: 'Example image',
+            mimeType: 'image/jpeg',
+            size: 102400,
+          },
+        ],
+      },
       isLiked: false,
       createdAt: '2024-01-01T00:00:00.000Z',
       updatedAt: '2024-01-01T00:00:00.000Z',
@@ -170,7 +181,9 @@ export class CommentsController extends Controller {
         userId, // ownerDid
         request.text, // text (previously content)
         rootPostUri, // rootPostUri
-        parentPostUri // parentPostUri
+        parentPostUri, // parentPostUri
+        request.embed, // embed (images)
+        request.facets // facets
       );
 
       // Get created comment by URI

@@ -53,6 +53,12 @@ export interface UpdatePostRequest {
 export interface CreateCommentRequest {
   /** Comment text content (AT Protocol standard, max 500 characters, previously content) */
   text: string;
+  /** Embed images (AT Protocol standard, optional) */
+  embed?: {
+    images?: SimplifiedEmbedImage[];
+  };
+  /** Facets (AT Protocol standard, optional) */
+  facets?: SimplifiedFacet[];
 }
 
 /**

@@ -59,15 +59,16 @@ export class UploadController extends Controller {
    * Generate presigned URL for image upload
    *
    * @description Generates a presigned URL for direct S3 upload of user images.
-   * Supports avatar and background images with rate limiting and validation.
+   * Supports avatar, background, and post images with rate limiting and validation.
    *
    * @param userId - User's primary DID (did:plc:...) for the upload
-   * @param imageType - Type of image (avatar or background)
+   * @param imageType - Type of image (avatar, background, or post)
    * @param request - Upload request containing file details
    * @param requestObj - Express request object for authentication
    * @returns Promise resolving to presigned URL data
    *
    * @example imageType "avatar"
+   * @example imageType "post"
    * @example request {"fileType": "png", "fileSize": 1048576, "contentType": "image/png"}
    */
   @Post('{userId}/upload/{imageType}')
@@ -152,14 +153,14 @@ export class UploadController extends Controller {
       }
 
       // Validate image type
-      if (!['avatar', 'background'].includes(imageType)) {
+      if (!['avatar', 'background', 'post'].includes(imageType)) {
         this.setStatus(400);
         return {
           success: false,
           error: {
             code: 'VALIDATION_ERROR',
             message: 'Invalid image type',
-            details: 'imageType must be either "avatar" or "background"',
+            details: 'imageType must be one of: "avatar", "background", or "post"',
           },
           timestamp: new Date().toISOString(),
         };

@@ -28,7 +28,7 @@ export interface UploadStatusRequest {
 /**
  * Image type enumeration
  */
-export type ImageType = 'avatar' | 'background';
+export type ImageType = 'avatar' | 'background' | 'post';
 
 /**
  * Supported file types
