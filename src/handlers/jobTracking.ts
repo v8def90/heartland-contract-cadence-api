@@ -151,12 +151,12 @@ export const handler = async (
     } else if (
       method === 'GET' &&
       path.includes('/jobs/user/') &&
-      pathParameters.userId
+      pathParameters.did
     ) {
       // Get user jobs
       const queryParams = event.queryStringParameters || {};
       result = await controller.getUserJobs(
-        pathParameters.userId,
+        pathParameters.did,
         requestObj,
         queryParams.jobType,
         queryParams.status,

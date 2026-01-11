@@ -246,7 +246,7 @@ functions:
       - { Ref: AwsSdkLayerLambdaLayer }
     events:
       - httpApi:
-          path: /sns/users/{userId}/upload/{imageType}
+          path: /sns/users/{did}/upload/{imageType}
           method: post
     environment:
       S3_BUCKET_NAME:
@@ -314,7 +314,7 @@ functions:
           path: /sns/jobs/{jobId}
           method: put
       - httpApi:
-          path: /sns/jobs/user/{userId}
+          path: /sns/jobs/user/{did}
           method: get
 
 resources:

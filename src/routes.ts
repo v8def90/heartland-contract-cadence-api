@@ -2328,12 +2328,12 @@ export function RegisterRoutes(app: Router) {
         });
         // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
         const argsUploadController_generatePresignedUrl: Record<string, TsoaRoute.ParameterSchema> = {
-                userId: {"in":"path","name":"userId","required":true,"dataType":"string"},
+                did: {"in":"path","name":"did","required":true,"dataType":"string"},
                 imageType: {"in":"path","name":"imageType","required":true,"ref":"ImageType"},
                 request: {"in":"body","name":"request","required":true,"ref":"PresignedUrlRequest"},
                 requestObj: {"in":"request","name":"requestObj","required":true,"dataType":"object"},
         };
-        app.post('/sns/users/:userId/upload/:imageType',
+        app.post('/sns/users/:did/upload/:imageType',
             authenticateMiddleware([{"jwt":[]}]),
             ...(fetchMiddlewares<RequestHandler>(UploadController)),
             ...(fetchMiddlewares<RequestHandler>(UploadController.prototype.generatePresignedUrl)),
@@ -2362,11 +2362,11 @@ export function RegisterRoutes(app: Router) {
         });
         // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
         const argsUploadController_getUploadStatus: Record<string, TsoaRoute.ParameterSchema> = {
-                userId: {"in":"path","name":"userId","required":true,"dataType":"string"},
+                did: {"in":"path","name":"did","required":true,"dataType":"string"},
                 uploadId: {"in":"path","name":"uploadId","required":true,"dataType":"string"},
                 requestObj: {"in":"request","name":"requestObj","required":true,"dataType":"object"},
         };
-        app.get('/sns/users/:userId/upload/status/:uploadId',
+        app.get('/sns/users/:did/upload/status/:uploadId',
             authenticateMiddleware([{"jwt":[]}]),
             ...(fetchMiddlewares<RequestHandler>(UploadController)),
             ...(fetchMiddlewares<RequestHandler>(UploadController.prototype.getUploadStatus)),
@@ -2778,14 +2778,14 @@ export function RegisterRoutes(app: Router) {
         });
         // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
         const argsJobController_getUserJobs: Record<string, TsoaRoute.ParameterSchema> = {
-                userId: {"in":"path","name":"userId","required":true,"dataType":"string"},
+                did: {"in":"path","name":"did","required":true,"dataType":"string"},
                 requestObj: {"in":"request","name":"requestObj","required":true,"dataType":"object"},
                 jobType: {"in":"query","name":"jobType","dataType":"string"},
                 status: {"in":"query","name":"status","dataType":"string"},
                 limit: {"in":"query","name":"limit","dataType":"double"},
                 cursor: {"in":"query","name":"cursor","dataType":"string"},
         };
-        app.get('/sns/jobs/user/:userId',
+        app.get('/sns/jobs/user/:did',
             ...(fetchMiddlewares<RequestHandler>(JobController)),
             ...(fetchMiddlewares<RequestHandler>(JobController.prototype.getUserJobs)),
 

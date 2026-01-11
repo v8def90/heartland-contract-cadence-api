@@ -310,7 +310,7 @@ export class JobController extends Controller {
    * @description Retrieves a list of jobs for a specific user.
    * Supports filtering by jobType and status, with pagination support.
    *
-   * @param userId - User's primary DID (did:plc:...)
+   * @param did - User's primary DID (did:plc:...)
    * @param requestObj - Express request object for authentication
    * @param jobType - Optional filter by job type
    * @param status - Optional filter by job status
@@ -318,7 +318,7 @@ export class JobController extends Controller {
    * @param cursor - Pagination cursor for next page
    * @returns Promise resolving to paginated job list
    */
-  @Get('user/{userId}')
+  @Get('user/{did}')
   @SuccessResponse(200, 'User jobs retrieved successfully')
   @Response<ApiResponse>('400', 'Invalid request parameters')
   @Response<ApiResponse>('401', 'Authentication required')
@@ -348,7 +348,7 @@ export class JobController extends Controller {
     timestamp: '2024-01-01T00:05:00.000Z',
   })
   public async getUserJobs(
-    @Path() userId: string,
+    @Path() did: string,
     @Request() requestObj: any,
     @Query() jobType?: string,
     @Query() status?: string,
@@ -374,8 +374,8 @@ export class JobController extends Controller {
       const authenticatedPrimaryDid = user.id; // JWT payloadのsubフィールドにprimaryDidが含まれる
 
       // Check authorization - users can only view their own jobs
-      // userIdパラメータはprimaryDid（did:plc:...形式）である必要がある
-      if (authenticatedPrimaryDid !== userId) {
+      // didパラメータはprimaryDid（did:plc:...形式）である必要がある
+      if (authenticatedPrimaryDid !== did) {
         this.setStatus(403);
         return {
           success: false,
@@ -388,7 +388,7 @@ export class JobController extends Controller {
         };
       }
 
-      const result = await this.jobService.getUserJobs(userId, {
+      const result = await this.jobService.getUserJobs(did, {
         jobType: jobType || undefined,
         status: status || undefined,
         limit: limit || 20,

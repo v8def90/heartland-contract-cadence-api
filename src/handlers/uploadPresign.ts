@@ -22,10 +22,10 @@ export const handler = async (
 
   try {
     // Extract path parameters
-    const userId = event.pathParameters?.userId;
+    const did = event.pathParameters?.did;
     const imageType = event.pathParameters?.imageType;
 
-    if (!userId || !imageType) {
+    if (!did || !imageType) {
       return {
         statusCode: 400,
         headers: {
@@ -39,7 +39,7 @@ export const handler = async (
           error: {
             code: 'VALIDATION_ERROR',
             message: 'Missing required path parameters',
-            details: 'userId and imageType are required',
+            details: 'did and imageType are required',
           },
           timestamp: new Date().toISOString(),
         }),
@@ -145,8 +145,8 @@ export const handler = async (
 
     // Call the controller method
     const result = await controller.generatePresignedUrl(
-      userId,
-      imageType as 'avatar' | 'background',
+      did,
+      imageType as 'avatar' | 'background' | 'post',
       requestBody,
       authenticatedRequest
     );

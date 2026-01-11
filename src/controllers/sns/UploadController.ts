@@ -61,7 +61,7 @@ export class UploadController extends Controller {
    * @description Generates a presigned URL for direct S3 upload of user images.
    * Supports avatar, background, and post images with rate limiting and validation.
    *
-   * @param userId - User's primary DID (did:plc:...) for the upload
+   * @param did - User's primary DID (did:plc:...) for the upload
    * @param imageType - Type of image (avatar, background, or post)
    * @param request - Upload request containing file details
    * @param requestObj - Express request object for authentication
@@ -71,7 +71,7 @@ export class UploadController extends Controller {
    * @example imageType "post"
    * @example request {"fileType": "png", "fileSize": 1048576, "contentType": "image/png"}
    */
-  @Post('{userId}/upload/{imageType}')
+  @Post('{did}/upload/{imageType}')
   @Security('jwt')
   @SuccessResponse('200', 'Presigned URL generated successfully')
   @Response<ApiResponse>('400', 'Invalid request parameters')
@@ -109,12 +109,12 @@ export class UploadController extends Controller {
     error: {
       code: 'RATE_LIMIT_EXCEEDED',
       message: 'Upload rate limit exceeded. Please try again later.',
-      details: 'Maximum 10 uploads per hour allowed',
+      details: 'Maximum 100 uploads per hour allowed',
     },
     timestamp: '2024-01-01T00:00:00.000Z',
   })
   public async generatePresignedUrl(
-    @Path() userId: string,
+    @Path() did: string,
     @Path() imageType: ImageType,
     @Body() request: PresignedUrlRequest,
     @Request() requestObj: any
@@ -138,8 +138,8 @@ export class UploadController extends Controller {
       const authenticatedPrimaryDid = user.id; // JWT payloadのsubフィールドにprimaryDidが含まれる
 
       // Check authorization - users can only upload for themselves
-      // userIdパラメータはprimaryDid（did:plc:...形式）である必要がある
-      if (authenticatedPrimaryDid !== userId) {
+      // didパラメータはprimaryDid（did:plc:...形式）である必要がある
+      if (authenticatedPrimaryDid !== did) {
         this.setStatus(403);
         return {
           success: false,
@@ -160,7 +160,8 @@ export class UploadController extends Controller {
           error: {
             code: 'VALIDATION_ERROR',
             message: 'Invalid image type',
-            details: 'imageType must be one of: "avatar", "background", or "post"',
+            details:
+              'imageType must be one of: "avatar", "background", or "post"',
           },
           timestamp: new Date().toISOString(),
         };
@@ -197,14 +198,11 @@ export class UploadController extends Controller {
       }
 
       // Check rate limit
-      const canUpload = await this.rateLimitService.canUpload(
-        userId,
-        imageType
-      );
+      const canUpload = await this.rateLimitService.canUpload(did, imageType);
       if (!canUpload) {
         this.setStatus(429);
         const rateLimitError =
-          await this.rateLimitService.getRateLimitError(userId);
+          await this.rateLimitService.getRateLimitError(did);
         return {
           success: false,
           error: {
@@ -218,7 +216,7 @@ export class UploadController extends Controller {
 
       // Generate presigned URL
       const presignedUrlData = await this.s3Service.generatePresignedUrl(
-        userId,
+        did,
         imageType,
         request.fileType,
         request.contentType
@@ -226,7 +224,7 @@ export class UploadController extends Controller {
 
       // Record upload attempt for rate limiting
       await this.rateLimitService.recordUpload(
-        userId,
+        did,
         imageType,
         presignedUrlData.uploadId
       );
@@ -259,14 +257,14 @@ export class UploadController extends Controller {
    * @description Retrieves the current status of an image upload operation.
    * Useful for tracking upload progress and handling completion.
    *
-   * @param userId - User's primary DID (did:plc:...)
+   * @param did - User's primary DID (did:plc:...)
    * @param uploadId - Upload ID to check status for
    * @param requestObj - Express request object for authentication
    * @returns Promise resolving to upload status data
    *
    * @example uploadId "550e8400-e29b-41d4-a716-446655440000"
    */
-  @Get('{userId}/upload/status/{uploadId}')
+  @Get('{did}/upload/status/{uploadId}')
   @Security('jwt')
   @SuccessResponse('200', 'Upload status retrieved successfully')
   @Response<ApiResponse>('401', 'Authentication required')
@@ -294,7 +292,7 @@ export class UploadController extends Controller {
     timestamp: '2024-01-01T00:01:00.000Z',
   })
   public async getUploadStatus(
-    @Path() userId: string,
+    @Path() did: string,
     @Path() uploadId: string,
     @Request() requestObj: any
   ): Promise<UploadStatusResponse> {
@@ -317,8 +315,8 @@ export class UploadController extends Controller {
       const authenticatedPrimaryDid = user.id; // JWT payloadのsubフィールドにprimaryDidが含まれる
 
       // Check authorization - users can only check their own uploads
-      // userIdパラメータはprimaryDid（did:plc:...形式）である必要がある
-      if (authenticatedPrimaryDid !== userId) {
+      // didパラメータはprimaryDid（did:plc:...形式）である必要がある
+      if (authenticatedPrimaryDid !== did) {
         this.setStatus(403);
         return {
           success: false,
@@ -340,7 +338,7 @@ export class UploadController extends Controller {
           uploadId,
           status: 'pending',
           imageType: 'avatar',
-          userId,
+          userId: did,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         },

@@ -52,7 +52,7 @@ export class RateLimitService {
 
     this.config = {
       maxConcurrentUploads: 3,
-      maxUploadsPerHour: 10,
+      maxUploadsPerHour: 100,
       windowSeconds: 3600, // 1 hour
     };
   }
